@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="kaw" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Release">
+				<Option output="../kaw" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+			<Target title="Debug">
+				<Option output="../kaw" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Option parameters="F:\DEV\DMM\MEDIA\WAV\banana.wav" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+			<Add option="-mms-bitfields" />
+			<Add directory="F:/Appli/portaudio/include" />
+			<Add directory="F:/Appli/GTK2/include" />
+			<Add directory="F:/Appli/GTK2/include/gtk-2.0" />
+			<Add directory="F:/Appli/GTK2/include/cairo" />
+			<Add directory="F:/Appli/GTK2/include/gdk" />
+			<Add directory="F:/Appli/GTK2/include/glib-2.0" />
+			<Add directory="F:/Appli/GTK2/lib/glib-2.0/include" />
+			<Add directory="F:/Appli/GTK2/include/pango-1.0" />
+			<Add directory="F:/Appli/GTK2/lib/gtk-2.0/include" />
+			<Add directory="F:/Appli/GTK2/include/atk-1.0" />
+			<Add directory="F:/Appli/FFTW" />
+		</Compiler>
+		<Linker>
+			<Add library="portaudio" />
+			<Add library="portmidi" />
+			<Add library="winmm" />
+			<Add library="ole32" />
+			<Add library="gtk-win32-2.0" />
+			<Add library="gobject-2.0" />
+			<Add library="glib-2.0" />
+			<Add library="gdk-win32-2.0" />
+			<Add library="cairo" />
+			<Add directory="F:/Appli" />
+			<Add directory="F:/Appli/portaudio/lib/.libs" />
+			<Add directory="F:/Appli/GTK2/lib" />
+			<Add library="libfftw3f-3" />
+			<Add directory="F:/Appli/FFTW" />
+		</Linker>
+		<Unit filename="../glostru.h" />
+		<Unit filename="../gluplot.cpp" />
+		<Unit filename="../gluplot.h" />
+		<Unit filename="../gui.cpp" />
+		<Unit filename="../jluplot.cpp" />
+		<Unit filename="../jluplot.h" />
+		<Unit filename="../layers.cpp" />
+		<Unit filename="../layers.h" />
+		<Unit filename="../modpop2.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../modpop2.h" />
+		<Unit filename="../pa_devs.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../pa_devs.h" />
+		<Unit filename="../spectro.cpp" />
+		<Unit filename="../spectro.h" />
+		<Unit filename="../wav_head.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../wav_head.h" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+			<envvars />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
