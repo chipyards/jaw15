@@ -1,19 +1,30 @@
 /*
 ====================== Spec de GLUPLOT 2 ======================================
+
 GLUPLOT est une couche au dessus de JLUPLOT, dont le but est :
 	- heberger tout ce qui est specifique de GTK-GDK (jluplot ne depend que de Cairo)
 	  en particulier les event-callbacks
-	- supporter le trace vectoriel intermediaire sur un drawpad GDK, en vue d'accelerer
-	  les rafraichissement lorsqu'il n'y a pas zoom ni pan
+En plus cette version apporte :
+	- piloter JLUPLOT pour lui faire faire un trace vectoriel intermediaire sur un drawpad GDK,
+	  en vue d'accelerer les rafraichissement (lorsqu'il n'y a pas zoom ni pan)
 	- supporter le trace incremental sur l'ecran (drawing area) pour le curseur "audio play",
 	  ce qui implique de desactiver temporairement le double-buffer
 	- supporter un widget auxiliaire "zoombar"
+N.B. sur cette version, le passage par un drawpad n'est pas optionnel
+
+Implementation :
+	- la classe gpanel est derivee de la classe panel de JLUPLOT.
+	  sa methode draw dessine sur le drawpad (si necessaire) en iterant les appels a strip::draw()
+	  comme ferait panel::draw() (qui n'est pas utilisee)
+	- les niveaux strip et layer ne sont pas concernes par le passage par un drawpad
+	- il y a 2 modes de copie du drawpad sur l'ecran : B1 et B2, le choix est fait par le membre
+	  drawab ( drawab == NULL ==> B2 ) - normalement pas d'impact sur le resultat visuel
 
 Concepts :
 	- "ecran" ou "drawing area" : zone de frame buffer, visualisee en direct ou via un frame buffer cache
-	  peut supporter du dessin incremental de petits motifs seulement, en single-buffer
-	- drawpad : zone de memoire, tampon graphique, supporte dessin incremental
-	- draw : dessin vectoriel
+	  peut supporter du dessin incremental de petits motifs seulement (curseur), en single-buffer
+	- drawpad : zone de memoire aka tampon graphique, supporte dessin incremental
+	- draw : dessin vectoriel (au sens large, peut inclure de l'image)
 	- paint : mise a jour de la drawing area, en mixant copie de drawpad et dessin vectoriel
 	- automatique : methode capable de decider automatiquement si elle a quelque chose a faire
 	  on peut l'appeler "a toutes fins utiles"

@@ -1,27 +1,34 @@
 // les classes pour le projet JLUPLOT
 // en general on met les noms de classes en anglais, les membres en fr
 
-// les fonctions graphiques recoivent un pointeur void qui peut
-// servir a leur passer le contexte graphique, par exemple un cairo *
 
-// double indirection :
-//	dans un srip : vector < layer_base * > courbes;
-//	dans un panel : vector < strip * > bandes;
-// classes de base :
-//	layer_base est abstraite
-//	strip est operationnelle
 /*
 ====================== Spec de JLUPLOT 2 ======================================
 
 0) hierarchie
    jluplot trace un panel contenant une ou plusieurs strips, contenant chacune une ou plusieurs layers
 
-	(drawing area) > panel > strip > layer
+	(cairo surface) > panel > strip > layer
 
    la graduation X est commune a tous les strips, la graduation Y a tous les layers d'un strip
    (si on veut superposer 2 courbes avec echelle Y differente, il faut superposer 2 strips (si c'est supporte un jour))
 
-1) 4 espaces de coordonnees 2D :
+   cette hiérarchie donne lieu a une double indirection :
+	dans un strip : vector < layer_base * > courbes;
+	dans un panel : vector < strip * > bandes;
+   classes de base :
+	layer_base est abstraite - les layers operationnels sont definis dans l'unite layer.h
+	strip est operationnelle
+
+1) contexte graphique
+   les fonctions graphiques recoivent un pointeur qui sert a leur passer le contexte graphique, ici un cairo *
+   ce contexte peut appartenir à une cairo surface, parmi GTK drawing area, GDK pixmap, PDF surface
+   le code jluplot est independant de la nature de cette surface (qui est determinee par gluplot)
+
+   cette version a un placeholder pour pointer sur une zoombar horizontale facultative (sans etre aware de sa nature)
+   pour pouvoir la notifier d'un zoom horizontal effectue
+
+2) 4 espaces de coordonnees 2D :
 	- l'espace UV ou espace source : les coordonnees des elements d'un layer tels qu'ils sont disponibles
 	  par exemple pour un signal echantillonne, U c'est l'index des echantillons
 	- l'espace MN ou espace utilisateur : ce qui sert de reference pour aligner les layers dans un strip,

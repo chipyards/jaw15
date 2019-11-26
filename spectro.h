@@ -1,3 +1,33 @@
+/*
+la classe spectro cree une representation intermediaire du spectrogramme d'un passage musical
+sous forme d'un buffer 'spectre' de valeurs de 16 bits, destinees a servir d'index dans une LUT pour donner du RGB.
+
+Le procede inspire de Sonic Visualizer utilise la FFT suivie d'une conversion log de l'axe F ( spectro::compute() ).
+
+Ensuite la conversion en RGB ou colorisation peut se faire avec spectro::spectre2rgb(), possiblement directement
+dans un GDK pixbuf (actuellement la colorisation traite 'spectre' entier)
+
+Le buffer 'spectre' represente un ruban de hauteur H et longueur W
+	- H est le nombre de "bins" apres passage en echelle log, on le fixe arbitrairement
+	  exemple : 840 pour 7 octaves a 120 bins par octave
+	- W est le nombre d'echantillons spectraux, i.e. (nombre total de samples audio / fftstride)
+	  fftstride est typiquement une fraction de fftsize, par exemple 1/8
+H doit etre fourni par l'application, alors que W est calcule par spectro::init()
+ATTENTION : les elements de 'spectre' sont ranges par colonne, non par ligne comme dans une image
+
+Echelle verticale :
+	- l'application doit fournir
+		- log_opp = octaves par bin (octaves par pixel par abus de langage, log aussi abus car opp est deja log)
+		  par exemple 1.0 / 120.0;	// 10 bins / demi-ton
+		- log_fbase = frequence du bin le plus bas, exprimee en resolution FFT
+		  par exemple F0 / ( sample_freq / fftsize ), avec F0 en Hz
+	- question : ou est la limite entre interpolation et decimation ?
+		- pitch fft = ( sample_freq / fftsize ) exemple 44100 / 8192 = 5.38 Hz
+		- pitch spectre = f * ( pow( 2, opp ) - 1 ) exemple f * (pow(2,1/120)-1) = f * 0.0058
+		  soit f = pitch / 0.0058 = 5.38/0.0058 = 927 Hz (Bb5)
+	  interpretation : au dela de cette F, il y a moins de sample dans spectre que de bins FFT, donc perte d'info
+	  mais sans consequence pour l'appli
+*/
 #define FFTSIZEMAX 8192
 #define HMAX 2048
 
