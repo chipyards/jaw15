@@ -43,7 +43,6 @@ PaStream *stream;	// WAV player : portaudio stream
 double play_start_time;
 #endif
 spectro spec;		// un spectrographe
-GdkPixbuf * spectropix;	// pixbuf pour recevoir le spectrogramme apres palettisation
 
 int darea_expose_cnt;
 int idle_profiler_cnt;

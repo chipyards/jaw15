@@ -446,4 +446,10 @@ double layer_rgb::get_Vmax()
 // dessin (ses dimensions dx et dy sont lues chez les parents)
 void layer_rgb::draw( cairo_t * cai )
 {
+unsigned int dx, dy;
+dx = parent->parent->ndx;
+dy = parent->ndy;
+gdk_cairo_set_source_pixbuf( cai, spectropix, 0.0, -(double)dy ); // manque la trnsformation ici ;-)
+cairo_rectangle( cai, 0.0, -(double)dy, (double)dx, (double)dy );
+cairo_fill(cai);
 }

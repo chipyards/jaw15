@@ -86,6 +86,7 @@ void draw( cairo_t * cai );	// dessin
 // une image RGB telle qu'un spectrogramme (classe derivee de layer_base)
 class layer_rgb : public layer_base {
 public :
+GdkPixbuf * spectropix;	// pixbuf pour recevoir le spectrogramme apres palettisation
 
 // constructeur
 layer_rgb() : layer_base() {};

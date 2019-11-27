@@ -10,8 +10,15 @@ dans un GDK pixbuf (actuellement la colorisation traite 'spectre' entier)
 Le buffer 'spectre' represente un ruban de hauteur H et longueur W
 	- H est le nombre de "bins" apres passage en echelle log, on le fixe arbitrairement
 	  exemple : 840 pour 7 octaves a 120 bins par octave
-	- W est le nombre d'echantillons spectraux, i.e. (nombre total de samples audio / fftstride)
-	  fftstride est typiquement une fraction de fftsize, par exemple 1/8
+	- W est le nombre d'echantillons spectraux = nombres de runs FFT,
+		- approximativement W = nombre total de samples audio / fftstride
+		- plus precisement W = ( ( qsamples - fftsize ) / fftstride ) + 1
+	  en effet le dernier run FFT commence au sample ((W-1)*fftstride) et finit au sample ((W-1)*fftstride)+(fftsize-1)
+	  la condition d'adressage est (((W-1)*fftstride)+(fftsize-1)) < qsamples
+		((W-1)*fftstride) < (qsamples - fftsize + 1)
+		((W-1)*fftstride) <= (qsamples - fftsize)
+		(W-1) <= ((qsamples - fftsize)/fftstride)	Ok avec division entiere
+	- fftstride est typiquement une fraction de fftsize, par exemple 1/8 mais ce n'est pas oblige
 H doit etre fourni par l'application, alors que W est calcule par spectro::init()
 ATTENTION : les elements de 'spectre' sont ranges par colonne, non par ligne comme dans une image
 

@@ -35,6 +35,8 @@ GtkWindow * global_main_window = NULL;
 
 /** ============================ WAV file processing =============== */
 
+// layout pour les waveforms - doit etre fait avant lecture wav data mais apres lecture wav header
+// car wave_read_full() reference les buffers V[] dans les layers qui doivent exister
 void prep_layout1( gpanel * panneau, int ntracks, const char * fnam )
 {
 strip * curbande;
@@ -74,7 +76,7 @@ if	( ntracks > 1 )
 	panneau->bandes[0]->optX = 0;
 
 	// creer le strip
-	curbande = new strip;	// strip avec drawpad
+	curbande = new strip;
 	panneau->bandes.push_back( curbande );
 	// creer le layer
 	curcour = new layer_s16_lod;	// wave a pas uniforme
@@ -93,38 +95,51 @@ if	( ntracks > 1 )
 	curcour->set_m0( 0.0 );
 	curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
 	curcour->set_n0( 0.0 );
-	curcour->label = string(fnam);
 	curcour->fgcolor.dR = 0.0;
 	curcour->fgcolor.dG = 0.0;
 	curcour->fgcolor.dB = 0.75;
 	}
+// marge pour les textes
+panneau->mx = 60;
+}
+
+// layout pour le spectro - doit etre fait apres init du spectro
+void prep_layout2( gpanel * panneau )
+{
+strip * curbande;
+layer_rgb * curcour;
 /* creer le strip pour le spectro */
-curbande = new strip;	// strip avec drawpad
+curbande = new strip;
 panneau->bandes.push_back( curbande );
 // creer le layer
-layer_rgb * curcour2;
-curcour2 = new layer_rgb;
-curbande->courbes.push_back( curcour2 );
+curcour = new layer_rgb;
+curbande->courbes.push_back( curcour );
 // parentizer a cause des fonctions "set"
 panneau->parentize();
-
 // configurer le strip
 curbande->bgcolor.dR = 1.0;
 curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "spectro";
-curbande->optX = 0;	// pour le moment on n'a pas de menu de config pour l'axe X
-//*/
-// marge pour les textes
-panneau->mx = 60;
+curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
+// configurer le layer
+
+// TODO
+
 }
 
 // lecture WAV 16 bits entier en memoire, lui fournir wavpars vide
 // donnees stockées dans un ou deux (stereo) layer_s16
 // appelle prep_layout1 pour lui passer le nombre de canaux
 // alloue memoire pour WAV, rend NULL pour tout echec
-int wave_read_full( const char * fnam, wavpars * s, gpanel * panneau )
+// puis fait le spectrogramme
+// appelle prep_layout2
+int wave_process_full( const char * fnam, wavpars * s, gpanel * panneau, spectro * spek )
 {
+// pointeurs locaux sur les 2 ou 3 layers
+layer_s16_lod * layL, * layR = NULL;
+layer_rgb * layS;
+
 printf("ouverture %s en lecture\n", fnam );
 s->hand = open( fnam, O_RDONLY | O_BINARY );
 if	( s->hand == -1 )
@@ -141,18 +156,17 @@ printf("freq = %u, block = %u, bpsec = %u, size = %u\n",
 
 prep_layout1( panneau, s->chan, fnam );
 
-layer_s16_lod * wL, * wR = NULL;
 
-wL = (layer_s16_lod *)panneau->bandes[0]->courbes[0];
-wL->allocV( s->wavsize );	// pour 1 canal
-if	( wL->V == NULL )
+layL = (layer_s16_lod *)panneau->bandes[0]->courbes[0];
+layL->allocV( s->wavsize );	// pour 1 canal
+if	( layL->V == NULL )
 	{ printf("echec allocV %d samples\n", (int)s->wavsize ); close(s->hand); return -3;  }
 
 if	( s->chan > 1 )
 	{
-	wR = (layer_s16_lod *)panneau->bandes[1]->courbes[0];
-	wR->allocV( s->wavsize );	// pour 1 canal
-	if	( wR->V == NULL )
+	layR = (layer_s16_lod *)panneau->bandes[1]->courbes[0];
+	layR->allocV( s->wavsize );	// pour 1 canal
+	if	( layR->V == NULL )
 		{ printf("echec allocV %d samples\n", (int)s->wavsize ); close(s->hand); return -3;  }
 	}
 
@@ -178,14 +192,14 @@ while	( totalsamples1c < s->wavsize )
 		{
 		for	( i = 0; i < rdsamples; i += 2)
 			{
-			wL->V[j]   = rawsamples16[i];
-			wR->V[j++] = rawsamples16[i+1];
+			layL->V[j]   = rawsamples16[i];
+			layR->V[j++] = rawsamples16[i+1];
 			}
 		}
 	else if	( s->chan == 1 )
 		{
 		for	( i = 0; i < rdsamples; ++i )
-			wL->V[j++] = rawsamples16[i];
+			layL->V[j++] = rawsamples16[i];
 		}
 	}
 if	( totalsamples1c != s->wavsize )	// cela ne peut pas arriver, cette verif serait parano
@@ -193,17 +207,90 @@ if	( totalsamples1c != s->wavsize )	// cela ne peut pas arriver, cette verif ser
 close( s->hand );
 printf("lu %d samples Ok\n", totalsamples1c );
 
-int retval = wL->make_lods( 4, 4, 800 );
+int retval = layL->make_lods( 4, 4, 800 );
 if	( retval )
 	{ printf("echec make_lods err %d\n", retval ); return -6;  }
 if	( s->chan > 1 )
 	{
-	retval = wR->make_lods( 4, 4, 800 );
+	retval = layR->make_lods( 4, 4, 800 );
 	if	( retval )
 		{ printf("echec make_lods err %d\n", retval ); return -7;  }
 	}
 panneau->kq = (double)(s->freq);
 fflush(stdout);
+
+// creation spectrographe
+printf("\nstart init spectro\n"); fflush(stdout);
+spek->fftsize = 8192;
+spek->fftstride = 1024;
+spek->H = 840;
+retval = spek->init( s->wavsize );	// cette fonction calcule W
+if	( retval )
+	gasp("erreur init spectro %d", retval );
+// preparer resampling log
+spek->log_opp = 1.0 / 120.0;	// 10 pixels / demi-ton
+spek->log_fbase = 41.203;		// E1 = mi grave de la basse
+spek->log_fbase /= ( (double)s->freq / (double)spek->fftsize );
+spek->log_resamp_precalc();
+//spek->log_resamp_dump();
+printf("end init spectro\n\n"); fflush(stdout);
+
+// calcul spectre : hum, il faut les data en float mais on a lu la wav en s16
+// provisoirement on va convertir en float l'audio qu'on a deja en RAM
+// de plus on fait seulement du mono
+{
+printf("start calcul spectre\n"); fflush(stdout);
+float * raw32 = (float *) malloc( s->wavsize * sizeof(float) );
+if	( raw32 == NULL )
+	gasp("echec alloc %d floats pour source fft", s->wavsize );
+printf("Ok alloc %d floats pour source fft\n", s->wavsize );
+unsigned int i;
+if	( ( s->chan == 1 ) && ( panneau->bandes.size() >= 1 ) )
+	{
+	for	( i = 0; i < s->wavsize; ++i )
+		raw32[i] = (1.0/32768.0) * (float)layL->V[i];	// normalisation
+		// raw32[i] = 2.0 * (float)wL->V[i];		// coeff de JAW04b
+	}
+else if	( ( s->chan == 2 ) && ( panneau->bandes.size() >= 2 ) )
+	{
+	for	( i = 0; i < s->wavsize; ++i)
+		raw32[i] = (0.5/32768.0) * ((float)layL->V[i] + (float)layR->V[i]);	// normalisation
+		// raw32[i] = ((float)wL->V[i] + (float)wR->V[i]);		// coeff de JAW04b
+	}
+else	gasp("echec preparation float32 pour fft");
+spek->compute( raw32 );
+// a ce point on a un spectre de la wav entiere dans un tableau unsigned int glo->spec.spectre
+// de dimensions spek->H x spek->W
+free(raw32);
+printf("end calcul spectre\n\n"); fflush(stdout);
+}
+
+printf("start colorisation spectrogramme\n"); fflush(stdout);
+// mettre a jour palette en fonction de la magnitude max
+spek->fill_palette( spek->umax );
+
+prep_layout2( panneau );
+layS = (layer_rgb *)panneau->bandes.back()->courbes[0];
+
+// creer le pixbuf, pour le spectre entier
+{
+GdkPixbuf * lepix;
+lepix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, spek->W, spek->H );
+// remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
+
+int rowstride = gdk_pixbuf_get_rowstride( lepix );
+unsigned char * RGBdata = gdk_pixbuf_get_pixels( lepix );
+int colorchans = gdk_pixbuf_get_n_channels( lepix );
+spek->spectre2rgb( RGBdata, rowstride, colorchans  );
+layS->spectropix = lepix;
+}
+// a ce point on a dans layS->spectropix un pixbuf RGB de la wav entiere, de dimensions spek->H x spek->W
+// petite verification
+i = panneau->bandes.size() - 1;
+unsigned int verif = gdk_pixbuf_get_width( ((layer_rgb *)panneau->bandes[i]->courbes[0])->spectropix );
+	    verif *= gdk_pixbuf_get_height( ((layer_rgb *)panneau->bandes[i]->courbes[0])->spectropix );
+printf("end colorisation spectrogramme %u pixels\n\n", verif ); fflush(stdout);
+
 return 0;
 }
 
@@ -608,69 +695,11 @@ else	printf("Sol. B2\n");
 
 snprintf( glo->wnam, sizeof(glo->wnam), argv[1] );
 
-if	( wave_read_full( glo->wnam, &glo->wavp, &glo->panneau ) )
+if	( wave_process_full( glo->wnam, &glo->wavp, &glo->panneau, &glo->spec ) )
 	gasp("echec lecture %s", glo->wnam );
 
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );
-
-// creation spectrographe
-glo->spec.fftsize = 8192;
-glo->spec.fftstride = 1024;
-glo->spec.H = 840;
-int retval = glo->spec.init( glo->wavp.wavsize );
-if	( retval )
-	gasp("erreur init spectro %d", retval );
-// preparer resampling log
-glo->spec.log_opp = 1.0 / 120.0;	// 10 pixels / demi-ton
-glo->spec.log_fbase = 41.203;		// E1 = mi grave de la basse
-glo->spec.log_fbase /= ( (double)glo->wavp.freq / (double)glo->spec.fftsize );
-glo->spec.log_resamp_precalc();
-//glo->spec.log_resamp_dump();
-
-// calcul spectre : hum, il faut les data en float mais on a lu la wav en s16
-// provisoirement on va convertir en float l'audio qu'on a deja en RAM
-{
-float * raw32 = (float *) malloc( glo->wavp.wavsize * sizeof(float) );
-if	( raw32 == NULL )
-	gasp("echec alloc %d floats pour source fft", glo->wavp.wavsize );
-printf("Ok alloc %d floats pour source fft\n", glo->wavp.wavsize );
-unsigned int i;
-layer_s16_lod * wL, * wR;
-if	( ( glo->wavp.chan == 1 ) && ( glo->panneau.bandes.size() >= 1 ) )
-	{
-	wL = (layer_s16_lod *)glo->panneau.bandes[0]->courbes[0];
-	for	( i = 0; i < glo->wavp.wavsize; ++i )
-		raw32[i] = (1.0/32768.0) * (float)wL->V[i];	// normalisation
-		// raw32[i] = 2.0 * (float)wL->V[i];		// coeff de JAW04b
-	}
-else if	( ( glo->wavp.chan == 2 ) && ( glo->panneau.bandes.size() >= 2 ) )
-	{
-	wL = (layer_s16_lod *)glo->panneau.bandes[0]->courbes[0];
-	wR = (layer_s16_lod *)glo->panneau.bandes[1]->courbes[0];
-	for	( i = 0; i < glo->wavp.wavsize; ++i)
-		raw32[i] = (0.5/32768.0) * ((float)wL->V[i] + (float)wR->V[i]);	// normalisation
-		// raw32[i] = ((float)wL->V[i] + (float)wR->V[i]);		// coeff de JAW04b
-	}
-else	gasp("echec preparation float32 pour fft");
-glo->spec.compute( raw32 );
-// a ce point on a un spectre de la wav entiere dans un tableau unsigned int glo->spec.spectre
-// de dimensions glo->spec.H x glo->spec.W
-free(raw32);
-}
-// mettre a jour palette
-glo->spec.fill_palette( glo->spec.umax );
-// creer le pixbuf
-glo->spectropix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, glo->spec.W, glo->spec.H );
-// remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
-{
-int rowstride = gdk_pixbuf_get_rowstride( glo->spectropix );
-unsigned char * RGBdata = gdk_pixbuf_get_pixels( glo->spectropix );
-int colorchans = gdk_pixbuf_get_n_channels( glo->spectropix );
-glo->spec.spectre2rgb( RGBdata, rowstride, colorchans  );
-}
-// a ce point on a un pixbuf de la wav entiere, de dimensions glo->spec.H x glo->spec.W
-
 
 // forcer un full initial pour que tous les coeffs de transformations soient a jour
 glo->panneau.full_valid = 0;
