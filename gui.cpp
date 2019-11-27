@@ -104,7 +104,7 @@ panneau->mx = 60;
 }
 
 // layout pour le spectro - doit etre fait apres init du spectro
-void prep_layout2( gpanel * panneau )
+void prep_layout2( gpanel * panneau, spectro * spek )
 {
 strip * curbande;
 layer_rgb * curcour;
@@ -122,10 +122,13 @@ curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "spectro";
 curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
+curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
+curbande->optcadre = 1;	// pour economiser le fill du fond
 // configurer le layer
-
-// TODO
-
+curcour->set_km( 1.0 / (double)spek->fftstride );	// M est en samples, U en FFT-runs
+curcour->set_m0( 0.5 * (double)spek->fftsize );		// recentrage au milieu de chaque fenetre FFT
+curcour->set_kn( 1.0 / ( 12.0 * spek->log_opp ) );	// N est en MIDI-note (demi-tons), V est en bins
+curcour->set_n0( 40.0 );				// la midinote correspondant a spek->log_fbase (a automatiser)
 }
 
 // lecture WAV 16 bits entier en memoire, lui fournir wavpars vide
@@ -216,7 +219,7 @@ if	( s->chan > 1 )
 	if	( retval )
 		{ printf("echec make_lods err %d\n", retval ); return -7;  }
 	}
-panneau->kq = (double)(s->freq);
+panneau->kq = (double)(s->freq);	// pour avoir une echelle en secondes au lieu de samples
 fflush(stdout);
 
 // creation spectrographe
@@ -269,7 +272,7 @@ printf("start colorisation spectrogramme\n"); fflush(stdout);
 // mettre a jour palette en fonction de la magnitude max
 spek->fill_palette( spek->umax );
 
-prep_layout2( panneau );
+prep_layout2( panneau, spek );
 layS = (layer_rgb *)panneau->bandes.back()->courbes[0];
 
 // creer le pixbuf, pour le spectre entier

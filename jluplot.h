@@ -148,6 +148,7 @@ private :
 double y0;		// position y (pixels) de l'origine user n=0
 double ky;		// coeff vertical y -> user
 public :
+double kmfn;		// coeff de marge visuelle pour le fullN (t.q. 5% style jluplot 0)
 double r0;		// offset vertical graduations, valeur associee a n=0
 double kr;		// coeff vertical graduations --> user
 
@@ -165,7 +166,7 @@ int optX;		// option pour l'axe X : 0 <==> ne pas mettre les graduations
 int optcadre;		// option cadre : 0 <==> fill, 1 <==> traits
 string Ylabel;
 // constructeur
-strip() : parent(NULL), y0(0.0), ky(1.0), r0(0.0), kr(1.0),
+strip() : parent(NULL), y0(0.0), ky(1.0), kmfn(0.05), r0(0.0), kr(1.0),
 	  tdr(10.0), ftr(1.0), qtky(11), bgcolor( 1.0 ), lncolor( 0.5 ),
 	  force_redraw(1), fdy(100), ndy(100), optX(0), optcadre(0) {};
 // methodes

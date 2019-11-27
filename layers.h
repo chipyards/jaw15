@@ -89,7 +89,7 @@ public :
 GdkPixbuf * spectropix;	// pixbuf pour recevoir le spectrogramme apres palettisation
 
 // constructeur
-layer_rgb() : layer_base() {};
+layer_rgb() : layer_base(), spectropix(NULL) {};
 
 // methodes propres a cette classe derivee
 

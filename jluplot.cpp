@@ -121,7 +121,7 @@ for	( unsigned int ic = 0; ic < courbes.size(); ic++ )
 	}
 // seconde etape : action
 double dn = nmax - nmin;
-dn *= 0.05;	// marges 5% pour compatibilité visuelle avec jluplot 0
+dn *= kmfn;	// marges t.q. 5% pour compatibilité visuelle avec jluplot 0
 nmin -= dn; nmax += dn;
 zoomN( nmin, nmax );
 }
