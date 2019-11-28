@@ -58,10 +58,10 @@
 			<Add library="gobject-2.0" />
 			<Add library="gtk-win32-2.0" />
 			<Add library="pango-1.0" />
+			<Add library="libfftw3f-3" />
 			<Add directory="F:/Appli/msys64/mingw32/lib" />
 			<Add directory="F:/Appli" />
 			<Add directory="F:/Appli/portaudio/lib/.libs" />
-			<Add library="libfftw3f-3" />
 			<Add directory="F:/Appli/FFTW" />
 		</Linker>
 		<Unit filename="../glostru.h" />
@@ -80,6 +80,8 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../pa_devs.h" />
+		<Unit filename="../process.cpp" />
+		<Unit filename="../process.h" />
 		<Unit filename="../spectro.cpp" />
 		<Unit filename="../spectro.h" />
 		<Unit filename="../wav_head.c">
