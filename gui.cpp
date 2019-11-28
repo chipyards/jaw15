@@ -128,7 +128,7 @@ curbande->optcadre = 1;	// pour economiser le fill du fond
 curcour->set_km( 1.0 / (double)spek->fftstride );	// M est en samples, U en FFT-runs
 curcour->set_m0( 0.5 * (double)spek->fftsize );		// recentrage au milieu de chaque fenetre FFT
 curcour->set_kn( 1.0 / ( 12.0 * spek->log_opp ) );	// N est en MIDI-note (demi-tons), V est en bins
-curcour->set_n0( 40.0 );				// la midinote correspondant a spek->log_fbase (a automatiser)
+curcour->set_n0( (double)spek->midi0 );			// la midinote correspondant a spek->log_fbase
 }
 
 // lecture WAV 16 bits entier en memoire, lui fournir wavpars vide
@@ -224,16 +224,25 @@ fflush(stdout);
 
 // creation spectrographe
 printf("\nstart init spectro\n"); fflush(stdout);
+
+// parametres primitifs
+unsigned int bpst = 10;			// binxel-per-semi-tone : resolution spectro log
+unsigned int octaves = 7;		// 7 octaves
 spek->fftsize = 8192;
 spek->fftstride = 1024;
-spek->H = 840;
+spek->midi0 = 28;			// E1 = mi grave de la basse
+
+// parametres derives
+spek->H = octaves * 12 * bpst;
+spek->log_opp = 1.0 / (double)( bpst * 12 );
+spek->log_fbase = midi2Hz( spek->midi0 ) ;			// en Hz
+spek->log_fbase /= ( (double)s->freq / (double)spek->fftsize );	// en pitch spectro
+
+// allocations
 retval = spek->init( s->wavsize );	// cette fonction calcule W
 if	( retval )
 	gasp("erreur init spectro %d", retval );
 // preparer resampling log
-spek->log_opp = 1.0 / 120.0;	// 10 pixels / demi-ton
-spek->log_fbase = 41.203;		// E1 = mi grave de la basse
-spek->log_fbase /= ( (double)s->freq / (double)spek->fftsize );
 spek->log_resamp_precalc();
 //spek->log_resamp_dump();
 printf("end init spectro\n\n"); fflush(stdout);

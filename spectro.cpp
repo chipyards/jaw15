@@ -261,3 +261,10 @@ memset( palB + iend, val, 65536 - iend );
 // special verif graduations
 palR[0xFFFF] = palG[0xFFFF] = palB[0xFFFF] = 0;
 }
+
+// utility functions
+double midi2Hz( int midinote )
+{	// knowing that A4 = 440 Hz = note 69
+return 440.0 * pow( 2.0, ( ( midinote - 69 ) / 12.0 ) );
+}
+

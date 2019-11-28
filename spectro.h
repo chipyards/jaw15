@@ -67,6 +67,7 @@ unsigned char palB[65536];
 logpoint log_resamp[HMAX];	// parametres precalcules pour re-echantillonnage log
 double log_opp;			// echelle spectre re-echantillonne en OPP (Octave Per Point) << 1
 double log_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
+int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
 // constructeur
 spectro() : fftsize(4096), fftstride(4096/8), spectresize(0), H(512), spectre(NULL), fftinbuf(NULL), fftoutbuf(NULL) {};
 // methodes
@@ -87,3 +88,5 @@ void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels );	// con
 void fill_palette( unsigned int iend );
 };
 
+// utility functions
+double midi2Hz( int midinote );
