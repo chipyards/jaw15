@@ -112,7 +112,7 @@ curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "spectro";
 curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
-curbande->optcadre = 1;	// pour economiser le fill du fond
+// curbande->optcadre = 1;	// pour economiser le fill du fond
 // configurer le layer
 curcour->set_km( 1.0 / (double)spek->fftstride );	// M est en samples, U en FFT-runs
 curcour->set_m0( 0.5 * (double)spek->fftsize );		// recentrage au milieu de chaque fenetre FFT

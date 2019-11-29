@@ -577,14 +577,14 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 						if	( X1 >= X0 )
 							zoomX( X0, X1 );
 						else	zoomX( X1, X0 );
-						/*
+						/* zoom vertical si on est reste sur le meme strip */
 						if	( istrip0 == istrip1 )
 							{	// zoom Y sur 1 strip
 							if	( Y1 >= Y0 )
 								bandes.at(istrip0)->zoomY( Y0, Y1 );
 							else	bandes.at(istrip0)->zoomY( Y1, Y0 );
 							}
-						*/
+						//*/
 						}
 					break;
 				case select_zone :
@@ -629,13 +629,15 @@ if	( istrip & CLIC_MARGE_INF )
 	{
 	if	( event->direction == GDK_SCROLL_DOWN )
 		{
-		// panXbyK( -0.02 );	// pour science
-		panXbyK( -0.05 );	// pour audio
+		if	( event->state & GDK_CONTROL_MASK )
+			panXbyK( -0.05 );
+		else	zoomXbyK( 0.9 );
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
-		// panXbyK( 0.02 );	// pour science
-		panXbyK( 0.05 );	// pour audio
+		if	( event->state & GDK_CONTROL_MASK )
+			panXbyK( 0.05 );
+		else	zoomXbyK( 1.11 );
 		}
 	force_repaint = 1;
 	// gtk_widget_queue_draw( widget );
@@ -645,11 +647,15 @@ else if	( istrip & CLIC_MARGE_GAUCHE )
 	strip * b = bandes.at(istrip & (~CLIC_MARGE));
 	if	( event->direction == GDK_SCROLL_DOWN )
 		{
-		b->zoomYbyK( 0.9 );
+		if	( event->state & GDK_CONTROL_MASK )
+			b->panYbyK( -0.02 );
+		else	b->zoomYbyK( 0.9 );
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
-		b->zoomYbyK( 1.11 );
+		if	( event->state & GDK_CONTROL_MASK )
+			b->panYbyK( 0.02 );
+		else	b->zoomYbyK( 1.11 );
 		}
 	force_repaint = 1;
 	// gtk_widget_queue_draw( widget );

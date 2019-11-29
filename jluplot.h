@@ -35,7 +35,7 @@
 	  et les strips horizontalement dans un panel (meme si leurs espaces UV sont incompatibles).
 	  par exemple pour un signal temporel, M est le temps en s.
 	- l'espace XY ou espace ecran : les coordonnées en unites d'affichage, pixels (ou points en PDF)
-	  chaque strip a son origine au coin inferieur gauche (N.B. le signe de y peut etre oppose a celui du device)
+	  chaque strip a son origine au coin inferieur gauche (X+ vers la droite, Y+ vers le haut)
 	- l'espace QR ou espace graduations : normalement identique a MN, sauf graduation "alternative"
    definition des transformations primaires :
 	- les coeffs de transformation MN <--> UV sont stockes dans chaque layer
@@ -58,7 +58,8 @@
 	  afin de garantir la coherence, les 8 coeffs ci-dessus ne sont accessibles que par get-set
 
    N.B. ?? window resize et zoom relatif ne marchent que s'il y a eu au moins 1 zoom absolu !
-
+   ATTENTION PIEGE CAIRO : l'espace XY de Cairo est l'espace XY de JLUPLOT au signe de Y pres !!!
+   ==> dans le draw() des layers, le signe de Y est change systematiquement avant d'etre passe a Cairo
 */
 class panel;
 class strip;
@@ -198,6 +199,7 @@ void zoomN( double nmin, double nmax );	// zoom absolu
 void zoomY( double ymin, double ymax );	// zoom relatif
 void panY( double dy );			// pan relatif
 void zoomYbyK( double k );		// zoom par un facteur
+void panYbyK( double k );		// pan par un facteur
 void fullN();
 void presize( int rendy );	// met a jour la hauteur nette en pixels
 void resize( int rendy );	// met a jour la hauteur puis le zoom

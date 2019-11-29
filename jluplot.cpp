@@ -102,6 +102,13 @@ yr = yl + ( wy * k );
 zoomY( yl, yr );
 }
 
+// pan par un facteur, t.q. 0.5 pour la moitie de la hauteur
+void strip::panYbyK( double k )
+{
+double dy = k * (double)ndy;
+panY( dy );
+}
+
 void strip::fullN()
 {
 // premiere etape : acquisition des valeurs limites
@@ -354,13 +361,15 @@ zoomX( xl, xr );
 // pan par un facteur, t.q. 0.5 pour la moitie de la largeur a droite
 void panel::panXbyK( double k )
 {
-double xl, xr, wx;
+double dx = k * (double)ndx;
+panX( dx );
+/* double xl, xr, wx;
 wx = (double)ndx;
 xr = wx;
 wx *= k;
 xl = wx;
 xr += wx;
-zoomX( xl, xr );
+zoomX( xl, xr ); */
 }
 
 // met a jour les dimensions en pixels (sans se soucier des transformations)

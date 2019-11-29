@@ -296,7 +296,10 @@ void spectro::spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels 
 unsigned int x, y, destadr, srcadr, i;
 for	( y = 0; y < H; y++ )
 	{
-	destadr = ( (H-1) - y ) * RGBstride;	// GTK origine en haut !
+	// si on veut afficher le pixbuf directement avec GDK, il faut gerer Y+ vers le bas (origine en haut)
+	// destadr = ( (H-1) - y ) * RGBstride;
+	// si on veut afficher le pixbuf avec JLUPLOT, il faut gerer Y+ vers le haut (origine en bas)
+	destadr = y * RGBstride;
 	srcadr = y;
 	for	( x = 0; x < W; x++ )
 		{
