@@ -259,7 +259,7 @@ for	( unsigned int icol = 0; icol < W; ++icol )
 			umax = u;
 		spectre[a++] = u;
 		}
-	/* bricolage pour verif echelle verticale : trace une ligne horizontale pour chaque octave */
+	/* bricolage pour verif echelle verticale : trace une ligne horizontale pour chaque octave *
 	int ech = (int)(1.0 / relog_opp);
 	a = icol * H;
 	for	( j = 0; j < H; j+= ech )
@@ -285,8 +285,8 @@ for	( unsigned int i = 0; i < iend; ++i )
 memset( palR + iend, val, 65536 - iend );
 memset( palG + iend, val, 65536 - iend );
 memset( palB + iend, val, 65536 - iend );
-// special verif graduations
-palR[0xFFFF] = 0; palG[0xFFFF] = palB[0xFFFF] = 0xFF;
+// special verif echelle verticale
+// palR[0xFFFF] = 0; palG[0xFFFF] = palB[0xFFFF] = 0xFF;
 }
 
 // conversion en style GDK pixbuf

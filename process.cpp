@@ -117,7 +117,8 @@ curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut a
 curcour->set_km( 1.0 / (double)spek->fftstride );	// M est en samples, U en FFT-runs
 curcour->set_m0( 0.5 * (double)spek->fftsize );		// recentrage au milieu de chaque fenetre FFT
 curcour->set_kn( (double)spek->bpst );			// N est en MIDI-note (demi-tons), V est en bins
-curcour->set_n0( (double)spek->midi0 );			// la midinote correspondant au bas du spectre
+							// la midinote correspondant au bas du spectre
+curcour->set_n0( (double)spek->midi0 - 0.5/(double)spek->bpst ); // -recentrage de 0.5 bins
 }
 
 // lecture WAV 16 bits entier en memoire, lui fournir wavpars vide

@@ -152,31 +152,25 @@ zoomN( N0, N1 );
 
 void strip::draw( cairo_t * cai )
 {
-unsigned int ddx;
-
-ddx = parent->ndx;
 // printf("strip::begin draw\n");
-
+cairo_save( cai );
 // faire le fond
 cairo_set_source_rgb( cai, bgcolor.dR, bgcolor.dG, bgcolor.dB );
-cairo_rectangle( cai, 0, 0, ddx, ndy );
+cairo_rectangle( cai, 0, 0, parent->ndx, ndy );
 if   ( optcadre )
      cairo_stroke( cai );
 else cairo_fill( cai );
 
+// preparer le clip, englobant les graduations Y car il peut leur arriver de deborder
+// mais pas celles de X car on ne veut pas que les courbes debordent dessus
+cairo_rectangle( cai, -parent->mx, 0, parent->fdx, ndy );
+cairo_clip( cai );
+
 // translater l'origine Y en bas de la zone utile des courbes
-// l'origine X est deja au bord gauche de catte zone
-cairo_save( cai );
+// l'origine X est deja au bord gauche de cette zone
 cairo_translate( cai, 0, ndy );
 
-// tracer les reticules
-cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
-reticule_Y( cai );
-reticule_X( cai );
 
-// les textes de l'axe X
-if	( optX )
-	gradu_X( cai );
 // les textes de l'axe Y
 gradu_Y( cai );
 
@@ -188,7 +182,19 @@ for ( i = ( courbes.size() - 1 ); i >= 0; i-- )
     courbes.at(i)->draw( cai );
     }
 
+// tracer les reticules
+cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
+reticule_Y( cai );
+reticule_X( cai );
+
+cairo_reset_clip( cai );
+
+// les textes de l'axe X
+if	( optX )
+	gradu_X( cai );
+
 cairo_restore( cai );
+
 force_redraw = 0;
 // printf("strip::end draw\n");
 }
@@ -251,8 +257,8 @@ double curr = ftr;
 double cury = -YdeN(NdeR(curr));		// la transformation
 while	( cury > -((double)ndy ) )		// le haut (<0)
 	{
-	// cairo_move_to( cai, -6, cury );// le -6 c'est pour les graduations aupres des textes
-	cairo_move_to( cai, 0.0, cury );	// sauf que c'est clippe par le drawpad !!
+	cairo_move_to( cai, -6, cury );// le -6 c'est pour les graduations aupres des textes
+	//cairo_move_to( cai, 0.0, cury );	// sauf que c'est clippe par le drawpad !!
 	cairo_line_to( cai, parent->ndx, cury );
 	cairo_stroke( cai );
 	curr += tdr;
