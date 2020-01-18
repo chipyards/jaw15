@@ -164,12 +164,14 @@ vector < layer_base * > courbes;
 unsigned int fdy;	// full_dy = hauteur totale du strip (pixels)
 unsigned int ndy;	// net_dy  = hauteur occupee par la courbe (pixels) = fdy - hauteur graduations
 int optX;		// option pour l'axe X : 0 <==> ne pas mettre les graduations
+int optretX;		// option pour reticule X : 0 <==> ticks dans la marge, 1 <==> lignes sur toute la hauteur
+int optretY;		// option pour reticule Y : 0 <==> ticks dans la marge, 1 <==> lignes sur toute la largeur
 int optcadre;		// option cadre : 0 <==> fill, 1 <==> traits
 string Ylabel;
 // constructeur
 strip() : parent(NULL), y0(0.0), ky(1.0), kmfn(0.05), r0(0.0), kr(1.0),
 	  tdr(10.0), ftr(1.0), qtky(11), bgcolor( 1.0 ), lncolor( 0.5 ),
-	  force_redraw(1), fdy(100), ndy(100), optX(0), optcadre(0) {};
+	  force_redraw(1), fdy(100), ndy(100), optX(0), optretX(1), optretY(1), optcadre(0) {};
 // methodes
 double NdeY( double y ) { return( ( y - y0 ) * ky );  };
 double YdeN( double n ) { return( ( n / ky ) + y0 );  };
@@ -207,10 +209,10 @@ void resize( int rendy );	// met a jour la hauteur puis le zoom
 virtual void draw( cairo_t * cai );
 // event
 int clicY( double y, double * py );
-void reticule_X( cairo_t * cai );	// tracer le reticule x : la grille de barres verticales
-void gradu_X( cairo_t * cai );		// les textes de l'axe X
-void reticule_Y( cairo_t * cai );	// tracer le reticule y : la grille de barres horizontales
-void gradu_Y( cairo_t * cai );		// les textes de l'axe Y
+void reticule_X( cairo_t * cai, int full );	// tracer le reticule x : la grille de barres verticales
+void gradu_X( cairo_t * cai );			// les textes de l'axe X
+void reticule_Y( cairo_t * cai, int full );	// tracer le reticule y : la grille de barres horizontales
+void gradu_Y( cairo_t * cai );			// les textes de l'axe Y
 };
 
 

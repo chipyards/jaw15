@@ -452,10 +452,10 @@ cairo_matrix_t saved_matrix;
 // dimensions de la fenetre visible dans l'espace XY et dans l'espace UV
 double dx = (double)parent->parent->ndx;
 double dy = (double)parent->ndy;
-double du = dx / ku;
-double dv = dy / kv;
+// double du = dx / ku;
+// double dv = dy / kv;
 // u0 et v0 : coord de l'origine de la fenetre visible (coin inf. gauche) dans l'espace UV
-printf("ku:kv = %g:%g, u0:v0 = %g:%g\n", ku, kv, u0, v0 ); fflush(stdout);
+// printf("ku:kv = %g:%g, u0:v0 = %g:%g\n", ku, kv, u0, v0 ); fflush(stdout);
 // placer cairo dans l'espace UV
 cairo_get_matrix( cai, &saved_matrix );	// different de cairo_save() qui sauve aussi le pattern
 cairo_scale( cai, ku, -kv );		// a partir de la plus besoin de changer le signe des Y

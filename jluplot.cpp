@@ -171,8 +171,6 @@ cairo_clip( cai );
 cairo_translate( cai, 0, ndy );
 
 
-// les textes de l'axe Y
-gradu_Y( cai );
 
 // tracer les courbes
 int i;
@@ -182,16 +180,20 @@ for ( i = ( courbes.size() - 1 ); i >= 0; i-- )
     courbes.at(i)->draw( cai );
     }
 
+// les textes de l'axe Y
+gradu_Y( cai );
 // tracer les reticules
 cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
-reticule_Y( cai );
-reticule_X( cai );
+reticule_Y( cai, optretY );
 
 cairo_reset_clip( cai );
 
 // les textes de l'axe X
 if	( optX )
 	gradu_X( cai );
+// tracer les reticules
+cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
+reticule_X( cai, optretX );
 
 cairo_restore( cai );
 
@@ -213,15 +215,22 @@ return 0;
 }
 
 // tracer le reticule x : la grille de barres verticales
-void strip::reticule_X( cairo_t * cai )
+void strip::reticule_X( cairo_t * cai, int full )
 {
 double curq = parent->ftq;
 double curx = parent->XdeM(parent->MdeQ(curq));		// la transformation
 while	( curx < parent->ndx )
 	{
-	cairo_move_to( cai, curx, -((double)ndy ) );	// top
-	// cairo_line_to( cai, curx, (optX)?(5.0):(0.0) ); // bottom (le 5 sert a rien sur drawpad)
-	cairo_line_to( cai, curx, 0.0 );	// bottom
+	if	( full )
+		{
+		cairo_move_to( cai, curx, -((double)ndy ) );	// top
+		cairo_line_to( cai, curx, (optX)?(3.0):(0.0) ); // bottom
+		}
+	else if	( optX )
+		{
+		cairo_move_to( cai, curx, 0.0 );	// top
+		cairo_line_to( cai, curx, 3.0 ); 	// bottom
+		}
 	cairo_stroke( cai );
 	curq += parent->tdq;
 	curx = parent->XdeM(parent->MdeQ(curq));	// la transformation
@@ -251,15 +260,16 @@ while	( curx < parent->ndx )
 }
 
 // tracer le reticule y : la grille de barres horizontales
-void strip::reticule_Y( cairo_t * cai )
+void strip::reticule_Y( cairo_t * cai, int full )
 {
 double curr = ftr;
 double cury = -YdeN(NdeR(curr));		// la transformation
 while	( cury > -((double)ndy ) )		// le haut (<0)
 	{
-	cairo_move_to( cai, -6, cury );// le -6 c'est pour les graduations aupres des textes
-	//cairo_move_to( cai, 0.0, cury );	// sauf que c'est clippe par le drawpad !!
-	cairo_line_to( cai, parent->ndx, cury );
+	cairo_move_to( cai, -6, cury );	// le -6 c'est pour les graduations aupres des textes
+	if	( full )
+		cairo_line_to( cai, parent->ndx, cury );
+	else	cairo_line_to( cai, 0, cury );
 	cairo_stroke( cai );
 	curr += tdr;
 	cury = -YdeN(NdeR(curr));		// la transformation
@@ -634,7 +644,7 @@ if ( tick > 0.0 )	// preparation format
    // ordre de grandeur du tick (en evitant arrondi du 1 vers 0.99999)
    tikexp = (int)floor( log10(tick) + 1e-12 );
    preci = triexp - tikexp;
-   if ( preci < 1 ) preci = 1;
+   if ( preci < 0 ) preci = 0;
    // printf("~>%d <%d> .%d\n", triexp, tikexp, preci );
    }
 if ( val == 0.0 )

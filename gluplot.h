@@ -10,7 +10,6 @@ En plus cette version apporte :
 	- supporter le trace incremental sur l'ecran (drawing area) pour le curseur "audio play",
 	  ce qui implique de desactiver temporairement le double-buffer
 	- supporter un widget auxiliaire "zoombar"
-N.B. sur cette version, le passage par un drawpad n'est pas optionnel
 
 Implementation :
 	- la classe gpanel est derivee de la classe panel de JLUPLOT.
@@ -28,6 +27,18 @@ Concepts :
 	- paint : mise a jour de la drawing area, en mixant copie de drawpad et dessin vectoriel
 	- automatique : methode capable de decider automatiquement si elle a quelque chose a faire
 	  on peut l'appeler "a toutes fins utiles"
+
+
+----------------------- Actions de GTK GUI :
+IDLE FUNCTION
+si le curseur a bouge : (que ce soit a cause de playing ou autre motif)
+	met a jour gpanel::xcursor
+	met gpanel::queue_flag a 1
+si gpanel::queue_flag :
+	met gpanel::queue_flag a 0
+	appelle gpanel::paint()
+
+
 */
 
 // ghost_drag : un rectangle fantome dragable pour selection ou zoom relatif

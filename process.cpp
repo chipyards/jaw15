@@ -48,6 +48,7 @@ curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "mono";
 curbande->optX = 1;
+curbande->optretX = 0;
 // configurer le layer
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
@@ -79,6 +80,7 @@ if	( ntracks > 1 )
 	curbande->bgcolor.dB = 0.8;
 	curbande->Ylabel = "right";
 	curbande->optX = 1;
+	curbande->optretX = 0;
 	// configurer le layer
 	curcour->set_km( 1.0 );
 	curcour->set_m0( 0.0 );
@@ -109,8 +111,9 @@ panneau->parentize();
 curbande->bgcolor.dR = 1.0;
 curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
-curbande->Ylabel = "spectro";
+curbande->Ylabel = "notes";
 curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
+curbande->optretX = 0;
 curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
 // curbande->optcadre = 1;	// pour economiser le fill du fond
 // configurer le layer
