@@ -30,9 +30,6 @@ int darea_queue_flag;
 gpanel panneau;		// panneau principal (wav), dans darea
 gzoombar zbar;		// sa zoombar
 
-char wnam[256];		// fichiers WAV
-wavpars wavp;
-
 int iplay;		// index echantillon en train d'etre joue (-1 <==> idle)
 int iplayp;		// index echantillon en pause
 int iplay0;		// index depart
@@ -42,7 +39,8 @@ int iplay1;		// index fin
 PaStream *stream;	// WAV player : portaudio stream
 double play_start_time;
 #endif
-spectro spec;		// un spectrographe
+
+process pro;		// le process : lecture wav calcul spectro, preparation layout
 
 int darea_expose_cnt;
 int idle_profiler_cnt;

@@ -61,7 +61,7 @@ short valL, valR;
 
 iend = framesPerBuffer * CODEC_QCHAN;
 wL = (layer_s16_lod *)glo->panneau.bandes[0]->courbes[0];
-if	( glo->wavp.chan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
+if	( glo->pro.wavp.chan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
 	wR = (layer_s16_lod *)glo->panneau.bandes[1]->courbes[0];
 else	wR = wL;
 
@@ -159,11 +159,11 @@ volatile double newx;
 if	( glo->iplay >= 0 )
 	{			// Playing
 #ifdef PAUDIO
-	double t0 = (double)glo->iplay0 / (double)(glo->wavp.freq);
+	double t0 = (double)glo->iplay0 / (double)(glo->pro.wavp.freq);
 	// le temps present selon le timer portaudio, ramene au debut du play
 	double t = t0 + Pa_GetStreamTime( glo->stream ) - glo->play_start_time;
 	// le temps associe a l'indice courant, ramene au debut du play
-	double pt = (double)glo->iplay / (double)(glo->wavp.freq);
+	double pt = (double)glo->iplay / (double)(glo->pro.wavp.freq);
 	snprintf( lbuf, sizeof(lbuf), "%7.3f %7.3f  %4.3f", pt, t, t - pt );
 	gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
 #endif
@@ -281,7 +281,7 @@ if	( gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) ) )
 	double m0, m1;
 	m0 = glo->panneau.MdeX( 0.0 );
 	m1 = glo->panneau.MdeX( (double)glo->panneau.ndx );
-	glo->panneau.kq = (double)(glo->wavp.freq);
+	glo->panneau.kq = (double)(glo->pro.wavp.freq);
 	glo->panneau.zoomM( m0, m1 );
 	glo->panneau.force_repaint = 1;
 	}
@@ -410,13 +410,14 @@ enrich_wav_X_menu( glo );
 
 gtk_widget_show_all( glo->wmain );
 
-double mylatency = 0.090;	// 90 ms c'est conservateur
-int myoutput = -1;		// choose default device
-int pa_dev_options = 0;
 
 if	( argc < 2 )
 	gasp("fournir un nom de fichier WAV");
 
+#ifdef PAUDIO
+double mylatency = 0.090;	// 90 ms c'est conservateur
+int myoutput = -1;		// choose default device
+int pa_dev_options = 0;
 if	( argc >= 3 )
 	{
 	if	( argc < 4 )
@@ -426,21 +427,31 @@ if	( argc >= 3 )
 		mylatency = strtod( argv[2], NULL );
 		}
 	}
-// traiter choix options B1 vs B2
+// traiter choix options B1 vs B2 (c'est ballot, cette option n'est accessible que si on a PAUDIO)
 if	( pa_dev_options & 4 )
 	{
 	glo->panneau.drawab = glo->darea->window;	// special B1
 	printf("Sol. B1\n");
 	}
 else	printf("Sol. B2\n");
+#endif
 
-snprintf( glo->wnam, sizeof(glo->wnam), argv[1] );
+snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), argv[1] );
 
-if	( wave_process_full( glo->wnam, &glo->wavp, &glo->panneau, &glo->spec ) )
-	gasp("echec lecture %s", glo->wnam );
+int retval = glo->pro.wave_process_full();
+if	( retval )
+	gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
+fflush(stdout);
+// preparer le layout pour wav L (et R si stereo) et spectro
+glo->pro.prep_layout( &glo->panneau );
+retval = glo->pro.connect_layout( &glo->panneau );
+if	( retval )
+	gasp("echec connect layout, erreur %d", retval );
+fflush(stdout);
 
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );
+
 
 // forcer un full initial pour que tous les coeffs de transformations soient a jour
 glo->panneau.full_valid = 0;

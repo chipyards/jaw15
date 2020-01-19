@@ -464,6 +464,7 @@ for	( unsigned int ib = 0; ib < bandes.size(); ib++ )
 		mm = la->MdeU(la->get_Umax());
 		if	( mm > mmax )
 			mmax = mm;
+		// printf("ib=%d, ic=%d, Umax=%g / km=%g -> mm=%g\n", ib, ic, la->get_Umax(), la->km, mm );
 		}
 	}
 // seconde etape : action

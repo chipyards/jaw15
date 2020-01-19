@@ -127,14 +127,14 @@ while	( ( lodsize = lodsize / klod2 ) > minwin )
 return 0;
 }
 
-// allouer la memoire
-void layer_s16_lod::allocV( size_t size )
-{
-V = (short *)malloc( size * sizeof(short) );
-if	( V != NULL )
-	qu = size;
-else	qu = 0;
-}
+// allouer la memoire DEPRECATED
+//void layer_s16_lod::allocV( size_t size )
+//{
+//V = (short *)malloc( size * sizeof(short) );
+//if	( V != NULL )
+//	qu = size;
+//else	qu = 0;
+//}
 
 // chercher le premier point X >= X0
 int layer_s16_lod::goto_U( double U0 )
@@ -296,13 +296,13 @@ fflush(stdout);
 // layer_f : les methodes ajoutes a la classe de base
 
 // allouer la memoire
-void layer_f::allocV( size_t size )
-{
-V = (float *)malloc( size * sizeof(float) );
-if	( V != NULL )
-	qu = size;
-else	qu = 0;
-}
+//void layer_f::allocV( size_t size )
+//{
+//V = (float *)malloc( size * sizeof(float) );
+//if	( V != NULL )
+//	qu = size;
+//else	qu = 0;
+//}
 
 // chercher le premier point X >= X0
 int layer_f::goto_U( double U0 )
