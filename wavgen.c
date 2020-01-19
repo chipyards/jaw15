@@ -156,6 +156,7 @@ return 440.0 * pow( 2.0, ( ( midinote - 69 ) / 12.0 ) );
 
 // generation signal sinus gamme a intervale uniforme specifie en demi-tons,
 // debut et fin specifies en midi (A4 = 440Hz = midi 69)
+// stereo, mouvement ascendant en L, descendant en R
 void bal_gamme( wavpars *d, double duree_note, int interval, int midi0, int midi1 )
 {
 // parametres de generation
@@ -167,36 +168,55 @@ unsigned int samp_per_note = (int)( ((double)d->freq) * duree_note );
 
 // variables temporaires
 short frame[2];		// left et right...
-unsigned int writcnt, i, j, n;
-double phi, v, f;
+unsigned int n[2];
+double phi[2];		// left et right...
+double f[2];
+
+double v;
+unsigned int writcnt, i, j;
 
 d->wavsize = samp_per_note * qnotes;	// nombre total de frames
 WAVwriteHeader( d );
 
-n = midi0; f = midi2Hz( n );
-phi = 0.0;
+n[0] = midi0;
+f[0] = midi2Hz( n[0] );
+n[1] = midi1;
+f[1] = midi2Hz( n[1] );
+phi[0] = 0.0;
+phi[1] = 0.0;
+
 j = 0;
 for	( i = 0; i < d->wavsize; ++i )
 	{
-	// produire 1 echantillon et le sauver
-	v = amplitude * sin( phi );
+	// produire 1 echantillon L et le sauver
+	v = amplitude * sin( phi[0] );
 	frame[0] = (short int)round(v);
-	frame[1] = frame[0];
+	// incrementer la phase
+	phi[0] += ( ( f[0] * 2.0 * M_PI ) / (double)d->freq );
+	if	( phi[0] > ( 2.0 * M_PI ) )
+		phi[0] -= ( 2.0 * M_PI );
+	// produire 1 echantillon R et le sauver
+	v = amplitude * sin( phi[1] );
+	frame[1] = (short int)round(v);
+	// incrementer la phase
+	phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->freq );
+	if	( phi[1] > ( 2.0 * M_PI ) )
+		phi[1] -= ( 2.0 * M_PI );
+	// ecrire sur le disk
 	writcnt = write( d->hand, frame, d->chan * sizeof(short) );
 	if	( writcnt != ( d->chan * sizeof(short) ) )
 		gasp("erreur ecriture disque (plein?)");
-	// incrementer la phase
-	phi += ( ( f * 2.0 * M_PI ) / (double)d->freq );
-	if	( phi > ( 2.0 * M_PI ) )
-		phi -= ( 2.0 * M_PI );
 	// gerer la note
 	if	( ++j == samp_per_note )
 		{
-		j = 0; n += interval;
-		f = midi2Hz( n );
+		j = 0;
+		n[0] += interval;
+		f[0] = midi2Hz( n[0] );
+		n[1] -= interval;	// mouvement oppose
+		f[1] = midi2Hz( n[1] );
 		}
 	if	( j == 1 )
-		{ printf("note %03u : %.3f Hz\n", n, f ); fflush(stdout); }
+		{ printf("note %03u : %.3f Hz\n", n[0], f[0] ); fflush(stdout); }
 	}
 }
 

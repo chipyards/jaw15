@@ -155,7 +155,7 @@ if	( spectre == NULL )
 	if	( spectre == NULL )
 		return -30;
 	allocatedWH = newsize;
-	printf("spectre alloc %d pixels\n", newsize );
+	printf("spectre alloc %u pixels (%ux%u)\n", newsize, W, H );
 	}
 else if	( newsize > allocatedWH )
 	{
@@ -163,7 +163,7 @@ else if	( newsize > allocatedWH )
 	if	( spectre == NULL )
 		return -31;
 	allocatedWH = newsize;
-	printf("spectre realloc %d pixels\n", newsize );
+	printf("spectre realloc %u pixels (%ux%u)\n", newsize, W, H );
 	}
 return 0;
 }

@@ -4,8 +4,11 @@ char wnam[256];		// fichiers WAV
 wavpars wavp;		// structure pour wav_head.c
 short * Lbuf;		// audio brut
 short * Rbuf;
-GdkPixbuf * lepix;	// spectre sous forme de pixbuf
-spectro spek;		// un spectrographe
+int qspek;		// nombre de spectres ( 1 ou 2 )
+GdkPixbuf * Lpix;	// spectre sous forme de pixbuf
+GdkPixbuf * Rpix;	// spectre sous forme de pixbuf
+spectro Lspek;		// un spectrographe
+spectro Rspek;		// un spectrographe
 
 // methodes
 // la partie du process qui traite en memeoire les wavs et le spectre
