@@ -233,7 +233,7 @@ curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "mono";
 curbande->optX = 1;
-curbande->optretX = 0;
+curbande->optretX = 1;
 // configurer le layer
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
@@ -289,7 +289,7 @@ panneau->parentize();
 curbande->bgcolor.dR = 1.0;
 curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
-curbande->Ylabel = "notes";
+curbande->Ylabel = "midi";
 curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 curbande->optretX = 0;
 curbande->optretY = 0;
@@ -304,6 +304,8 @@ curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage
 
 if	( qspek >= 2 )
 	{
+	panneau->bandes.back()->Ylabel = "midi L";
+
 	/* creer le strip pour le spectro */
 	curbande = new strip;
 	panneau->bandes.push_back( curbande );
@@ -316,7 +318,7 @@ if	( qspek >= 2 )
 	curbande->bgcolor.dR = 1.0;
 	curbande->bgcolor.dG = 0.9;
 	curbande->bgcolor.dB = 0.8;
-	curbande->Ylabel = "notes R";
+	curbande->Ylabel = "midi R";
 	curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 	curbande->optretX = 0;
 	curbande->optretY = 0;

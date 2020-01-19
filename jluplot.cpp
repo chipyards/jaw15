@@ -145,6 +145,7 @@ void strip::resize( int rendy )
 {
 double N0, N1;
 N0 = NdeY( 0.0 ); N1 = NdeY( ndy );
+printf("strip::resize N de %g a %g, ndy de %u a %d\n", N0, N1, ndy, rendy );
 ndy = rendy;
 fdy = ndy + ((optX)?(parent->my):(0));
 zoomN( N0, N1 );
@@ -314,7 +315,7 @@ for	( unsigned int ib = 0; ib < bandes.size(); ib++ )
 		b->courbes.at(ic)->refresh_proxy();
 	}
 force_redraw = 1;
-// printf("panel::refresh_proxies()\n"); fflush(stdout);
+printf("panel::refresh_proxies()\n"); fflush(stdout);
 }
 
 void panel::set_x0( double X0 )
@@ -391,22 +392,31 @@ zoomX( xl, xr ); */
 // met a jour les dimensions en pixels (sans se soucier des transformations)
 void panel::presize( int redx, int redy )
 {
-int ndy, bndy; unsigned int ib;
+int ndy, bndy; unsigned int ib, cnt;
 fdx = redx;
 ndx = fdx - mx;
 ndy = fdy = redy;
 if	( bandes.size() )
 	{
-	// soustraire l'espace pour les graduations optionnelles
+	// compter les bandes visibles
+	cnt = 0;
 	for	( ib = 0; ib < bandes.size(); ib++ )
-       		ndy -= ((bandes.at(ib)->optX)?(my):(0));
-	// bandes d'egale hauteur
-	bndy = ndy / bandes.size();
+		{
+		if	( bandes.at(ib)->visible )
+			{
+			cnt++;
+			// soustraire l'espace pour les graduations optionnelles
+			ndy -= ((bandes.at(ib)->optX)?(my):(0));
+			}
+		}
+ 	// bandes d'egale hauteur
+	bndy = ndy / cnt;
 	// reste de la division applique a la premiere bande
-	bandes.at(0)->presize( bndy + ( ndy % bandes.size() ) );
+	bandes.at(0)->presize( bndy + ( ndy % cnt ) );
 	// les autres bandes
 	for	( ib = 1; ib < bandes.size(); ib++ )
 		bandes.at(ib)->presize( bndy );
+	printf("panel::presize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
 	}
 }
 
@@ -421,26 +431,35 @@ if	( full_valid == 0 )
 	return;
 	}
 // restituer zooms en cours sur chaque layer
-double M0, M1; int ndy, bndy; unsigned int ib;
+double M0, M1; int ndy, bndy; unsigned int ib, cnt;
 // horizontalement
 M0 = MdeX( 0.0 ); M1 = MdeX( ndx );
 fdx = redx;
 ndx = fdx - mx;
 zoomM( M0, M1 );
-// verticalement
+// verticalement : sera fait par chaque strip::resize
 ndy = fdy = redy;
 if	( bandes.size() )
 	{
-	// soustraire l'espace pour les graduations
+	// compter les bandes visibles
+	cnt = 0;
 	for	( ib = 0; ib < bandes.size(); ib++ )
-       		ndy -= ((bandes.at(ib)->optX)?(my):(0));
-	// bandes d'egale hauteur
-	bndy = ndy / bandes.size();
+		{
+		if	( bandes.at(ib)->visible )
+			{
+			cnt++;
+			// soustraire l'espace pour les graduations optionnelles
+			ndy -= ((bandes.at(ib)->optX)?(my):(0));
+			}
+		}
+ 	// bandes d'egale hauteur
+	bndy = ndy / cnt;
 	// reste de la division applique a la premiere bande
-	bandes.at(0)->resize( bndy + ( ndy % bandes.size() ) );
+	bandes.at(0)->resize( bndy + ( ndy % cnt ) );
 	// les autres bandes
 	for	( ib = 1; ib < bandes.size(); ib++ )
 		bandes.at(ib)->resize( bndy );
+	printf("panel::resize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
 	}
 }
 
@@ -551,12 +570,13 @@ if	( ( x < 0.0 ) || ( x >= (double)fdx ) )
 *px = x - (double)mx;			// x < 0 si on est dans les graduations Y
 // identification strip
 int istrip;
-for ( istrip = 0; istrip < (int)bandes.size(); istrip++ )
-    {
-    if  ( bandes.at(istrip)->clicY( y, py ) == 0 )
-	break;
-    y -= bandes.at(istrip)->fdy;	// transformation inverse (cf panel::draw)
-    }
+for	( istrip = 0; istrip < (int)bandes.size(); istrip++ )
+	if	( bandes.at(istrip)->visible )
+		{
+		if	( bandes.at(istrip)->clicY( y, py ) == 0 )
+			break;
+		y -= bandes.at(istrip)->fdy;	// transformation inverse (cf panel::draw)
+		}
 if	( istrip >= (int)bandes.size() )
 	return CLIC_OUT_Y;
 // ici on a identifie un strip, *px et *py sont a jour, on va signaler si on est dans les marges

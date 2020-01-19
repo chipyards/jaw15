@@ -256,19 +256,41 @@ glo->iplayp = M;
 // et va le retracer
 }
 
+// cette fonction devra etre transportee dans gpanel
+static void toggle_vis( glostru * glo, unsigned int ib, unsigned int ic )	// ignore ic pour le moment
+{
+if	( ib >= glo->panneau.bandes.size() )
+	return;
+glo->panneau.bandes[ib]->visible ^= 1;
+int ww, wh;
+ww = glo->panneau.fdx; wh = glo->panneau.fdy;	// les dimensions de la drawing area ne changent pas
+glo->panneau.resize( ww, wh );			// mais il faut recalculer la hauteur des bandes
+glo->panneau.refresh_proxies();
+glo->panneau.force_repaint = 1;
+}
+
 void key_call_back( int v, void * vglo )
 {
-if	( v == ' ' )
-	play_pause_call( NULL, (glostru *)vglo );
-else if	( v == 'r' )
-	rewind_call( NULL, (glostru *)vglo );
-else if	( v == 'd' )
+switch	( v )
 	{
-	glostru * glo = (glostru *)vglo;
-	glo->panneau.dump();
-	printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
+	case '0' : toggle_vis( (glostru *)vglo, 0, 0 ); break;
+	case '1' : toggle_vis( (glostru *)vglo, 1, 0 ); break;
+	case '2' : toggle_vis( (glostru *)vglo, 2, 0 ); break;
+	case '3' : toggle_vis( (glostru *)vglo, 3, 0 ); break;
+	case ' ' :
+		play_pause_call( NULL, (glostru *)vglo );
+		break;
+	case 'r' :
+		rewind_call( NULL, (glostru *)vglo );
+		break;
+	case 'd' :
+		{
+		glostru * glo = (glostru *)vglo;
+		glo->panneau.dump();
+		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
+		fflush(stdout);
+		} break;
 	}
-
 }
 
 /** ============================ context menus ======================= */
@@ -356,7 +378,7 @@ gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
-glo->darea = glo->panneau.layout( 640, 480 );
+glo->darea = glo->panneau.layout( 800, 600 );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea, TRUE, TRUE, 0 );
 
 /* creer une drawing area  qui ne sera pas resizee en hauteur par la hbox

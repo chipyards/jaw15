@@ -302,7 +302,7 @@ if	( force_redraw == 0 )
 	{
 	strip_redraws = 0;
 	for	( ib = 0; ib < bandes.size(); ib++ )
-		if	( bandes.at(ib)->force_redraw )
+		if	( ( bandes.at(ib)->force_redraw ) && ( bandes.at(ib)->visible ) )
 			++strip_redraws;
 	}
 // tracer sur le drawpad
@@ -321,11 +321,13 @@ if	( ( force_redraw ) || ( strip_redraws ) )
 		// fill the background JUST FOR CHECK THAT THEY PAINT EVERYWHERE
 		// cairo_set_source_rgb( offcai, 1, 0, 0 );
 		// cairo_paint(offcai);	// paint the complete clip area
-		// boucle for decroissante car on veut la courbe 0 en haut...
 		for	( ib = 0; ib < bandes.size(); ib++ )
 			{
-			bandes.at(ib)->draw( offcai );
-			cairo_translate( offcai, 0, bandes.at(ib)->fdy );
+			if	( bandes.at(ib)->visible )
+				{
+				bandes.at(ib)->draw( offcai );
+				cairo_translate( offcai, 0, bandes.at(ib)->fdy );
+				}
 			}
 		force_redraw = 0;
 		// printf("panel full draw end\n");
@@ -333,10 +335,13 @@ if	( ( force_redraw ) || ( strip_redraws ) )
 	else	{
 		for	( ib = 0; ib < bandes.size(); ib++ )
 			{
-			if	( bandes.at(ib)->force_redraw )
-				bandes.at(ib)->draw( offcai );
-			// N.B. strip::force_redraw est RAZ par strip::draw
-			cairo_translate( offcai, 0, bandes.at(ib)->fdy );
+			if	( bandes.at(ib)->visible )
+				{
+				if	( bandes.at(ib)->force_redraw )
+					bandes.at(ib)->draw( offcai );
+				// N.B. strip::force_redraw est RAZ par strip::draw
+				cairo_translate( offcai, 0, bandes.at(ib)->fdy );
+				}
 			}
 		// printf("panel selective draw end\n");
 		}

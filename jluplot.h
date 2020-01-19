@@ -98,6 +98,7 @@ double u0;	// offset horizontal dans l'espace source (associe a x=0)
 double ku;	// coeff horizontal source -> graphe bas niveau X (i.e. pixels)
 double v0;	// offset vertical dans l'espace source
 double kv;	// coeff vertical source -> graphe bas niveau Y (i.e. pixels)
+int visible;	// flag de visibilite
 
 jcolor fgcolor;		// couleur du trace
 int ylabel;		// position label
@@ -106,7 +107,7 @@ string label;
 // constructeur
 layer_base() : parent(NULL),	m0(0.0), km(1.0), n0(0.0), kn(1.0),
 				u0(0.0), ku(1.0), v0(0.0), kv(1.0),
-				fgcolor( 0.0 ), ylabel(20), label("") {};
+				visible(1), fgcolor( 0.0 ), ylabel(20), label("") {};
 // methodes de conversion essentielles
 double UdeM( double m ) { return( ( m - m0 ) * km );  };
 double VdeN( double n ) { return( ( n - n0 ) * kn );  };
@@ -167,11 +168,12 @@ int optX;		// option pour l'axe X : 0 <==> ne pas mettre les graduations
 int optretX;		// option pour reticule X : 0 <==> ticks dans la marge, 1 <==> lignes sur toute la hauteur
 int optretY;		// option pour reticule Y : 0 <==> ticks dans la marge, 1 <==> lignes sur toute la largeur
 int optcadre;		// option cadre : 0 <==> fill, 1 <==> traits
+int visible;
 string Ylabel;
 // constructeur
 strip() : parent(NULL), y0(0.0), ky(1.0), kmfn(0.05), r0(0.0), kr(1.0),
 	  tdr(10.0), ftr(1.0), qtky(11), bgcolor( 1.0 ), lncolor( 0.5 ),
-	  force_redraw(1), fdy(100), ndy(100), optX(0), optretX(1), optretY(1), optcadre(0) {};
+	  force_redraw(1), fdy(100), ndy(100), optX(0), optretX(1), optretY(1), optcadre(0), visible(1) {};
 // methodes
 double NdeY( double y ) { return( ( y - y0 ) * ky );  };
 double YdeN( double n ) { return( ( n / ky ) + y0 );  };
@@ -298,8 +300,8 @@ void dump() {
   unsigned int i;
   printf("panel fdx=%d fdy=%d, %d strips\n", fdx, fdy, bandes.size() );
   printf("\tx0=%-12.5g kx=%-12.5g q0=%-12.5g kq=%-12.5g\n", x0, kx, q0, kq );
-  for ( i = 0; i < bandes.size(); i++ )
-      bandes.at(i)->dump();
+  for	( i = 0; i < bandes.size(); i++ )
+	if (bandes.at(i)->visible) bandes.at(i)->dump();
   };
 };
 
