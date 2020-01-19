@@ -104,18 +104,12 @@ qspek = wavp.chan;
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 
 // parametres primitifs
-Lspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
-Lspek.octaves = 7;		// 7 octaves
-Lspek.fftsize = 8192;
-Lspek.fftstride = 1024;
-Lspek.midi0 = 28;		// E1 = mi grave de la basse
+Lspek.fftsize = 16384;
+Lspek.fftstride = Lspek.fftsize/4;
 if	( qspek >= 2 )
 	{
-	Rspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
-	Rspek.octaves = 7;		// 7 octaves
-	Rspek.fftsize = 8192;
-	Rspek.fftstride = 1024;
-	Rspek.midi0 = 28;		// E1 = mi grave de la basse
+	Rspek.fftsize = Lspek.fftsize;
+	Rspek.fftstride = Lspek.fftstride;
 	}
 
 // allocations pour spectro
@@ -289,7 +283,7 @@ panneau->parentize();
 curbande->bgcolor.dR = 1.0;
 curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
-curbande->Ylabel = "midi";
+curbande->Ylabel = "Hz";
 curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 curbande->optretX = 0;
 curbande->optretY = 0;
@@ -297,14 +291,15 @@ curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut a
 // curbande->optcadre = 1;	// pour economiser le fill du fond
 // configurer le layer
 curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
-curcour2->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
-curcour2->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
-							// la midinote correspondant au bas du spectre
-curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
+curcour2->set_m0( 0.5 * (double)Lspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
+//curcour2->set_kn( (double)Lspek.bpst );		// N est en Hz, V est en bins de fsamp/fftsize
+//curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
+curcour2->set_kn( double(Lspek.fftsize)/double(wavp.freq) );
+curcour2->set_n0( -0.5 * double(wavp.freq)/double(Lspek.fftsize) );
 
 if	( qspek >= 2 )
 	{
-	panneau->bandes.back()->Ylabel = "midi L";
+	panneau->bandes.back()->Ylabel = "Hz L";
 
 	/* creer le strip pour le spectro */
 	curbande = new strip;
@@ -318,18 +313,17 @@ if	( qspek >= 2 )
 	curbande->bgcolor.dR = 1.0;
 	curbande->bgcolor.dG = 0.9;
 	curbande->bgcolor.dB = 0.8;
-	curbande->Ylabel = "midi R";
+	curbande->Ylabel = "Hz R";
 	curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 	curbande->optretX = 0;
 	curbande->optretY = 0;
 	curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
 	// curbande->optcadre = 1;	// pour economiser le fill du fond
 	// configurer le layer
-	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
-	curcour2->set_m0( 0.5 * (double)Rspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
-	curcour2->set_kn( (double)Rspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
-								// la midinote correspondant au bas du spectre
-	curcour2->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
+	curcour2->set_km( 1.0 / (double)Lspek.fftstride );		// M est en samples, U en FFT-runs
+	curcour2->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
+	curcour2->set_kn( double(Lspek.fftsize)/double(wavp.freq) );
+	curcour2->set_n0( -0.5 * double(wavp.freq)/double(Lspek.fftsize) );
 	}
 }
 

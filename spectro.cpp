@@ -65,84 +65,13 @@ printf("FFTW plan ready\n");
 return 0;
 }
 
-/** log spectrum functions ================================================= */
-
-double spectro::log_fis( double fid )
-{
-return( relog_fbase * exp2( relog_opp * fid ) );
-}
-
 // calcul des parametres derives
 void spectro::parametrize( unsigned int fsamp, unsigned int qsamples )
 {
-// les parametres internes pour le resampling log
-relog_opp = 1.0 / (double)( bpst * 12 );
-relog_fbase = midi2Hz( midi0 ) ;			// en Hz
-relog_fbase /= ( (double)fsamp / (double)fftsize );	// en pitch spectro
-// les dimensions du spectre log
+// les dimensions du spectre
+unsigned int fmax = 2000;
 W = ( ( qsamples - fftsize ) / fftstride ) + 1;		// le nombre de fenetres fft
-H = octaves * 12 * bpst;				// le nombre de frequences apres resamp
-}
-
-// precalcul des points de resampling pour convertir le spectre en echelle log
-// remplir log_resamp en fonction de relog_opp et relog_fbase
-void spectro::log_resamp_precalc()
-{
-int id;		// index destination, dans le spectre resample
-int iis0, iis1;	// indexes source bruts
-int ndec;	// nombre de points sujets a decimation
-double fis0;	// index source fractionnaire borne inferieure, correspondant à id - 0.5
-double fis1;	// index source fractionnaire borne superieure, correspondant à id + 0.5
-double fis;	// index source fractionnaire median, correspondant à id
-fis0 = log_fis( -0.5 );		// pour id = 0
-for	( id = 0; id < (int)H; ++id )
-	{
-	fis1 = log_fis( double(id) + 0.5 );
-	iis0 = 1 + (int)floor( fis0 );		// exclusive ceiling
-	iis1 = (int)floor( fis1 );		// inclusive floor
-	if	( iis1 >= (int)fftsize )
-		{ log_resamp[id].decimflag = -1; break; }	// internal error
-	ndec = ( iis1 - iis0 ) + 1;
-	if	( ndec >= 1 )
-		{				// decimation
-		log_resamp[id].decimflag = 1;
-		log_resamp[id].is0 = iis0;
-		log_resamp[id].is1 = iis1;
-		}
-	else if	( ndec == 0 )
-		{				// interpolation
-		log_resamp[id].decimflag = 0;
-		log_resamp[id].is0 = iis1;
-		log_resamp[id].is1 = iis0;
-		fis = log_fis( double(id) );
-		log_resamp[id].k1 = fis - floor(fis);
-		if	( floor(fis) != (double)log_resamp[id].is0 )
-			log_resamp[id].decimflag = -2;	// internal error
-		log_resamp[id].k0 = 1.0 - log_resamp[id].k1;
-		}
-	else	log_resamp[id].decimflag = -3;		// internal error
-	fis0 = fis1;	// pour le prochain
-	}
-}
-
-void spectro::log_resamp_dump()
-{
-printf("echelle %g pix/sm\n", ( 1.0 / relog_opp ) / 12.0 );
-printf("base %g\n", relog_fbase );
-for	( int id = 0; id < (int)H; ++id )
-	{
-	printf("%4d { %7g [ %5d ( %7g ) %5d ] %7g } ", id,
-		log_fis( id - 0.5 ), log_resamp[id].is0, log_fis( id ),
-				     log_resamp[id].is1, log_fis( id + 0.5 ) );
-	if	( log_resamp[id].decimflag == 1 )
-		printf("D %d\n", log_resamp[id].is1 - log_resamp[id].is0 + 1 );
-	else if	( log_resamp[id].decimflag == 0 )
-		printf("I { %g %g }\n", log_resamp[id].k0, log_resamp[id].k1 );
-	else	{
-		printf("log_resamp internal error %d\n", log_resamp[id].decimflag );
-		break;
-		}
-	}
+H = fmax * fftsize / fsamp;				// le nombre de bins effectivement utilises
 }
 
 // allouer ou re-allouer buffer pour spectre fini
@@ -183,9 +112,8 @@ retval = alloc_fft();
 if	( retval )
 	return retval;
 
-// preparer le resampling log
+// preparer le spectre
 parametrize( fsamp, qsamples );
-log_resamp_precalc();
 retval = alloc_WH();
 if	( retval )
 	return retval;
@@ -211,65 +139,30 @@ for	( unsigned int icol = 0; icol < W; ++icol )
 		fftinbuf[j] = src[a++] * window[j];
 	// fft de fftinbuf vers fftoutbuf
 	fftwf_execute(p);
-	// calcul magnitudes sur place (fftoutbuf)
+	// calcul magnitudes sur place (fftoutbuf) et application facteur k
 	a = 0;
-	for	( j = 0; j <= ( fftsize / 2 ); ++j )
+	for	( j = 0; j < H; ++j )
 		{
 		mag = hypotf( fftoutbuf[a], fftoutbuf[a+1] );
 		a += 2;
-		fftoutbuf[j] = mag;
+		fftoutbuf[j] = mag * k;
 		if	( mag > maxmag )
 			maxmag = mag;
-		}
-	/* resampling (lineaire, provisoire !) fftoutbuf vers fftinbuf *
-	a = 0;
-	for	( j = 0; j < H; ++j )
-		{
-		a += 1;
-		fftinbuf[j] = fftoutbuf[a] * k;
-		}
-	//*/
-	// resampling log, de fftoutbuf vers fftinbuf
-	logpoint *p; float peak;
-	for	( j = 0; j < H; ++j )
-		{
-		p = &log_resamp[j];
-		if	( p->decimflag == 1 )	// decimation par valeur pic
-			{
-			peak = 0.0;
-			for	( a = p->is0; a <= (unsigned int)p->is1; ++a )
-				{
-				if	( fftoutbuf[a] > peak )
-					peak = fftoutbuf[a];
-				}
-			}
-		else if	( p->decimflag == 0 )	// interpolation lineaire
-			{
-			peak = fftoutbuf[p->is0] * p->k0 + fftoutbuf[p->is1] * p->k1;
-			}
-		else	peak = 0.0;
-		fftinbuf[j] = peak * k;
 		}
 	// conversion en unsigned short int pour palettisation
 	a = icol * H;
 	for	( j = 0; j < H; ++j )
 		{
-		u = (unsigned short)fftinbuf[j];
+		u = (unsigned short)fftoutbuf[j];
 		if	( u > umax )
 			umax = u;
 		spectre[a++] = u;
 		}
-	/* bricolage pour verif echelle verticale : trace une ligne horizontale pour chaque octave *
-	int ech = (int)(1.0 / relog_opp);
-	a = icol * H;
-	for	( j = 0; j < H; j+= ech )
-		if	( spectre[a+j] < 200 )
-			spectre[a+j] = 0xFFFF;
-	//*/
 	}
-printf("max magnitude %g --> u16 %u\n", maxmag * k, umax );
+printf("max magnitude %g --> u16 %u\n", maxmag, umax );
 }
 
+// iend est l'index a partir duquel on est sature au max
 void spectro::fill_palette( unsigned int iend )
 {
 unsigned int mul = ( 1 << 24 ) / iend;
@@ -313,9 +206,3 @@ for	( y = 0; y < H; y++ )
 	}
 }
 
-
-// utility functions
-double midi2Hz( int midinote )
-{	// knowing that A4 = 440 Hz = note 69
-return 440.0 * pow( 2.0, ( ( midinote - 69 ) / 12.0 ) );
-}

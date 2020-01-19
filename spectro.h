@@ -1,15 +1,14 @@
-/*
-la classe spectro cree une representation intermediaire du spectrogramme d'un passage musical
+/* spectro special Toyota Hybride ====================
+cette version ne supporte pas le resampling log des frequences
+la classe spectro cree une representation intermediaire du spectrogramme d'un signal
 sous forme d'un buffer 'spectre' de valeurs de 16 bits, destinees a servir d'index dans une LUT pour donner du RGB.
-
-Le procede inspire de Sonic Visualizer utilise la FFT suivie d'une conversion log de l'axe F ( spectro::compute() ).
 
 Ensuite la conversion en RGB ou colorisation peut se faire avec spectro::spectre2rgb(), possiblement directement
 dans un GDK pixbuf (actuellement la colorisation traite 'spectre' entier)
 
 Le buffer 'spectre' represente un ruban de hauteur H et longueur W
-	- H est le nombre de "bins" apres passage en echelle log, on le fixe arbitrairement
-	  exemple : 840 pour 7 octaves a 120 bins par octave
+	- H est le nombre de "bins" <= (fftsize/2)
+	  exemple : fsamp = 44100Hz, fftsize = 16384, fmax = 2kHz, H = (fftsize/2)*(2k/22.050k) = 743
 	- W est le nombre d'echantillons spectraux = nombres de runs FFT,
 		- approximativement W = nombre total de samples audio / fftstride
 		- plus precisement W = ( ( qsamples - fftsize ) / fftstride ) + 1
@@ -22,31 +21,9 @@ Le buffer 'spectre' represente un ruban de hauteur H et longueur W
 H doit etre fourni par l'application, alors que W est calcule par spectro::init()
 ATTENTION : les elements de 'spectre' sont ranges par colonne, non par ligne comme dans une image
 
-Echelle verticale :
-	- l'application doit fournir
-		- relog_opp = octaves par bin (octaves par pixel par abus de langage, log aussi abus car opp est deja log)
-		  par exemple 1.0 / 120.0;	// 10 bins / demi-ton
-		- relog_fbase = frequence du bin le plus bas, exprimee en resolution FFT
-		  par exemple F0 / ( sample_freq / fftsize ), avec F0 en Hz
-	- question : ou est la limite entre interpolation et decimation ?
-		- pitch fft = ( sample_freq / fftsize ) exemple 44100 / 8192 = 5.38 Hz
-		- pitch spectre = f * ( pow( 2, opp ) - 1 ) exemple f * (pow(2,1/120)-1) = f * 0.0058
-		  soit f = pitch / 0.0058 = 5.38/0.0058 = 927 Hz (Bb5)
-	  interpretation : au dela de cette F, il y a moins de sample dans spectre que de bins FFT, donc perte d'info
-	  mais sans consequence pour l'appli
 */
-#define FFTSIZEMAX 8192
+#define FFTSIZEMAX 65536
 #define HMAX 2048
-
-// un point precalcule pour le reechantillonnage du spectre en echelle log
-class logpoint {
-public :
-int decimflag;	// alors decimer de is0 a is1 inclus, sinon interpoler
-int is0;	// premier indice source
-int is1;	// second indice source
-float k0;	// coeff d'interpolation cote is0
-float k1;	// coeff d'interpolation cote is1
-};
 
 class spectro {
 public :
@@ -60,20 +37,14 @@ unsigned int umax;		// valeur max vue dans spectre[]
 unsigned char palR[65536];	// la palette 16 bits --> RGB
 unsigned char palG[65536];
 unsigned char palB[65536];
-unsigned int bpst = 10;		// binxel-per-semi-tone : resolution spectro log
-unsigned int octaves;		// hauteur du spectre a partir de midi0
-int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
 private:
 float window[FFTSIZEMAX];	// fenetre pre-calculee
 float * fftinbuf;		// buffer pour entree fft reelle
 float * fftoutbuf;		// buffer pour sortie fft complexe
 fftwf_plan p;			// le plan FFTW
-logpoint log_resamp[HMAX];	// parametres precalcules pour re-echantillonnage log
-double relog_opp;			// echelle spectre re-echantillonne en OPP (Octave Per Point) << 1
-double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
 public:
 // constructeur
-spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), fftinbuf(NULL), fftoutbuf(NULL) {};
+spectro() : fftsize(16384), fftstride(16384/4), spectre(NULL), allocatedWH(0), fftinbuf(NULL), fftoutbuf(NULL) {};
 // methodes
 
 
@@ -87,10 +58,7 @@ void window_dump();
 // FFTW3 functions
 int alloc_fft();
 // log spectrum functions
-double log_fis( double fid );
 void parametrize( unsigned int fsamp, unsigned int qsamples );	// calcul des parametres derives
-void log_resamp_precalc();
-void log_resamp_dump();
 int alloc_WH();
 // top actions
 int init( unsigned int fsamp, unsigned int qsamples );
@@ -99,5 +67,3 @@ void fill_palette( unsigned int iend );
 void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels ); // conversion compatible GDK pixbuf
 };
 
-// utility functions
-double midi2Hz( int midinote );
