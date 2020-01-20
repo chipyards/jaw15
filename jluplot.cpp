@@ -315,7 +315,7 @@ for	( unsigned int ib = 0; ib < bandes.size(); ib++ )
 		b->courbes.at(ic)->refresh_proxy();
 	}
 force_redraw = 1;
-printf("panel::refresh_proxies()\n"); fflush(stdout);
+// printf("panel::refresh_proxies()\n"); fflush(stdout);
 }
 
 void panel::set_x0( double X0 )
@@ -421,7 +421,7 @@ if	( bandes.size() )
 	// les autres bandes
 	for	( ib = 1; ib < bandes.size(); ib++ )
 		bandes.at(ib)->presize( bndy );
-	printf("panel::presize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
+	// printf("panel::presize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
 	}
 }
 
@@ -469,7 +469,7 @@ if	( bandes.size() )
 	// les autres bandes
 	for	( ib = 1; ib < bandes.size(); ib++ )
 		bandes.at(ib)->resize( bndy );
-	printf("panel::resize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
+	// printf("panel::resize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
 	}
 }
 

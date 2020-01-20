@@ -31,8 +31,9 @@ unsigned int fftsize;		// en samples
 unsigned int fftstride;		// en samples
 unsigned short * spectre;	// spectre W * H binxels, resample en log, pret a palettiser
 unsigned int W;			// nombre de colonnes ( env. nombre_samples / fftstride )
-unsigned int H;			// nombre de frequences (bins) sur le spectre resample
+unsigned int H;			// nombre de frequences (bins) sur le spectre retenu
 unsigned int allocatedWH;	// W*H effectivement alloue
+unsigned int fmax;		// limite de frequence pour partie visible du spectre (determine H)
 unsigned int umax;		// valeur max vue dans spectre[]
 unsigned char palR[65536];	// la palette 16 bits --> RGB
 unsigned char palG[65536];
@@ -44,7 +45,7 @@ float * fftoutbuf;		// buffer pour sortie fft complexe
 fftwf_plan p;			// le plan FFTW
 public:
 // constructeur
-spectro() : fftsize(16384), fftstride(16384/4), spectre(NULL), allocatedWH(0), fftinbuf(NULL), fftoutbuf(NULL) {};
+spectro() : fftsize(16384), fftstride(16384/4), spectre(NULL), allocatedWH(0), fmax(3000), fftinbuf(NULL), fftoutbuf(NULL) {};
 // methodes
 
 

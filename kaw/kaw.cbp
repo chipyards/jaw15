@@ -48,7 +48,6 @@
 		</Compiler>
 		<Linker>
 			<Add library="portaudio" />
-			<Add library="portmidi" />
 			<Add library="winmm" />
 			<Add library="ole32" />
 			<Add library="cairo" />

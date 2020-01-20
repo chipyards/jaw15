@@ -69,9 +69,10 @@ return 0;
 void spectro::parametrize( unsigned int fsamp, unsigned int qsamples )
 {
 // les dimensions du spectre
-unsigned int fmax = 2000;
 W = ( ( qsamples - fftsize ) / fftstride ) + 1;		// le nombre de fenetres fft
-H = fmax * fftsize / fsamp;				// le nombre de bins effectivement utilises
+if	( fmax > (fsamp/2) )
+	fmax = (fsamp/2);
+H = ( fmax * fftsize ) / fsamp;				// le nombre de bins effectivement utilises
 }
 
 // allouer ou re-allouer buffer pour spectre fini
@@ -124,7 +125,7 @@ return 0;
 void spectro::compute( float * src )
 {
 unsigned int a, j;
-float k, mag, maxmag = 0.0;
+float k, kn, mag, maxmag = 0.0;
 unsigned short u;
 umax = 0;
 k = 65536.0;	// le but de ce coeff est d'avoir des magnitudes compatibles avec une conversion en u16
@@ -143,17 +144,19 @@ for	( unsigned int icol = 0; icol < W; ++icol )
 	a = 0;
 	for	( j = 0; j < H; ++j )
 		{
-		mag = hypotf( fftoutbuf[a], fftoutbuf[a+1] );
+		mag = k * hypotf( fftoutbuf[a], fftoutbuf[a+1] );
 		a += 2;
-		fftoutbuf[j] = mag * k;
+		fftoutbuf[j] = mag;
 		if	( mag > maxmag )
 			maxmag = mag;
 		}
+	// normalisation
+	kn = 65535.0 / maxmag;
 	// conversion en unsigned short int pour palettisation
 	a = icol * H;
 	for	( j = 0; j < H; ++j )
 		{
-		u = (unsigned short)fftoutbuf[j];
+		u = (unsigned short)floor( kn * fftoutbuf[j] );
 		if	( u > umax )
 			umax = u;
 		spectre[a++] = u;

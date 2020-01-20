@@ -1,6 +1,6 @@
 // JAW = JLN's Audio Workstation
 // portaudio est necessaire pour jouer le son, mais on peut compiler sans lui pour tester le GUI
-#define  PAUDIO
+// #define  PAUDIO
 
 #include <gtk/gtk.h>
 #include <cairo-pdf.h>
@@ -18,7 +18,6 @@ using namespace std;
 
 #include "jluplot.h"
 #include "layers.h"
-#include "strips.h"
 #include "gluplot.h"
 #ifdef PAUDIO
 #include "portaudio.h"
@@ -245,6 +244,24 @@ glo->iplay1 = (int)glo->panneau.MdeX((double)glo->panneau.ndx);
 // et va le retracer
 }
 
+void level_slider_call( GtkAdjustment *adjustment, glostru * glo )
+{
+if	( adjustment->value != glo->level )
+	{
+	glo->level = adjustment->value;
+	printf("level = %g now\n", glo->level ); fflush(stdout);
+	double abslevel = double(glo->pro.Lspek.umax);
+	abslevel *= glo->level;
+	abslevel /= 100.0;
+	abslevel = round(abslevel);
+	glo->pro.colorize( &glo->pro.Lspek, glo->pro.Lpix, int(abslevel) );
+	if	( glo->pro.qspek >= 2 )
+		glo->pro.colorize( &glo->pro.Rspek, glo->pro.Rpix, int(abslevel) );
+	glo->panneau.force_redraw = 1;
+	glo->panneau.force_repaint = 1;
+	}
+}
+
 /** ============================ GLUPLOT call backs =============== */
 
 void clic_call_back( double M, double N, void * vglo )
@@ -399,6 +416,7 @@ gtk_container_set_border_width( GTK_CONTAINER (curwidg), 5);
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
 glo->hbut = curwidg;
 
+#ifdef PAUDIO
 /* simple bouton */
 curwidg = gtk_button_new_with_label (" Play/Pause ");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
@@ -412,6 +430,7 @@ gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( rewind_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->brew = curwidg;
+#endif
 
 // entree non editable
 curwidg = gtk_entry_new();
@@ -427,6 +446,24 @@ gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( quit_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->bqui = curwidg;
+
+GtkAdjustment *curadj;
+
+curwidg = gtk_hbox_new( FALSE, 4 );
+gtk_box_pack_start( GTK_BOX(glo->vmain), curwidg, FALSE, FALSE, 0);
+glo->hsli = curwidg;
+
+curwidg = gtk_label_new("peak level :");
+gtk_box_pack_start( GTK_BOX(glo->hsli), curwidg, FALSE, FALSE, 0);
+
+glo->level = 100;		//value,lower,upper,step_increment,page_increment,page_size);
+curadj = GTK_ADJUSTMENT( gtk_adjustment_new( glo->level, 1.0, 100.0, 1.0, 5.0, 0 ));
+g_signal_connect( curadj, "value_changed",
+		  G_CALLBACK(level_slider_call), (gpointer)glo );
+
+curwidg = gtk_hscale_new(curadj);
+gtk_scale_set_digits( GTK_SCALE(curwidg), 0 );
+gtk_box_pack_start( GTK_BOX(glo->hsli), curwidg, TRUE, TRUE, 0 );
 
 // connecter la zoombar au panel et inversement
 glo->panneau.zoombar = &glo->zbar;
@@ -462,6 +499,16 @@ if	( pa_dev_options & 4 )
 	printf("Sol. B1\n");
 	}
 else	printf("Sol. B2\n");
+#else
+if	( argc >= 3 )
+	{
+        unsigned int fmax = atoi(argv[2]);
+	if	( fmax > 50 )
+		{
+		glo->pro.Lspek.fmax = fmax;
+		glo->pro.Rspek.fmax = fmax;
+		}
+	}
 #endif
 
 snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), argv[1] );

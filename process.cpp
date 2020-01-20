@@ -15,7 +15,6 @@ using namespace std;
 
 #include "jluplot.h"
 #include "layers.h"
-#include "strips.h"
 #include "gluplot.h"
 
 #include "wav_head.h"

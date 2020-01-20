@@ -25,6 +25,7 @@ GtkWidget *     bpla;
 GtkWidget *     brew;
 GtkWidget *     esta;
 GtkWidget *     bqui;
+GtkWidget *   hsli;
 int darea_queue_flag;
 
 gpanel panneau;		// panneau principal (wav), dans darea
@@ -42,7 +43,9 @@ double play_start_time;
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
 
-int darea_expose_cnt;
+double level;		// niveau relatif pour saturation colorisation spectre et extraction frequ.
+
+int darea_expose_cnt;	// stats
 int idle_profiler_cnt;
 int idle_profiler_time;
 
