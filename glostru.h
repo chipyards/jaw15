@@ -42,6 +42,10 @@ double play_start_time;
 #endif
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
+int auto_png;		// index pour la generation d'une sequence de png
+double auto_png_incm;	// increment M (en samples !)
+double auto_png_dm;	// largeur M
+double auto_png_mend;	// M max
 
 double level;		// niveau relatif pour saturation colorisation spectre et extraction frequ.
 

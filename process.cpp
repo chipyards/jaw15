@@ -446,6 +446,7 @@ curbande->Ylabel = "Hz";
 curbande->optX = 0;
 curbande->optretX = 0;
 curbande->optretY = 0;
+curbande->visible = 0;
 curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
 // curbande->optcadre = 1;	// pour economiser le fill du fond
 // configurer le layer
@@ -476,6 +477,7 @@ if	( qspek >= 2 )
 	curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 	curbande->optretX = 0;
 	curbande->optretY = 0;
+	curbande->visible = 0;
 	curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
 	// curbande->optcadre = 1;	// pour economiser le fill du fond
 	// configurer le layer

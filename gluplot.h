@@ -110,6 +110,8 @@ GtkWidget * edesc;
 // pdf service methods
 void pdf_modal_layout( GtkWidget * mainwindow );
 void pdf_ok_call();
+// png service method
+void png_save_drawpad( const char * fnam );
 // context menu service
 GtkWidget * mkmenu1( const char * title );
 int selected_strip;	// strip duquel on a appele le menu (avec les flags de marges)

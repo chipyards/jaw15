@@ -200,7 +200,25 @@ if	( ( glo->panneau.queue_flag ) || ( glo->panneau.force_repaint ) )
 	glo->panneau.queue_flag = 0;
 	glo->panneau.paint();
 	}
-
+if	( glo->auto_png )
+	{
+	if	( glo->panneau.force_repaint == 0 )
+		{
+		char fnam[64]; double m0, m1;
+		snprintf( fnam, sizeof(fnam), "toyo%05d.png", glo->auto_png );
+		glo->panneau.png_save_drawpad(fnam);
+		m0 = glo->auto_png * glo->auto_png_incm;
+		m1 = m0 + glo->auto_png_dm;
+		if	( m1 > glo->auto_png_mend )
+			{ glo->auto_png = 0; printf("fin auto_png\n"); }
+		else	{
+			glo->auto_png += 1;
+			glo->panneau.zoomM( m0, m1 );
+			glo->panneau.force_redraw = 1;
+			glo->panneau.force_repaint = 1;
+			}
+		}
+	}
 return( -1 );
 }
 
@@ -317,6 +335,7 @@ switch	( v )
 		fflush(stdout);
 		break;
 	case 'c' :	// re calculer les courbes en fonction du slider
+		{
 		double abslevel = double(glo->pro.Lspek.umax);
 		abslevel *= glo->level;
 		abslevel /= 100.0;
@@ -326,6 +345,22 @@ switch	( v )
 		glo->pro.find_peaks( &glo->pro.Rspek, 1, (fplancher*glo->pro.Rspek.fftsize)/(glo->pro.wavp.freq), (unsigned short)(abslevel)/2 );
 		glo->panneau.force_redraw = 1;
 		glo->panneau.force_repaint = 1;
+		} break;
+	case 'p' :
+		glo->panneau.png_save_drawpad("pipo.png");
+		break;
+	case 'P' :
+		glo->auto_png_incm = double( glo->pro.wavp.freq ) * 0.1;	// determine fps
+		glo->auto_png_dm   = double( glo->pro.wavp.freq ) * 10.0;	// determine largeur horizontale
+		glo->auto_png_mend = glo->pro.wavp.wavsize;
+		glo->auto_png = 1;
+		glo->panneau.zoomM( 0, glo->auto_png_dm );
+		glo->panneau.force_redraw = 1;
+		glo->panneau.force_repaint = 1;
+		// le reste sera fait par idle_call()
+		break;
+	case 'S' :
+		glo->auto_png = 0;
 		break;
 	}
 }
@@ -415,7 +450,7 @@ gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
-glo->darea = glo->panneau.layout( 800, 600 );
+glo->darea = glo->panneau.layout( 400, 600 );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea, TRUE, TRUE, 0 );
 
 /* creer une drawing area  qui ne sera pas resizee en hauteur par la hbox
@@ -486,6 +521,7 @@ glo->zbar.panneau = &glo->panneau;
 // enrichir les menus de clic droit
 enrich_wav_X_menu( glo );
 
+glo->auto_png = 0;
 
 gtk_widget_show_all( glo->wmain );
 
