@@ -70,6 +70,107 @@ for	( icol = 0; icol < spek->W; ++icol )
 	}
 }
 
+// lecture du fichier mono de canal sideband (spark plug)
+int process::sideband_process()
+{
+printf("ouverture %s en lecture\n", swnam );
+swavp.hand = open( swnam, O_RDONLY | O_BINARY );
+if	( swavp.hand == -1 )
+	{ printf("file not found %s\n", swnam ); return -1;  }
+
+WAVreadHeader( &swavp );
+if	(
+	( swavp.chan != 1 ) ||
+	( swavp.resol != 16 )
+	)
+	{ printf("sideband data : seulement fichiers 16 bits mono\n"); close(swavp.hand); return -2;  }
+printf("freq = %u, block = %u, bpsec = %u, size = %u\n",
+	swavp.freq, swavp.block, swavp.bpsec, swavp.wavsize );
+fflush(stdout);
+
+// allouer memoire pour lire WAV
+Sbuf = (short *)malloc( swavp.wavsize * sizeof(short) );	// pour 1 canal
+if	( Sbuf == NULL )
+	gasp("echec malloc Sbuf %d samples", (int)swavp.wavsize );
+
+// lecture bufferisee
+unsigned int rdbytes, remsamples, rdsamples, rdsamples1c, totalsamples1c = 0;	// "1c" veut dire "pour 1 canal"
+short int rawsamples16[QRAW];	// buffer pour read()
+unsigned int i, j, k;
+j = 0;
+while	( totalsamples1c < swavp.wavsize )
+	{
+	remsamples = ( swavp.wavsize - totalsamples1c ) * swavp.chan;
+	if	( remsamples > QRAW )
+		remsamples = QRAW;
+	rdbytes = read( swavp.hand, rawsamples16, remsamples*Qs16 );
+	rdsamples = rdbytes / Qs16;
+	if	( rdsamples != remsamples )
+		{ printf("truncated WAV data"); close(swavp.hand); return -4;  }
+	rdsamples1c = rdsamples / swavp.chan;
+	totalsamples1c += rdsamples1c;
+		{
+		for	( i = 0; i < rdsamples; ++i )
+			Sbuf[j++] = rawsamples16[i];
+		}
+	}
+if	( totalsamples1c != swavp.wavsize )	// cela ne peut pas arriver, cette verif serait parano
+	{ printf("WAV size error %u vs %d", totalsamples1c , (int)swavp.wavsize ); close(swavp.hand); return -5;  }
+close( swavp.hand );
+printf("sideband : lu %d samples Ok\n", totalsamples1c ); fflush(stdout);
+
+int seuil = -3000;
+/* scan des samples */
+int sidemax = -0x7FFF, sidemin = 0x7FFF;
+for	( i = 0; i < swavp.wavsize; ++i )
+	{
+	if ( Sbuf[i] < sidemin ) sidemin = Sbuf[i];
+	if ( Sbuf[i] > sidemax ) sidemax = Sbuf[i];
+	}
+seuil = sidemax - 1000;
+printf("sideband : %d to %d, seuil = %d\n", sidemin, sidemax, seuil ); fflush(stdout);
+//*/
+if	( QVBUF < 3 )
+	return -666;
+double freq = 0.0;		// frequence courante
+double freqmax = 0.0;
+double kfice = double(swavp.freq*2) * 14.41;	// coeff frequence ICE (le second facteur a ete determine par l'experience)
+double freqral = 4.0 * 14.41;	// seuil de ralenti (4Hz = 240 RPM)
+int oldval = -0x7FFF;		// pour detecter front montant
+unsigned int oldrise = 0;	// instant du dernier front montant
+j = 0;
+for	( i = 0; i < swavp.wavsize; ++i )
+	{
+	if	( ( Sbuf[i] > seuil ) && ( oldval < seuil ) )
+		{
+		freq = kfice / double( i - oldrise );	// *2 car moteur 4 temps
+		for	( k = oldrise + 1; k <= i; ++k )
+			{						// la frequence trouvee s'applique retroactivement
+			if	( ( k % Lspek.fftstride ) == 0 )	// decimation pour alignement sur les autres courbes
+				{
+				if	( j < Lspek.W )
+					{
+					if	( freq > freqmax ) freqmax = freq;
+					if	( freq < freqral ) freq = 0.0;	// les intervalles d'arret
+					Vbuf[2][j++] = (float)freq;
+					}
+				else	break;
+				}
+			}
+		oldrise = i;
+		}
+	oldval = Sbuf[i];
+	}
+if	( j < Lspek.W )
+	{
+	printf("vu %u frequences sur %u\n", j, Lspek.W );
+	while	( j < Lspek.W )
+		Vbuf[2][j++] = 0.0;
+	}
+printf("sideband freq max = %g\n", freqmax ); fflush(stdout);
+return 0;
+}
+
 // allocation memoire et lecture WAV 16 bits entier en memoire
 // donnees stockées dans l'objet process
 // puis calculs spectrogramme dans l'objet process
@@ -106,8 +207,6 @@ if	( wavp.chan > 1 )
 
 // lecture bufferisee
 unsigned int rdbytes, remsamples, rdsamples, rdsamples1c, totalsamples1c = 0;	// "1c" veut dire "pour 1 canal"
-#define QRAW 4096
-#define Qs16 sizeof(short int)
 short int rawsamples16[QRAW];	// buffer pour read()
 unsigned int i, j;
 j = 0;
@@ -251,6 +350,9 @@ if	( qspek >= 2 )
 	colorize( &Rspek, Rpix, Rspek.umax );
 	}
 printf("end colorisation spectrogramme\n" ); fflush(stdout);
+
+if	( swnam[0] )
+	sideband_process();
 
 return 0;
 }
@@ -406,15 +508,15 @@ curcour3->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de cha
 curcour3->set_kn( double(Lspek.fftsize)/double(wavp.freq) );
 curcour3->set_n0( 0.0 );	// centre du bin
 curcour3->label = string("MG2");
-curcour3->fgcolor.dR = 1.0;
+curcour3->fgcolor.dR = 0.0;
 curcour3->fgcolor.dG = 0.0;
-curcour3->fgcolor.dB = 0.0;
+curcour3->fgcolor.dB = 1.0;
 
 curcour3 = new layer_f;	// courbe scientifique
 curbande->courbes.push_back( curcour3 );
 // parentizer a cause des fonctions "set"
 panneau->parentize();
-// configurer le 1er layer
+// configurer le 2e layer
 curcour3->set_km( 1.0 / (double)Lspek.fftstride );		// M est en samples, U en FFT-runs
 curcour3->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
 curcour3->set_kn( double(Lspek.fftsize)/double(wavp.freq) );
@@ -423,6 +525,20 @@ curcour3->label = string("MG1");
 curcour3->fgcolor.dR = 0.0;
 curcour3->fgcolor.dG = 0.7;
 curcour3->fgcolor.dB = 0.1;
+
+curcour3 = new layer_f;	// courbe scientifique
+curbande->courbes.push_back( curcour3 );
+// parentizer a cause des fonctions "set"
+panneau->parentize();
+// configurer le 3e layer
+curcour3->set_km( 1.0 / (double)Lspek.fftstride );		// M est en samples, U en FFT-runs
+curcour3->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
+curcour3->set_kn( 1.0 );
+curcour3->set_n0( 0.0 );	// centre du bin
+curcour3->label = string("ICE");
+curcour3->fgcolor.dR = 1.0;
+curcour3->fgcolor.dG = 0.1;
+curcour3->fgcolor.dB = 0.0;
 
 printf("end layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 }
@@ -488,7 +604,7 @@ ic = 0;
 if	( ic > panneau->bandes[ib]->courbes.size() )
 	gasp("erreur sur layout, ic");
 layV[ic] = (layer_f *)panneau->bandes[ib]->courbes[ic];
-layV[ic]->V = Vbuf[0];
+layV[ic]->V = Vbuf[ic];
 layV[ic]->qu = Lspek.W;
 layV[ic]->scan();
 
@@ -496,8 +612,16 @@ ic = 1;
 if	( ic > panneau->bandes[ib]->courbes.size() )
 	gasp("erreur sur layout, ic");
 layV[ic] = (layer_f *)panneau->bandes[ib]->courbes[ic];
-layV[ic]->V = Vbuf[1];
+layV[ic]->V = Vbuf[ic];
 layV[ic]->qu = Rspek.W;
+layV[ic]->scan();
+
+ic = 2;
+if	( ic > panneau->bandes[ib]->courbes.size() )
+	gasp("erreur sur layout, ic");
+layV[ic] = (layer_f *)panneau->bandes[ib]->courbes[ic];
+layV[ic]->V = Vbuf[ic];
+layV[ic]->qu = Lspek.W;
 layV[ic]->scan();
 
 printf("end connect layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);

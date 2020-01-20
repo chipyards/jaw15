@@ -304,6 +304,7 @@ switch	( v )
 	case '3' : toggle_vis( glo, 3, -1 ); break;
 	case '4' : toggle_vis( glo, 4, 0 ); break;
 	case '5' : toggle_vis( glo, 4, 1 ); break;
+	case '6' : toggle_vis( glo, 4, 2 ); break;
 	case ' ' :
 		play_pause_call( NULL, glo );
 		break;
@@ -521,6 +522,8 @@ if	( argc >= 3 )
 		glo->pro.Lspek.fmax = fmax;
 		glo->pro.Rspek.fmax = fmax;
 		}
+	if	( argc >= 4 )
+		snprintf( glo->pro.swnam, sizeof( glo->pro.swnam), argv[3] );
 	}
 #endif
 
