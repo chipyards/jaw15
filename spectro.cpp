@@ -183,6 +183,7 @@ memset( palB + iend, val, 65536 - iend );
 }
 
 // conversion en style GDK pixbuf
+// N.B. spectro ne connait pas GDK mais est compatible avec le style
 // utilise la palette interne du spectro
 void spectro::spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels )
 {

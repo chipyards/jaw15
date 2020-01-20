@@ -409,6 +409,11 @@ if	( bandes.size() )
 			ndy -= ((bandes.at(ib)->optX)?(my):(0));
 			}
 		}
+	if	( cnt == 0 )
+		{
+		printf("panel::presize : 0 bande visible\n" );
+		return;
+		}
  	// bandes d'egale hauteur
 	bndy = ndy / cnt;
 	// reste de la division applique a la premiere bande
@@ -451,6 +456,11 @@ if	( bandes.size() )
 			// soustraire l'espace pour les graduations optionnelles
 			ndy -= ((bandes.at(ib)->optX)?(my):(0));
 			}
+		}
+	if	( cnt == 0 )
+		{
+		printf("panel::presize : 0 bande visible\n" );
+		return;
 		}
  	// bandes d'egale hauteur
 	bndy = ndy / cnt;

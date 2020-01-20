@@ -25,6 +25,19 @@ using namespace std;
 
 /** ============================ AUDIO data processing =============== */
 
+// remplissage de la palette et colorisation d'un pixbuf sur le spectre precalcule
+void process::colorize( spectro * spek, GdkPixbuf * lepix, unsigned int iend )
+{
+if	( ( spek->spectre == NULL ) || ( lepix == NULL ) )
+	return;
+// mettre a jour palette en fonction de la magnitude max
+spek->fill_palette( iend );
+// remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
+int rowstride = gdk_pixbuf_get_rowstride( lepix );
+unsigned char * RGBdata = gdk_pixbuf_get_pixels( lepix );
+int colorchans = gdk_pixbuf_get_n_channels( lepix );
+spek->spectre2rgb( RGBdata, rowstride, colorchans  );
+}
 
 // allocation memoire et lecture WAV 16 bits entier en memoire
 // donnees stockées dans l'objet process
@@ -171,30 +184,20 @@ free(raw32);
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
 }
 
-printf("start colorisation L spectrogramme\n"); fflush(stdout);
-// mettre a jour palette en fonction de la magnitude max
-Lspek.fill_palette( Lspek.umax );
+printf("start creation pixbufs pour spectro\n"); fflush(stdout);
 // creer le pixbuf, pour le spectre entier
 Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
-// remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
-int rowstride = gdk_pixbuf_get_rowstride( Lpix );
-unsigned char * RGBdata = gdk_pixbuf_get_pixels( Lpix );
-int colorchans = gdk_pixbuf_get_n_channels( Lpix );
-Lspek.spectre2rgb( RGBdata, rowstride, colorchans  );
+if	( qspek >= 2 )
+	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
+printf("end creation pixbufs pour spectro\n"); fflush(stdout);
+
+printf("start colorisation L spectrogramme\n"); fflush(stdout);
+colorize( &Lspek, Lpix, Lspek.umax );
 if	( qspek >= 2 )
 	{
 	printf("start colorisation R spectrogramme\n"); fflush(stdout);
-	// mettre a jour palette en fonction de la magnitude max
-	Rspek.fill_palette( Rspek.umax );
-	// creer le pixbuf, pour le spectre entier
-	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
-	// remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
-	int rowstride = gdk_pixbuf_get_rowstride( Rpix );
-	unsigned char * RGBdata = gdk_pixbuf_get_pixels( Rpix );
-	int colorchans = gdk_pixbuf_get_n_channels( Rpix );
-	Rspek.spectre2rgb( RGBdata, rowstride, colorchans  );
+	colorize( &Rspek, Rpix, Rspek.umax );
 	}
-
 printf("end colorisation spectrogramme\n" ); fflush(stdout);
 
 return 0;

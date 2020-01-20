@@ -11,6 +11,8 @@ spectro Lspek;		// un spectrographe
 spectro Rspek;		// un spectrographe
 
 // methodes
+// remplissage de la palette et colorisation d'un pixbuf sur le spectre precalcule
+void colorize( spectro * spek, GdkPixbuf * lepix, unsigned int iend );
 // la partie du process qui traite en memeoire les wavs et le spectre
 int wave_process_full();
 // la partie du process en relation avec jluplot

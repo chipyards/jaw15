@@ -271,25 +271,31 @@ glo->panneau.force_repaint = 1;
 
 void key_call_back( int v, void * vglo )
 {
+glostru * glo = (glostru *)vglo;
 switch	( v )
 	{
-	case '0' : toggle_vis( (glostru *)vglo, 0, 0 ); break;
-	case '1' : toggle_vis( (glostru *)vglo, 1, 0 ); break;
-	case '2' : toggle_vis( (glostru *)vglo, 2, 0 ); break;
-	case '3' : toggle_vis( (glostru *)vglo, 3, 0 ); break;
+	case '0' : toggle_vis( glo, 0, 0 ); break;
+	case '1' : toggle_vis( glo, 1, 0 ); break;
+	case '2' : toggle_vis( glo, 2, 0 ); break;
+	case '3' : toggle_vis( glo, 3, 0 ); break;
 	case ' ' :
-		play_pause_call( NULL, (glostru *)vglo );
+		play_pause_call( NULL, glo );
 		break;
 	case 'r' :
-		rewind_call( NULL, (glostru *)vglo );
+		rewind_call( NULL, glo );
 		break;
 	case 'd' :
-		{
-		glostru * glo = (glostru *)vglo;
 		glo->panneau.dump();
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		fflush(stdout);
-		} break;
+		break;
+	case 'c' :	// juste une demo
+		glo->pro.colorize( &glo->pro.Lspek, glo->pro.Lpix, glo->pro.Lspek.umax/2 );
+		if	( glo->pro.qspek >= 2 )
+			glo->pro.colorize( &glo->pro.Rspek, glo->pro.Rpix, glo->pro.Rspek.umax/2 );
+		glo->panneau.force_redraw = 1;
+		glo->panneau.force_repaint = 1;
+		break;
 	}
 }
 
