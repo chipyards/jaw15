@@ -274,11 +274,18 @@ glo->iplayp = M;
 }
 
 // cette fonction devra etre transportee dans gpanel
-static void toggle_vis( glostru * glo, unsigned int ib, unsigned int ic )	// ignore ic pour le moment
+// ic = -1 <==> strip entier
+static void toggle_vis( glostru * glo, unsigned int ib, int ic )	// ignore ic pour le moment
 {
 if	( ib >= glo->panneau.bandes.size() )
 	return;
-glo->panneau.bandes[ib]->visible ^= 1;
+if	( ic < 0 )
+	glo->panneau.bandes[ib]->visible ^= 1;
+else	{
+	if	( (unsigned int)ic >= glo->panneau.bandes[ib]->courbes.size() )
+		return;
+	glo->panneau.bandes[ib]->courbes[ic]->visible ^= 1;
+	}
 int ww, wh;
 ww = glo->panneau.fdx; wh = glo->panneau.fdy;	// les dimensions de la drawing area ne changent pas
 glo->panneau.resize( ww, wh );			// mais il faut recalculer la hauteur des bandes
@@ -291,10 +298,12 @@ void key_call_back( int v, void * vglo )
 glostru * glo = (glostru *)vglo;
 switch	( v )
 	{
-	case '0' : toggle_vis( glo, 0, 0 ); break;
-	case '1' : toggle_vis( glo, 1, 0 ); break;
-	case '2' : toggle_vis( glo, 2, 0 ); break;
-	case '3' : toggle_vis( glo, 3, 0 ); break;
+	case '0' : toggle_vis( glo, 0, -1 ); break;
+	case '1' : toggle_vis( glo, 1, -1 ); break;
+	case '2' : toggle_vis( glo, 2, -1 ); break;
+	case '3' : toggle_vis( glo, 3, -1 ); break;
+	case '4' : toggle_vis( glo, 4, 0 ); break;
+	case '5' : toggle_vis( glo, 4, 1 ); break;
 	case ' ' :
 		play_pause_call( NULL, glo );
 		break;
@@ -306,10 +315,14 @@ switch	( v )
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		fflush(stdout);
 		break;
-	case 'c' :	// juste une demo
-		glo->pro.colorize( &glo->pro.Lspek, glo->pro.Lpix, glo->pro.Lspek.umax/2 );
-		if	( glo->pro.qspek >= 2 )
-			glo->pro.colorize( &glo->pro.Rspek, glo->pro.Rpix, glo->pro.Rspek.umax/2 );
+	case 'c' :	// re calculer les courbes en fonction du slider
+		double abslevel = double(glo->pro.Lspek.umax);
+		abslevel *= glo->level;
+		abslevel /= 100.0;
+		abslevel = round(abslevel);
+		unsigned int fplancher = 6;	// Hz (2.69 Hz/bin @ 16384/44100)
+		glo->pro.find_peaks( &glo->pro.Lspek, 0, (fplancher*glo->pro.Lspek.fftsize)/(glo->pro.wavp.freq), (unsigned short)(abslevel)/2 );
+		glo->pro.find_peaks( &glo->pro.Rspek, 1, (fplancher*glo->pro.Rspek.fftsize)/(glo->pro.wavp.freq), (unsigned short)(abslevel)/2 );
 		glo->panneau.force_redraw = 1;
 		glo->panneau.force_repaint = 1;
 		break;

@@ -37,6 +37,38 @@ unsigned char * RGBdata = gdk_pixbuf_get_pixels( lepix );
 int colorchans = gdk_pixbuf_get_n_channels( lepix );
 spek->spectre2rgb( RGBdata, rowstride, colorchans  );
 }
+// extraction d'une courbe de vitesse
+// cherche le premier pic valide (fondamental) dans chaque colonne de binxels
+// met zero si pas de pic
+void process::find_peaks( spectro * spek, unsigned int icou, unsigned int bin0, unsigned short minpeak )
+{
+if	( icou >= QVBUF )
+	return;
+unsigned int icol, ibin, ihit, step;
+unsigned short mag, maxmag;
+unsigned short * colbase = spek->spectre;
+for	( icol = 0; icol < spek->W; ++icol )
+	{
+	step = 0; maxmag = 0;
+	ihit = 0;	// pour le cas ou on ne rouve pas de pic
+	for	( ibin = bin0; ibin < spek->H; ++ibin )
+		{
+		mag = colbase[ibin];
+		switch	( step )
+			{
+			case 0: if ( mag < minpeak ) step = 1;
+				break;
+			case 1: if	( ( mag > minpeak ) && ( mag > maxmag ) )
+					{ maxmag = mag; ihit = ibin; }
+				else if ( mag < ( maxmag / 2 ) )
+					ibin = spek->H;		// sortir du for ibin
+				break;
+			}
+		}
+	Vbuf[icou][icol] = (float)ihit;
+	colbase += spek->H;
+	}
+}
 
 // allocation memoire et lecture WAV 16 bits entier en memoire
 // donnees stockées dans l'objet process
@@ -113,6 +145,9 @@ printf("lu %d samples Ok\n", totalsamples1c ); fflush(stdout);
 // qspek = 1;
 qspek = wavp.chan;
 
+if	( ( wavp.chan != 2 ) || ( qspek != 2 ) )
+	gasp("sorry - cette appli est specialisee pour wav stereo");
+
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 
 // parametres primitifs
@@ -183,6 +218,24 @@ free(raw32);
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
 }
 
+printf("start allocation pour courbes de vitesses\n"); fflush(stdout);
+for	( i = 0; i < QVBUF; ++i )
+	{
+	Vbuf[i] = (float *)malloc( Lspek.W * sizeof(float) );
+	if	( Vbuf[i] == NULL )
+		gasp("echec alloc %d floats pour Vbuf", Lspek.W );
+	}
+printf("end allocation pour courbes de vitesses\n"); fflush(stdout);
+
+printf("start extraction courbes de vitesses\n"); fflush(stdout);
+// extraction courbe 0 pour canal L aka MG2
+unsigned int fplancher = 6;
+find_peaks( &Lspek, 0, (fplancher*Lspek.fftsize)/(wavp.freq), Lspek.umax/2 );
+// extraction courbe 1 pour canal R aka MG1
+fplancher = 6;
+find_peaks( &Rspek, 1, (fplancher*Rspek.fftsize)/(wavp.freq), Rspek.umax/2 );
+printf("end extraction courbes de vitesses\n"); fflush(stdout);
+
 printf("start creation pixbufs pour spectro\n"); fflush(stdout);
 // creer le pixbuf, pour le spectre entier
 Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
@@ -230,6 +283,7 @@ curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "mono";
 curbande->optX = 1;
 curbande->optretX = 1;
+curbande->visible = 0;
 // configurer le layer
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
@@ -262,6 +316,7 @@ if	( wavp.chan > 1 )
 	curbande->Ylabel = "right";
 	curbande->optX = 1;
 	curbande->optretX = 1;
+	curbande->visible = 0;
 	// configurer le layer
 	curcour->set_km( 1.0 );
 	curcour->set_m0( 0.0 );
@@ -286,7 +341,7 @@ curbande->bgcolor.dR = 1.0;
 curbande->bgcolor.dG = 0.9;
 curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "Hz";
-curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
+curbande->optX = 0;
 curbande->optretX = 0;
 curbande->optretY = 0;
 curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
@@ -327,6 +382,49 @@ if	( qspek >= 2 )
 	curcour2->set_kn( double(Lspek.fftsize)/double(wavp.freq) );
 	curcour2->set_n0( -0.5 * double(wavp.freq)/double(Lspek.fftsize) );
 	}
+
+// creer le strip pour les courbes de vitesse
+curbande = new strip;	// strip avec drawpad
+panneau->bandes.push_back( curbande );
+// configurer le strip
+curbande->bgcolor.dR = 1.0;
+curbande->bgcolor.dG = 1.0;
+curbande->bgcolor.dB = 1.0;
+curbande->Ylabel = "Hz";
+curbande->optX = 1;
+curbande->optretX = 1;
+
+// creer les layers
+layer_f * curcour3;
+curcour3 = new layer_f;	// courbe scientifique
+curbande->courbes.push_back( curcour3 );
+// parentizer a cause des fonctions "set"
+panneau->parentize();
+// configurer le 1er layer
+curcour3->set_km( 1.0 / (double)Lspek.fftstride );		// M est en samples, U en FFT-runs
+curcour3->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
+curcour3->set_kn( double(Lspek.fftsize)/double(wavp.freq) );
+curcour3->set_n0( 0.0 );	// centre du bin
+curcour3->label = string("MG2");
+curcour3->fgcolor.dR = 1.0;
+curcour3->fgcolor.dG = 0.0;
+curcour3->fgcolor.dB = 0.0;
+
+curcour3 = new layer_f;	// courbe scientifique
+curbande->courbes.push_back( curcour3 );
+// parentizer a cause des fonctions "set"
+panneau->parentize();
+// configurer le 1er layer
+curcour3->set_km( 1.0 / (double)Lspek.fftstride );		// M est en samples, U en FFT-runs
+curcour3->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
+curcour3->set_kn( double(Lspek.fftsize)/double(wavp.freq) );
+curcour3->set_n0( 0.0 );	// centre du bin
+curcour3->label = string("MG1");
+curcour3->fgcolor.dR = 0.0;
+curcour3->fgcolor.dG = 0.7;
+curcour3->fgcolor.dB = 0.1;
+
+printf("end layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 }
 
 // connexion du layout aux data
@@ -336,6 +434,7 @@ int retval;
 // pointeurs locaux sur les 2 ou 3 layers
 layer_s16_lod * layL, * layR = NULL;
 layer_rgb * laySL, * laySR;
+layer_f * layV[QVBUF];
 // connecter les layers de ce layout sur les buffers existants
 layL = (layer_s16_lod *)panneau->bandes[0]->courbes[0];
 layL->V = Lbuf;
@@ -380,6 +479,27 @@ if	( qspek >= 2 )
 	printf("verif colorisation spectrogramme %u pixels\n", verif );
 	}
 
-printf("end layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
+ib++;
+if	( ib >= panneau->bandes.size() )
+	gasp("erreur sur layout, ib");
+unsigned int ic;
+
+ic = 0;
+if	( ic > panneau->bandes[ib]->courbes.size() )
+	gasp("erreur sur layout, ic");
+layV[ic] = (layer_f *)panneau->bandes[ib]->courbes[ic];
+layV[ic]->V = Vbuf[0];
+layV[ic]->qu = Lspek.W;
+layV[ic]->scan();
+
+ic = 1;
+if	( ic > panneau->bandes[ib]->courbes.size() )
+	gasp("erreur sur layout, ic");
+layV[ic] = (layer_f *)panneau->bandes[ib]->courbes[ic];
+layV[ic]->V = Vbuf[1];
+layV[ic]->qu = Rspek.W;
+layV[ic]->scan();
+
+printf("end connect layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 return 0;
 }

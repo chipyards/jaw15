@@ -175,12 +175,14 @@ cairo_translate( cai, 0, ndy );
 
 // tracer les courbes
 int i;
-for ( i = ( courbes.size() - 1 ); i >= 0; i-- )
-    {
-    courbes.at(i)->ylabel = ( 20 * i ) + 20;
-    courbes.at(i)->draw( cai );
-    }
-
+for	( i = ( courbes.size() - 1 ); i >= 0; i-- )
+	{
+	if	( courbes.at(i)->visible )
+		{
+		courbes.at(i)->ylabel = ( 20 * i ) + 20;
+		courbes.at(i)->draw( cai );
+		}
+	}
 // les textes de l'axe Y
 gradu_Y( cai );
 // tracer les reticules

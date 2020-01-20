@@ -168,19 +168,28 @@ printf("max magnitude %g --> u16 %u\n", maxmag, umax );
 // iend est l'index a partir duquel on est sature au max
 void spectro::fill_palette( unsigned int iend )
 {
-unsigned int mul = ( 1 << 24 ) / iend;
+unsigned int i, mul = ( 1 << 24 ) / iend;
 unsigned char val = 0;
-for	( unsigned int i = 0; i < iend; ++i )
+// 2 zones
+unsigned int izon = iend/2;
+for	( i = 0; i < izon; ++i )
+	{
+	val = ( i * mul ) >> 16;
+	palR[i] = 0;
+	palG[i] = val;
+	palB[i] = val/4;
+	}
+for	( i = izon; i < iend; ++i )
 	{
 	val = ( i * mul ) >> 16;
 	palR[i] = val;
-	palG[i] = val;
-	palB[i] = 69;
+	palG[i] = val/4;
+	palB[i] = 0;
 	}
 // completer la zone de saturation
-memset( palR + iend, val, 65536 - iend );
-memset( palG + iend, val, 65536 - iend );
-memset( palB + iend, val, 65536 - iend );
+memset( palR + iend, palR[i-1], 65536 - iend );
+memset( palG + iend, palG[i-1], 65536 - iend );
+memset( palB + iend, palB[i-1], 65536 - iend );
 // special verif echelle verticale
 // palR[0xFFFF] = 0; palG[0xFFFF] = palB[0xFFFF] = 0xFF;
 }
