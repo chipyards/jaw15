@@ -421,6 +421,87 @@ gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 }
 
+static void spec_Y_menu_hz_call( GtkWidget *widget, glostru * glo )
+{
+if	( gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) ) )
+	{
+	strip * labande;
+	if	( glo->panneau.bandes.size() < 5 )
+		return;
+	labande = glo->panneau.bandes[4];
+	labande->Ylabel = "Hz";
+	labande->kr = 1.0;
+	glo->panneau.force_redraw = 1;
+	glo->panneau.force_repaint = 1;
+	}
+}
+
+// vu dans process.cpp :
+// double kfice = double(swavp.freq*2) * 14.41;	// coeff frequence ICE
+static void spec_Y_menu_rpm_call( GtkWidget *widget, glostru * glo )
+{
+if	( gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) ) )
+	{
+	strip * labande;
+	if	( glo->panneau.bandes.size() < 5 )
+		return;
+	labande = glo->panneau.bandes[4];
+	labande->Ylabel = "RPM";
+	labande->kr = 14.41/60.0;
+	glo->panneau.force_redraw = 1;
+	glo->panneau.force_repaint = 1;
+	}
+}
+
+static void spec_Y_menu_km_call( GtkWidget *widget, glostru * glo )
+{
+if	( gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) ) )
+	{
+	strip * labande;
+	if	( glo->panneau.bandes.size() < 5 )
+		return;
+	labande = glo->panneau.bandes[4];
+	labande->Ylabel = "km/h";
+	labande->kr = 5.0;	// etalonnage sommaire d'apres session LA2 rocade 90 km/h
+	glo->panneau.force_redraw = 1;
+	glo->panneau.force_repaint = 1;
+	}
+}
+
+void enrich_spec_Y_menu( glostru * glo )
+{
+GtkWidget * curmenu;
+GtkWidget * curitem;
+GSList *group = NULL;
+
+curmenu = glo->panneau.menu1_y;    // Don't need to show menus
+
+curitem = gtk_separator_menu_item_new();
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_radio_menu_item_new_with_label( group, "Hz");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( spec_Y_menu_hz_call ), (gpointer)glo );
+gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), TRUE );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+group = gtk_radio_menu_item_get_group( GTK_RADIO_MENU_ITEM(curitem) );
+curitem = gtk_radio_menu_item_new_with_label( group, "RPM");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( spec_Y_menu_rpm_call ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+group = gtk_radio_menu_item_get_group( GTK_RADIO_MENU_ITEM(curitem) );
+curitem = gtk_radio_menu_item_new_with_label( group, "km/h");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( spec_Y_menu_km_call ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+}
+
 /** ============================ main, quoi ======================= */
 
 static glostru theglo;
@@ -520,6 +601,7 @@ glo->panneau.zbarcall = gzoombar_zoom;
 glo->zbar.panneau = &glo->panneau;
 // enrichir les menus de clic droit
 enrich_wav_X_menu( glo );
+enrich_spec_Y_menu( glo );
 
 glo->auto_png = 0;
 

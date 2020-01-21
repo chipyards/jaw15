@@ -134,7 +134,8 @@ if	( QVBUF < 3 )
 	return -666;
 double freq = 0.0;		// frequence courante
 double freqmax = 0.0;
-double kfice = double(swavp.freq*2) * 14.41;	// coeff frequence ICE (le second facteur a ete determine par l'experience)
+double kfice = double(swavp.freq*2) * 14.41;	// coeff frequence ICE : *2 car moteur 4 temps
+						// facteur 14.41 calibre par experience vehicule arrete
 double freqral = 4.0 * 14.41;	// seuil de ralenti (4Hz = 240 RPM)
 int oldval = -0x7FFF;		// pour detecter front montant
 unsigned int oldrise = 0;	// instant du dernier front montant
@@ -143,7 +144,7 @@ for	( i = 0; i < swavp.wavsize; ++i )
 	{
 	if	( ( Sbuf[i] > seuil ) && ( oldval < seuil ) )
 		{
-		freq = kfice / double( i - oldrise );	// *2 car moteur 4 temps
+		freq = kfice / double( i - oldrise );
 		for	( k = oldrise + 1; k <= i; ++k )
 			{						// la frequence trouvee s'applique retroactivement
 			if	( ( k % Lspek.fftstride ) == 0 )	// decimation pour alignement sur les autres courbes

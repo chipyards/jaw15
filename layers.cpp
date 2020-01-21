@@ -373,6 +373,7 @@ double layer_f::get_Vmax()
 void layer_f::draw( cairo_t * cai )
 {
 cairo_set_source_rgb( cai, fgcolor.dR, fgcolor.dG, fgcolor.dB );
+cairo_set_line_width( cai, 1.5 );	// special Toyo
 cairo_move_to( cai, 20, -(parent->ndy) + ylabel );
 cairo_show_text( cai, label.c_str() );
 
@@ -429,6 +430,7 @@ else if	( style == 2 )
 		}
 	}
 cairo_stroke( cai );
+cairo_set_line_width( cai, 0.5 );	// retour au normal special Toyo
 }
 
 // layer_rgb : une image RGB telle qu'un spectrogramme (classe derivee de layer_base)
