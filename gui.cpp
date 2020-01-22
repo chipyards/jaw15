@@ -350,7 +350,7 @@ switch	( v )
 		glo->panneau.png_save_drawpad("pipo.png");
 		break;
 	case 'P' :
-		glo->auto_png_incm = double( glo->pro.wavp.freq ) * 0.1;	// determine fps
+		glo->auto_png_incm = double( glo->pro.wavp.freq ) / 29.97;	// determine fps
 		glo->auto_png_dm   = double( glo->pro.wavp.freq ) * 10.0;	// determine largeur horizontale
 		glo->auto_png_mend = glo->pro.wavp.wavsize;
 		glo->auto_png = 1;
@@ -531,12 +531,12 @@ gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
-glo->darea = glo->panneau.layout( 400, 600 );
+glo->darea = glo->panneau.layout( 360, 540 );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea, TRUE, TRUE, 0 );
 
 /* creer une drawing area  qui ne sera pas resizee en hauteur par la hbox
    mais quand meme en largeur (par chance !!!) */
-glo->sarea = glo->zbar.layout( 640 );
+glo->sarea = glo->zbar.layout( 360 );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->sarea, FALSE, FALSE, 0 );
 
 

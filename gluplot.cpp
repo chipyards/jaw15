@@ -654,13 +654,13 @@ else if	( istrip & CLIC_MARGE_GAUCHE )
 		{
 		if	( event->state & GDK_CONTROL_MASK )
 			b->panYbyK( -0.02 );
-		else	b->zoomYbyK( 0.9 );
+		else	b->zoomYbyK( 1.0 / 1.04 );	// special toyo b->zoomYbyK( 0.9 );
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
 		if	( event->state & GDK_CONTROL_MASK )
 			b->panYbyK( 0.02 );
-		else	b->zoomYbyK( 1.11 );
+		else	b->zoomYbyK( 1.04 );		// special toyo b->zoomYbyK( 1.11 );
 		}
 	force_repaint = 1;
 	// gtk_widget_queue_draw( widget );
