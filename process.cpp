@@ -218,14 +218,9 @@ panneau->offscreen_flag = 1;	// 1 par defaut
 // marge pour les textes
 panneau->mx = 60;
 
-// creer le strip pour le canal L ou mono
+// creer le strip pour les waves
 curbande = new strip;	// strip avec drawpad
 panneau->bandes.push_back( curbande );
-// creer le layer
-curcour = new layer_s16_lod;	// wave a pas uniforme
-curbande->courbes.push_back( curcour );
-// parentizer a cause des fonctions "set"
-panneau->parentize();
 
 // configurer le strip
 curbande->bgcolor.dR = 1.0;
@@ -234,46 +229,43 @@ curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "mono";
 curbande->optX = 1;
 curbande->optretX = 1;
-// configurer le layer
+
+// creer un layer
+curcour = new layer_s16_lod;	// wave a pas uniforme
+curbande->courbes.push_back( curcour );
+// parentizer a cause des fonctions "set"
+panneau->parentize();
+
+// configurer le layer pour le canal L ou mono
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
 curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
 curcour->set_n0( 0.0 );
-curcour->label = string(wnam);
-curcour->fgcolor.dR = 0.0;
+curcour->label = string("Left");
+curcour->fgcolor.dR = 0.75;
 curcour->fgcolor.dG = 0.0;
-curcour->fgcolor.dB = 0.75;
+curcour->fgcolor.dB = 0.0;
 
-// creer le strip pour le canal R si stereo
+// creer le layer pour le canal R si stereo
 if	( wavp.chan > 1 )
 	{
-	panneau->bandes[0]->Ylabel = "left";
-	panneau->bandes[0]->optX = 0;
+	panneau->bandes[0]->Ylabel = "stereo";
 
-	// creer le strip
-	curbande = new strip;
-	panneau->bandes.push_back( curbande );
 	// creer le layer
 	curcour = new layer_s16_lod;	// wave a pas uniforme
 	curbande->courbes.push_back( curcour );
 	// parentizer a cause des fonctions "set"
 	panneau->parentize();
 
-	// configurer le strip
-	curbande->bgcolor.dR = 1.0;
-	curbande->bgcolor.dG = 0.9;
-	curbande->bgcolor.dB = 0.8;
-	curbande->Ylabel = "right";
-	curbande->optX = 1;
-	curbande->optretX = 1;
 	// configurer le layer
 	curcour->set_km( 1.0 );
 	curcour->set_m0( 0.0 );
 	curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
 	curcour->set_n0( 0.0 );
+	curcour->label = string("Right");
 	curcour->fgcolor.dR = 0.0;
-	curcour->fgcolor.dG = 0.0;
-	curcour->fgcolor.dB = 0.75;
+	curcour->fgcolor.dG = 0.75;
+	curcour->fgcolor.dB = 0.0;
 	}
 
 layer_rgb * curcour2;
@@ -287,13 +279,13 @@ curbande->courbes.push_back( curcour2 );
 panneau->parentize();
 // configurer le strip
 curbande->bgcolor.dR = 1.0;
-curbande->bgcolor.dG = 0.9;
-curbande->bgcolor.dB = 0.8;
+curbande->bgcolor.dG = 1.0;
+curbande->bgcolor.dB = 1.0;
 curbande->Ylabel = "midi";
 curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 curbande->optretX = 0;
 curbande->optretY = 0;
-curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
+curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
 // curbande->optcadre = 1;	// pour economiser le fill du fond
 // configurer le layer
 curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
@@ -316,13 +308,13 @@ if	( qspek >= 2 )
 	panneau->parentize();
 	// configurer le strip
 	curbande->bgcolor.dR = 1.0;
-	curbande->bgcolor.dG = 0.9;
-	curbande->bgcolor.dB = 0.8;
+	curbande->bgcolor.dG = 1.0;
+	curbande->bgcolor.dB = 1.0;
 	curbande->Ylabel = "midi R";
 	curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
 	curbande->optretX = 0;
 	curbande->optretY = 0;
-	curbande->kmfn = 0.0;	// on enleve la marge de 5% qui est appliquee par defaut au fullN
+	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
 	// curbande->optcadre = 1;	// pour economiser le fill du fond
 	// configurer le layer
 	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
@@ -346,7 +338,7 @@ layL->V = Lbuf;
 layL->qu = wavp.wavsize;
 if	( wavp.chan > 1 )
 	{
-	layR = (layer_s16_lod *)panneau->bandes[1]->courbes[0];
+	layR = (layer_s16_lod *)panneau->bandes[0]->courbes[1];
 	layR->V = Rbuf;
 	layR->qu = wavp.wavsize;
 	}
@@ -361,7 +353,7 @@ if	( wavp.chan > 1 )
 	}
 panneau->kq = (double)(wavp.freq);	// pour avoir une echelle en secondes au lieu de samples
 
-unsigned int ib = wavp.chan;	// on suppose que c'est bien le nombre de wav strips, le prochain c'est le 1er spectro
+unsigned int ib = 1;	//
 if	( ib >= panneau->bandes.size() )
 	gasp("erreur sur layout");
 laySL = (layer_rgb *)panneau->bandes[ib]->courbes[0];

@@ -411,10 +411,10 @@ if	( xcursor >= 0.0 )
 	double x = xcursor + (double)mx;
 	if	( cair == NULL )
 		cair = gdk_cairo_create( widget->window );
-	cairo_set_source_rgba( cair, 0.0, 0.0, 0.0, 1.0 );
+	cairo_set_source_rgba( cair, 0.5, 0.5, 0.5, 1.0 );
 	cairo_set_line_width( cair, 0.5 );
 	cairo_move_to( cair, x, 0.0 );
-	cairo_line_to( cair, x, fdy-my );
+	cairo_line_to( cair, x, fdy );
 	cairo_stroke(cair);
 	xdirty = xcursor;
 	}

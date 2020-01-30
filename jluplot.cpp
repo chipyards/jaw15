@@ -175,12 +175,14 @@ cairo_translate( cai, 0, ndy );
 
 // tracer les courbes
 int i;
-for ( i = ( courbes.size() - 1 ); i >= 0; i-- )
-    {
-    courbes.at(i)->ylabel = ( 20 * i ) + 20;
-    courbes.at(i)->draw( cai );
-    }
-
+for	( i = ( courbes.size() - 1 ); i >= 0; i-- )
+	{
+	if	( courbes.at(i)->visible )
+		{
+		courbes.at(i)->ylabel = ( 20 * i ) + 20;
+		courbes.at(i)->draw( cai );
+		}
+	}
 // les textes de l'axe Y
 gradu_Y( cai );
 // tracer les reticules
@@ -409,6 +411,11 @@ if	( bandes.size() )
 			ndy -= ((bandes.at(ib)->optX)?(my):(0));
 			}
 		}
+	if	( cnt == 0 )
+		{
+		printf("panel::presize : 0 bande visible\n" );
+		return;
+		}
  	// bandes d'egale hauteur
 	bndy = ndy / cnt;
 	// reste de la division applique a la premiere bande
@@ -452,7 +459,14 @@ if	( bandes.size() )
 			ndy -= ((bandes.at(ib)->optX)?(my):(0));
 			}
 		}
+	if	( cnt == 0 )
+		{
+		printf("panel::resize : 0 bande visible\n" );
+		return;
+		}
  	// bandes d'egale hauteur
+	bndy = ndy / cnt;
+	// bandes d'egale hauteur
 	bndy = ndy / cnt;
 	// reste de la division applique a la premiere bande
 	bandes.at(0)->resize( bndy + ( ndy % cnt ) );

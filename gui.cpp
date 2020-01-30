@@ -56,13 +56,13 @@ static int portaudio_call( const void *inbuf, void *outbuf,
 			glostru * glo )
 {
 unsigned int i, iend;
-layer_s16_lod * wL, *wR;
+short * wL, *wR;
 short valL, valR;
 
 iend = framesPerBuffer * CODEC_QCHAN;
-wL = (layer_s16_lod *)glo->panneau.bandes[0]->courbes[0];
+wL = glo->pro.Lbuf;
 if	( glo->pro.wavp.chan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
-	wR = (layer_s16_lod *)glo->panneau.bandes[1]->courbes[0];
+	wR = glo->pro.Rbuf;
 else	wR = wL;
 
 for	( i = 0; i < iend; i+= CODEC_QCHAN )
@@ -70,14 +70,14 @@ for	( i = 0; i < iend; i+= CODEC_QCHAN )
 	if	( glo->iplay < 0 )
 		valL = valR = 0;
 	else	{
-		if	( ( glo->iplay >= wL->qu ) || ( glo->iplay >= glo->iplay1 ) )
+		if	( ( glo->iplay >= (int)glo->pro.wavp.wavsize ) || ( glo->iplay >= glo->iplay1 ) )
 			{
 			glo->iplay = -1;
 			valL = valR = 0;
 			}
 		else	{
-			valL = wL->V[glo->iplay];
-			valR = wR->V[glo->iplay++];
+			valL = wL[glo->iplay];
+			valR = wR[glo->iplay++];
 			}
 		}
 	((short *)outbuf)[i]   = valL;
@@ -257,11 +257,17 @@ glo->iplayp = M;
 }
 
 // cette fonction devra etre transportee dans gpanel
-static void toggle_vis( glostru * glo, unsigned int ib, unsigned int ic )	// ignore ic pour le moment
+static void toggle_vis( glostru * glo, unsigned int ib, int ic )	// ignore ic pour le moment
 {
 if	( ib >= glo->panneau.bandes.size() )
 	return;
-glo->panneau.bandes[ib]->visible ^= 1;
+if	( ic < 0 )
+	glo->panneau.bandes[ib]->visible ^= 1;
+else	{
+	if	( ic >= (int)glo->panneau.bandes[ib]->courbes.size() )
+		return;
+	glo->panneau.bandes[ib]->courbes[ic]->visible ^= 1;
+	}
 int ww, wh;
 ww = glo->panneau.fdx; wh = glo->panneau.fdy;	// les dimensions de la drawing area ne changent pas
 glo->panneau.resize( ww, wh );			// mais il faut recalculer la hauteur des bandes
@@ -274,9 +280,9 @@ void key_call_back( int v, void * vglo )
 switch	( v )
 	{
 	case '0' : toggle_vis( (glostru *)vglo, 0, 0 ); break;
-	case '1' : toggle_vis( (glostru *)vglo, 1, 0 ); break;
-	case '2' : toggle_vis( (glostru *)vglo, 2, 0 ); break;
-	case '3' : toggle_vis( (glostru *)vglo, 3, 0 ); break;
+	case '1' : toggle_vis( (glostru *)vglo, 0, 1 ); break;
+	case '2' : toggle_vis( (glostru *)vglo, 1, -1 ); break;
+	case '3' : toggle_vis( (glostru *)vglo, 2, -1 ); break;
 	case ' ' :
 		play_pause_call( NULL, (glostru *)vglo );
 		break;
