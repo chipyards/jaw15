@@ -48,18 +48,20 @@ float k0;	// coeff d'interpolation cote is0
 float k1;	// coeff d'interpolation cote is1
 };
 
+#define PALSIZE (65536*3)
+
 class spectro {
 public :
 unsigned int fftsize;		// en samples
 unsigned int fftstride;		// en samples
+double window_avg;		// moyenne de window[]
+int window_type;		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
 unsigned short * spectre;	// spectre W * H binxels, resample en log, pret a palettiser
 unsigned int W;			// nombre de colonnes ( env. nombre_samples / fftstride )
 unsigned int H;			// nombre de frequences (bins) sur le spectre resample
 unsigned int allocatedWH;	// W*H effectivement alloue
 unsigned int umax;		// valeur max vue dans spectre[]
-unsigned char palR[65536];	// la palette 16 bits --> RGB
-unsigned char palG[65536];
-unsigned char palB[65536];
+unsigned char * pal;		// la palette 16 bits --> RGB, contient PALSIZE byte
 unsigned int bpst = 10;		// binxel-per-semi-tone : resolution spectro log
 unsigned int octaves;		// hauteur du spectre a partir de midi0
 int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
@@ -73,16 +75,13 @@ double relog_opp;			// echelle spectre re-echantillonne en OPP (Octave Per Point
 double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
 public:
 // constructeur
-spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), fftinbuf(NULL), fftoutbuf(NULL) {};
+spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), pal(NULL), fftinbuf(NULL), fftoutbuf(NULL) {};
 // methodes
 
 
 // FFT window functions
-void window_precalc( double a0, double a1, double a2, double a3 );
-void window_hann() { window_precalc( 0.50, 0.50, 0.0, 0.0 ); };
-void window_hamming() { window_precalc( 0.54, 0.46, 0.0, 0.0 ); };
-void window_blackman() { window_precalc( 0.42, 0.50, 0.08, 0.0 ); };
-void window_blackmanharris() { window_precalc( 0.35875, 0.48829, 0.14128, 0.01168 ); };
+// precalcul de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+double window_precalc( int ft_window );
 void window_dump();
 // FFTW3 functions
 int alloc_fft();
@@ -95,8 +94,9 @@ int alloc_WH();
 // top actions
 int init( unsigned int fsamp, unsigned int qsamples );
 void compute( float * src );	// calcul spectre complet W colonnes x H lignes
-void fill_palette( unsigned int iend );
-void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels ); // conversion compatible GDK pixbuf
+// conversion en style GDK pixbuf
+// N.B. spectro ne connait pas GDK mais est compatible avec le style
+void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels );
 };
 
 // utility functions

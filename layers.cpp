@@ -44,7 +44,7 @@ lods.push_back( lod() );
 curlod = &lods.back();
 curlod->kdec = klod1;
 curlod->qc = lodsize;
-printf("lod 0 : k = %6d size = %d\n", curlod->kdec, curlod->qc );
+// printf("lod 0 : k = %6d size = %d\n", curlod->kdec, curlod->qc );
 curlod->allocMM( lodsize );
 if	( ( curlod->min == NULL ) || ( curlod->max == NULL ) )
 	return -1;
@@ -90,7 +90,7 @@ while	( ( lodsize = lodsize / klod2 ) > minwin )
 	curlod = &lods.back();
 	curlod->kdec = prevlod->kdec * klod2;
 	curlod->qc = lodsize;
-	printf("lod %d : k = %6d size = %d\n", lods.size()-1, curlod->kdec, curlod->qc );
+	// printf("lod %d : k = %6d size = %d\n", lods.size()-1, curlod->kdec, curlod->qc );
 	curlod->allocMM( lodsize );
 	if	( ( curlod->min == NULL ) || ( curlod->max == NULL ) )
 		return -1;
@@ -196,8 +196,7 @@ while	( ilod >= 0 )
 	}
 if	( ilod < 0 )
 	spp = ( u1 - u0 ) / maxx;
-printf("choix lod %d, kdec = %d, spp = %g\n",
-	ilod, (ilod>=0)?(lods.at(ilod).kdec):(1), spp );
+// printf("choix lod %d, kdec = %d, spp = %g\n", ilod, (ilod>=0)?(lods.at(ilod).kdec):(1), spp );
 }
 
 
@@ -277,7 +276,7 @@ void layer_s16_lod::draw( cairo_t * cai )
 {
 double u1 = UdeX( (double)(parent->parent->ndx) );
 draw( cai, u0, u1 );
-printf("d lod %d\n", ilod ); fflush(stdout);
+// printf("d lod %d\n", ilod ); fflush(stdout);
 /*
 double u, du;				// test
 du = 0.1 * ( u1 - u0 );			// test

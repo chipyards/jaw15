@@ -28,7 +28,7 @@ void gasp( const char *fmt, ... )
 void gen_fix_f( wavpars *d, double f, int duree )
 {
 // parametres de generation
-double amplitude = 0.5;
+double amplitude = 1.0;
 
 // variables temporaires
 short frame[2];		// left et right...
@@ -56,7 +56,7 @@ for	( i = 0; i < d->wavsize; ++i )
 void gen_tri_f( wavpars *d, double f, int duree )
 {
 // parametres de generation
-double amplitude = 0.5;
+double amplitude = 1.0;
 
 // variables temporaires
 short frame[2];		// left et right...
@@ -66,7 +66,7 @@ double phi, v;
 d->wavsize = d->freq * duree;	// nombre de frames
 WAVwriteHeader( d );
 
-amplitude *= ( 2.0 * 32767.0 );
+amplitude *= 32767.0;
 phi = 0.0; 
 for	( i = 0; i < d->wavsize; ++i )
 	{
@@ -101,12 +101,13 @@ double phi, v, f;
 d->wavsize = d->freq * duree;	// nombre de frames
 WAVwriteHeader( d );
 
+amplitude *= 32767.0;
 f = f0;
 phi = 0.0; 
 for	( i = 0; i < d->wavsize; ++i )
 	{
 	f += finc;
-	v = amplitude * 32767.0 * sin( phi );
+	v = amplitude * sin( phi );
 	frame[0] = (short int)round(v);
 	frame[1] = frame[0];
 	phi += ( ( f * 2.0 * M_PI ) / (double)d->freq );
@@ -133,13 +134,14 @@ double phi, v, flog, f;
 d->wavsize = d->freq * duree;	// nombre de frames
 WAVwriteHeader( d );
 
+amplitude *= 32767.0;
 flog = log( f0 );
 phi = 0.0; 
 for	( i = 0; i < d->wavsize; ++i )
 	{
 	flog += loginc;
 	f = exp( flog );
-	v = amplitude * 32767.0 * sin( phi );
+	v = amplitude * sin( phi );
 	frame[0] = (short int)round(v);
 	frame[1] = frame[0];
 	phi += ( ( f * 2.0 * M_PI ) / (double)d->freq );
@@ -163,7 +165,7 @@ void bal_gamme( wavpars *d, double duree_note, int interval, int midi0, int midi
 int qnotes = 1 + ( midi1 - midi0 ) / interval;
 if	( qnotes <= 0 )
 	gasp("trop peu de notes");
-double amplitude = 0.99 * 32767.0;
+double amplitude = 0.99;
 unsigned int samp_per_note = (int)( ((double)d->freq) * duree_note );
 
 // variables temporaires
@@ -178,6 +180,7 @@ unsigned int writcnt, i, j;
 d->wavsize = samp_per_note * qnotes;	// nombre total de frames
 WAVwriteHeader( d );
 
+amplitude *= 32767.0;
 n[0] = midi0;
 f[0] = midi2Hz( n[0] );
 n[1] = midi1;
@@ -195,13 +198,16 @@ for	( i = 0; i < d->wavsize; ++i )
 	phi[0] += ( ( f[0] * 2.0 * M_PI ) / (double)d->freq );
 	if	( phi[0] > ( 2.0 * M_PI ) )
 		phi[0] -= ( 2.0 * M_PI );
-	// produire 1 echantillon R et le sauver
-	v = amplitude * sin( phi[1] );
-	frame[1] = (short int)round(v);
-	// incrementer la phase
-	phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->freq );
-	if	( phi[1] > ( 2.0 * M_PI ) )
-		phi[1] -= ( 2.0 * M_PI );
+	if	( d->chan > 1 )
+		{
+		// produire 1 echantillon R et le sauver
+		v = amplitude * sin( phi[1] );
+		frame[1] = (short int)round(v);
+		// incrementer la phase
+		phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->freq );
+		if	( phi[1] > ( 2.0 * M_PI ) )
+			phi[1] -= ( 2.0 * M_PI );
+		}
 	// ecrire sur le disk
 	writcnt = write( d->hand, frame, d->chan * sizeof(short) );
 	if	( writcnt != ( d->chan * sizeof(short) ) )
@@ -227,12 +233,13 @@ if	( argc < 4 )
 	{
 	printf(	"usage :\n"
 		"  bal. log : wavgen L <fichier_dest> <duree>\n"
-		"  bal. lin : wavgen i <fichier_dest> <duree>\n"
-		"  sin. fix : wavgen f <fichier_dest> <frequ>\n"
-		"  tri. fix : wavgen t <fichier_dest> <frequ>\n"
-		"  gamme tp : wavgen g <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
-		"  quartes  : wavgen q <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
-		"  quintes  : wavgen Q <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
+		"  bal. lin : wavgen I <fichier_dest> <duree>\n"
+		"  sin. fix : wavgen F <fichier_dest> <frequ>\n"
+		"  tri. fix : wavgen T <fichier_dest> <frequ>\n"
+		"  gamme tp : wavgen G <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
+		"  quartes  : wavgen Q <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
+		"  quintes  : wavgen D <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
+		"(lettre minuscule pour mono au lieu de stereo)\n"
 		);
 	return 1;
 	}
@@ -248,23 +255,30 @@ d.hand = open( argv[2], O_RDWR | O_BINARY | O_CREAT | O_TRUNC, 0666 );
 if	( d.hand == -1 )
 	gasp("echec ouverture ecriture %s", argv[1] );
 
-switch	( argv[1][0] )
+int opt = argv[1][0];
+if	( opt >= 'a' )
+	{
+	opt -= ('a'-'A');
+	d.chan = 1;
+	}
+
+switch	( opt )
 	{
 	case 'L' : bal_f_log( &d, (int)strtod( argv[3], NULL ) );
 		break;
-	case 'i' : bal_f_lin( &d, (int)strtod( argv[3], NULL ) );
+	case 'I' : bal_f_lin( &d, (int)strtod( argv[3], NULL ) );
 		break;
-	case 'f' : gen_fix_f( &d, strtod( argv[3], NULL ), 20 );
+	case 'F' : gen_fix_f( &d, strtod( argv[3], NULL ), 20 );
 		break;
-	case 't' : gen_tri_f( &d, strtod( argv[3], NULL ), 20 );
+	case 'T' : gen_tri_f( &d, strtod( argv[3], NULL ), 20 );
 		break;
-	case 'g' : if	( argc == 6 )
+	case 'G' : if	( argc == 6 )
 			bal_gamme( &d, strtod( argv[3], NULL ), 1, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
 		break;
-	case 'q' : if	( argc == 6 )
+	case 'Q' : if	( argc == 6 )
 			bal_gamme( &d, strtod( argv[3], NULL ), 5, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
 		break;
-	case 'Q' : if	( argc == 6 )
+	case 'D' : if	( argc == 6 )
 			bal_gamme( &d, strtod( argv[3], NULL ), 7, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
 		break;
 	}

@@ -145,7 +145,7 @@ void strip::resize( int rendy )
 {
 double N0, N1;
 N0 = NdeY( 0.0 ); N1 = NdeY( ndy );
-printf("strip::resize N de %g a %g, ndy de %u a %d\n", N0, N1, ndy, rendy );
+// printf("strip::resize N de %g a %g, ndy de %u a %d\n", N0, N1, ndy, rendy );
 ndy = rendy;
 fdy = ndy + ((optX)?(parent->my):(0));
 zoomN( N0, N1 );
@@ -317,7 +317,7 @@ for	( unsigned int ib = 0; ib < bandes.size(); ib++ )
 		b->courbes.at(ic)->refresh_proxy();
 	}
 force_redraw = 1;
-printf("panel::refresh_proxies()\n"); fflush(stdout);
+// printf("panel::refresh_proxies()\n"); fflush(stdout);
 }
 
 void panel::set_x0( double X0 )
@@ -413,7 +413,7 @@ if	( bandes.size() )
 		}
 	if	( cnt == 0 )
 		{
-		printf("panel::presize : 0 bande visible\n" );
+		// printf("panel::presize : 0 bande visible\n" );
 		return;
 		}
  	// bandes d'egale hauteur
@@ -423,7 +423,7 @@ if	( bandes.size() )
 	// les autres bandes
 	for	( ib = 1; ib < bandes.size(); ib++ )
 		bandes.at(ib)->presize( bndy );
-	printf("panel::presize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
+	// printf("panel::presize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
 	}
 }
 
@@ -461,7 +461,7 @@ if	( bandes.size() )
 		}
 	if	( cnt == 0 )
 		{
-		printf("panel::resize : 0 bande visible\n" );
+		// printf("panel::resize : 0 bande visible\n" );
 		return;
 		}
  	// bandes d'egale hauteur
@@ -473,7 +473,7 @@ if	( bandes.size() )
 	// les autres bandes
 	for	( ib = 1; ib < bandes.size(); ib++ )
 		bandes.at(ib)->resize( bndy );
-	printf("panel::resize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
+	// printf("panel::resize : %d x %d, par bande %d puis %d\n", redx, redy, bndy + ( ndy % cnt ), bndy );
 	}
 }
 
@@ -502,7 +502,7 @@ for	( unsigned int ib = 0; ib < bandes.size(); ib++ )
 	}
 // seconde etape : action
 fullmmin = mmin; fullmmax = mmax;
-printf("in fullM, full is %g to %g\n", fullmmin, fullmmax );
+// printf("in fullM, full is %g to %g\n", fullmmin, fullmmax );
 zoomM( mmin, mmax );
 }
 

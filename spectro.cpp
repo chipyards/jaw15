@@ -9,9 +9,20 @@
 /** FFT window functions ======================================================= */
 
 // precalcul de fenetre pour FFT type raised cosine
-// couvre les classiques hann, hamming, blackman, blackmanharris, cf spectro.h
-void spectro::window_precalc( double a0, double a1, double a2, double a3 )
+// couvre les classiques 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+// rend la moyenne
+double spectro::window_precalc( int ft_window )
 {
+double a0, a1, a2, a3, moy;
+switch	( ft_window )
+	{
+	case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
+	case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
+	case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
+	case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
+	default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
+	}
+moy = 0.0;
 double m = M_PI / fftsize;	// on doit diviser par ffftsize ou (fftsize-1) ??????
 for	( unsigned int i = 0; i < fftsize; ++i )
 	{
@@ -19,7 +30,9 @@ for	( unsigned int i = 0; i < fftsize; ++i )
 		- a1 * cos( 2 * m * i )
 		+ a2 * cos( 4 * m * i )
 		- a3 * cos( 6 * m * i );
+	moy += window[i];
 	}
+return ( moy / fftsize );
 }
 
 void spectro::window_dump()
@@ -175,8 +188,9 @@ return 0;
 int spectro::init( unsigned int fsamp, unsigned int qsamples )
 {
 unsigned int retval;
-// preparer la fenetre
-window_hann();
+// precalcul de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+window_avg = window_precalc( window_type );
+// window_dump();
 
 // preparer le travail de fftw3
 retval = alloc_fft();
@@ -196,13 +210,18 @@ return 0;
 void spectro::compute( float * src )
 {
 unsigned int a, j;
-float k, mag, maxmag = 0.0;
+float k;
 unsigned short u;
 umax = 0;
-k = 65536.0;	// le but de ce coeff est d'avoir des magnitudes compatibles avec une conversion en u16
-		// ici on traite de l'audio normalise [-1.0, 1.0]
-// k = 1.0;	// coeff de JAW04b qui traite de l'audio s16
-k *= (2.0/(float)fftsize);	// correction DFT classique, selon JLN
+// facteur d'echelle en vue conversion en u16
+// un signal sinus d'amplitude max sur une frequence multiple de fsamp/fftsize atteint le plafond
+// un signal carre peut depasser - c'est un cas theorique
+k = (2.0/(float)fftsize);	// correction DFT classique, selon JLN
+k /= window_avg;		// correction fenetre
+k *= 65536.0;	// vu qu'ici on traite de l'audio normalise "a la wav32" [-1.0, 1.0]
+	// N.B. on aurait pu economiser la normalisation "a la wav32" pour la prendre en compte ici
+	// et aussi acquerir une valeur crete lors du chargement WAV pour auto-norm
+	// en attendant on stocke une valeur umax en u16 pour normalisation ulterieure au niveau palette
 for	( unsigned int icol = 0; icol < W; ++icol )
 	{
 	// fenetrage sur fftinbuf
@@ -215,20 +234,9 @@ for	( unsigned int icol = 0; icol < W; ++icol )
 	a = 0;
 	for	( j = 0; j <= ( fftsize / 2 ); ++j )
 		{
-		mag = hypotf( fftoutbuf[a], fftoutbuf[a+1] );
+		fftoutbuf[j] = hypotf( fftoutbuf[a], fftoutbuf[a+1] );
 		a += 2;
-		fftoutbuf[j] = mag;
-		if	( mag > maxmag )
-			maxmag = mag;
 		}
-	/* resampling (lineaire, provisoire !) fftoutbuf vers fftinbuf *
-	a = 0;
-	for	( j = 0; j < H; ++j )
-		{
-		a += 1;
-		fftinbuf[j] = fftoutbuf[a] * k;
-		}
-	//*/
 	// resampling log, de fftoutbuf vers fftinbuf
 	logpoint *p; float peak;
 	for	( j = 0; j < H; ++j )
@@ -248,52 +256,30 @@ for	( unsigned int icol = 0; icol < W; ++icol )
 			peak = fftoutbuf[p->is0] * p->k0 + fftoutbuf[p->is1] * p->k1;
 			}
 		else	peak = 0.0;
-		fftinbuf[j] = peak * k;
+		fftinbuf[j] = peak;
 		}
-	// conversion en unsigned short int pour palettisation
+	// conversion en u16 avec application du facteur d'echelle k, pour palettisation ulterieure
 	a = icol * H;
 	for	( j = 0; j < H; ++j )
 		{
-		u = (unsigned short)fftinbuf[j];
+		u = (unsigned short)(k*fftinbuf[j]);
 		if	( u > umax )
 			umax = u;
 		spectre[a++] = u;
 		}
-	/* bricolage pour verif echelle verticale : trace une ligne horizontale pour chaque octave *
-	int ech = (int)(1.0 / relog_opp);
-	a = icol * H;
-	for	( j = 0; j < H; j+= ech )
-		if	( spectre[a+j] < 200 )
-			spectre[a+j] = 0xFFFF;
-	//*/
 	}
-printf("max magnitude %g --> u16 %u\n", maxmag * k, umax );
-}
-
-void spectro::fill_palette( unsigned int iend )
-{
-unsigned int mul = ( 1 << 24 ) / iend;
-unsigned char val = 0;
-for	( unsigned int i = 0; i < iend; ++i )
-	{
-	val = ( i * mul ) >> 16;
-	palR[i] = val;
-	palG[i] = val;
-	palB[i] = 69;
-	}
-// completer la zone de saturation
-memset( palR + iend, val, 65536 - iend );
-memset( palG + iend, val, 65536 - iend );
-memset( palB + iend, val, 65536 - iend );
-// special verif echelle verticale
-// palR[0xFFFF] = 0; palG[0xFFFF] = palB[0xFFFF] = 0xFF;
+printf("max binxel u16 val %u\n", umax );
 }
 
 // conversion en style GDK pixbuf
-// utilise la palette interne du spectro
+// N.B. spectro ne connait pas GDK mais est compatible avec le style
+// utilise la palette connue du spectro
 void spectro::spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels )
 {
 unsigned int x, y, destadr, srcadr, i;
+unsigned char * palR = pal;
+unsigned char * palG = palR + 65536;
+unsigned char * palB = palG + 65536;
 for	( y = 0; y < H; y++ )
 	{
 	// si on veut afficher le pixbuf directement avec GDK, il faut gerer Y+ vers le bas (origine en haut)

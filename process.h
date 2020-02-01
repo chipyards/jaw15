@@ -9,6 +9,7 @@ GdkPixbuf * Lpix;	// spectre sous forme de pixbuf
 GdkPixbuf * Rpix;	// spectre sous forme de pixbuf
 spectro Lspek;		// un spectrographe
 spectro Rspek;		// un spectrographe
+unsigned char mutpal[PALSIZE];	// la palette 16 bits --> RGB
 
 // methodes
 // la partie du process qui traite en memeoire les wavs et le spectre
@@ -16,6 +17,11 @@ int wave_process_full();
 // la partie du process en relation avec jluplot
 void prep_layout( gpanel * panneau );
 int connect_layout( gpanel * panneau );
-
+// adapte la palette a la limite iend et l'applique a tous les spectres
+void palettize( unsigned int iend );
 };
+
+// utilitaires
+void fill_palette_simple( unsigned char * pal, unsigned int iend );
+void colorize( spectro * spek, GdkPixbuf * lepix );
 

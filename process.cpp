@@ -108,7 +108,9 @@ Lspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
 Lspek.octaves = 7;		// 7 octaves
 Lspek.fftsize = 8192;
 Lspek.fftstride = 1024;
+Lspek.window_type = 1;
 Lspek.midi0 = 28;		// E1 = mi grave de la basse
+Lspek.pal = mutpal;		// palette commune
 if	( qspek >= 2 )
 	{
 	Rspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
@@ -116,6 +118,8 @@ if	( qspek >= 2 )
 	Rspek.fftsize = 8192;
 	Rspek.fftstride = 1024;
 	Rspek.midi0 = 28;		// E1 = mi grave de la basse
+	Rspek.window_type = 1;
+	Rspek.pal = mutpal;		// palette commune
 	}
 
 // allocations pour spectro
@@ -124,13 +128,13 @@ if	( qspek >= 1 )
 	retval = Lspek.init( wavp.freq, wavp.wavsize );
 	if	( retval )
 		gasp("erreur init L spectro %d", retval );
-	printf("end init L spectro\n\n"); fflush(stdout);
+	printf("end init L spectro, window type %d, avg %g\n\n", Lspek.window_type, Lspek.window_avg ); fflush(stdout);
 	if	( qspek >= 2 )
 		{
 		retval = Rspek.init( wavp.freq, wavp.wavsize );
 		if	( retval )
 			gasp("erreur init R spectro %d", retval );
-		printf("end init R spectro\n\n"); fflush(stdout);
+		printf("end init R spectro, window type %d, avg %g\n\n", Rspek.window_type, Rspek.window_avg ); fflush(stdout);
 		}
 	}
 else	gasp("no spek to init");
@@ -147,7 +151,7 @@ unsigned int i;
 if	( wavp.chan == 1 )
 	{
 	for	( i = 0; i < wavp.wavsize; ++i )
-		raw32[i] = (1.0/32768.0) * (float)Lbuf[i];	// normalisation
+		raw32[i] = (1.0/32768.0) * (float)Lbuf[i];	// normalisation a la WAV32
 		// raw32[i] = 2.0 * (float)wL->V[i];		// coeff de JAW04b
 	Lspek.compute( raw32 );
 	}
@@ -156,53 +160,43 @@ else if	( wavp.chan == 2 )
 	if	( qspek == 1 )	// spectre mono sur WAV stereo
 		{
 		for	( i = 0; i < wavp.wavsize; ++i)
-			raw32[i] = (0.5/32768.0) * ((float)Lbuf[i] + (float)Rbuf[i]);	// normalisation
+			raw32[i] = (0.5/32768.0) * ((float)Lbuf[i] + (float)Rbuf[i]);	// normalisation a la WAV32
 		Lspek.compute( raw32 );
 		}
 	else if	( qspek == 2 )
 		{
 		for	( i = 0; i < wavp.wavsize; ++i)
-			raw32[i] = (1.0/32768.0) * (float)Lbuf[i];	// normalisation
+			raw32[i] = (1.0/32768.0) * (float)Lbuf[i];	// normalisation a la WAV32
 		Lspek.compute( raw32 );
 		for	( i = 0; i < wavp.wavsize; ++i)
-			raw32[i] = (1.0/32768.0) * (float)Rbuf[i];	// normalisation
+			raw32[i] = (1.0/32768.0) * (float)Rbuf[i];	// normalisation a la WAV32
 		Rspek.compute( raw32 );
 		}
 	else	gasp("pas de spek pour fft");
 	}
 else	gasp("pas de channel pour fft");
+
+double rawmax = 0;
+for	( i = 0; i < wavp.wavsize; ++i)
+	if	( fabs(raw32[i]) > rawmax )
+		rawmax = fabs(raw32[i]);
+printf("rawmax : %g\n", rawmax );
+
 free(raw32);
 // a ce point on a 1 ou 2 spectres de la wav entiere dans 1 ou 2 tableaux unsigned int Xspek->spectre
 // de dimensions Xspek->H x Xspek->W
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
 }
 
-printf("start colorisation L spectrogramme\n"); fflush(stdout);
-// mettre a jour palette en fonction de la magnitude max
-Lspek.fill_palette( Lspek.umax );
-// creer le pixbuf, pour le spectre entier
+printf("start colorisation spectrogrammes\n"); fflush(stdout);
+// creer chaque pixbuf, pour le spectre entier
 Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
-// remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
-int rowstride = gdk_pixbuf_get_rowstride( Lpix );
-unsigned char * RGBdata = gdk_pixbuf_get_pixels( Lpix );
-int colorchans = gdk_pixbuf_get_n_channels( Lpix );
-Lspek.spectre2rgb( RGBdata, rowstride, colorchans  );
+// ici il faudrait peut etre tester que c'est Ok...
 if	( qspek >= 2 )
-	{
-	printf("start colorisation R spectrogramme\n"); fflush(stdout);
-	// mettre a jour palette en fonction de la magnitude max
-	Rspek.fill_palette( Rspek.umax );
-	// creer le pixbuf, pour le spectre entier
 	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
-	// remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
-	int rowstride = gdk_pixbuf_get_rowstride( Rpix );
-	unsigned char * RGBdata = gdk_pixbuf_get_pixels( Rpix );
-	int colorchans = gdk_pixbuf_get_n_channels( Rpix );
-	Rspek.spectre2rgb( RGBdata, rowstride, colorchans  );
-	}
-
-printf("end colorisation spectrogramme\n" ); fflush(stdout);
-
+// adapter la palette a la limite umax et l'applique a tous les spectres
+palettize( (Lspek.umax>Rspek.umax)?(Lspek.umax):(Rspek.umax) );
+printf("end colorisation spectrogrammes\n" ); fflush(stdout);
 return 0;
 }
 
@@ -362,7 +356,7 @@ laySL->spectropix = Lpix;
 // petite verification
 unsigned int verif = gdk_pixbuf_get_width(  ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
 	    verif *= gdk_pixbuf_get_height( ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-printf("verif colorisation spectrogramme %u pixels\n", verif );
+printf("verif connexion spectrogramme %u pixels\n", verif );
 
 if	( qspek >= 2 )
 	{
@@ -373,9 +367,50 @@ if	( qspek >= 2 )
 	laySR->spectropix = Rpix;
 	unsigned int verif = gdk_pixbuf_get_width(  ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
 		    verif *= gdk_pixbuf_get_height( ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-	printf("verif colorisation spectrogramme %u pixels\n", verif );
+	printf("verif connexion spectrogramme %u pixels\n", verif );
 	}
 
 printf("end layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 return 0;
+}
+
+void fill_palette_simple( unsigned char * pal, unsigned int iend )
+{
+unsigned char * palR = pal;
+unsigned char * palG = palR + 65536;
+unsigned char * palB = palG + 65536;
+unsigned int mul = ( 1 << 24 ) / iend;
+unsigned char val = 0;
+for	( unsigned int i = 0; i < iend; ++i )
+	{
+	val = ( i * mul ) >> 16;
+	palR[i] = val;
+	palG[i] = val;
+	palB[i] = 69;
+	}
+// completer la zone de saturation
+memset( palR + iend, val, 65536 - iend );
+memset( palG + iend, val, 65536 - iend );
+memset( palB + iend, val, 65536 - iend );
+}
+
+// colorisation d'un pixbuf sur le spectre precalcule, utilisant la palette referencee dans spek
+// i.e. remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
+void colorize( spectro * spek, GdkPixbuf * lepix )
+{
+int rowstride = gdk_pixbuf_get_rowstride( lepix );
+unsigned char * RGBdata = gdk_pixbuf_get_pixels( lepix );
+int colorchans = gdk_pixbuf_get_n_channels( lepix );
+spek->spectre2rgb( RGBdata, rowstride, colorchans  );
+}
+
+// adapte la palette a la limite iend et l'applique a tous les spectres
+void process::palettize( unsigned int iend )
+{
+// mettre a jour palette
+fill_palette_simple( mutpal, iend );
+// coloriser les spectre (qui referencent deja cette palette)
+colorize( &Lspek, Lpix );
+if	( qspek >= 2 )
+	colorize( &Rspek, Rpix );
 }
