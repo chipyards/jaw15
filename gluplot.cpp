@@ -682,6 +682,20 @@ else	{
 	}
 }
 
+/** ===================== png service methods =================================== */
+
+void gpanel::png_save_drawpad( const char * fnam )
+{
+static GdkPixbuf * dumpix = NULL;	// pixbuf reutilisable! evite memory leak!
+dumpix = gdk_pixbuf_get_from_drawable( dumpix, drawpad, NULL, 0, 0, 0, 0, -1, -1 );
+if	( dumpix == NULL )
+	{ printf("failed gdk_pixbuf_get_from_drawable\n"); fflush(stdout); return; }
+if  	( gdk_pixbuf_save( dumpix, fnam, "png", NULL, NULL ) )
+	printf("Ok ecriture copie d'ecran %s\n", fnam );
+else	printf("oops, echec ecriture copie d'ecran %s\n", fnam );
+fflush(stdout);
+}
+
 /** ===================== pdf service methods =================================== */
 
 // fonction bloquante

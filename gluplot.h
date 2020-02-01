@@ -107,6 +107,8 @@ void key( GdkEventKey * event );
 GtkWidget * wchoo;
 GtkWidget * fchoo;
 GtkWidget * edesc;
+// png service methods
+void png_save_drawpad( const char * fnam );
 // pdf service methods
 void pdf_modal_layout( GtkWidget * mainwindow );
 void pdf_ok_call();

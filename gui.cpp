@@ -2,6 +2,7 @@
 // portaudio est necessaire pour jouer le son, mais on peut compiler sans lui pour tester le GUI
 #define  PAUDIO
 
+#include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <cairo-pdf.h>
 #include <stdio.h>
@@ -277,25 +278,44 @@ glo->panneau.force_repaint = 1;
 
 void key_call_back( int v, void * vglo )
 {
+glostru * glo = (glostru *)vglo;
 switch	( v )
 	{
-	case '0' : toggle_vis( (glostru *)vglo, 0, 0 ); break;
-	case '1' : toggle_vis( (glostru *)vglo, 0, 1 ); break;
-	case '2' : toggle_vis( (glostru *)vglo, 1, -1 ); break;
-	case '3' : toggle_vis( (glostru *)vglo, 2, -1 ); break;
+	case GDK_KEY_KP_0 :
+	case '0' : toggle_vis( glo, 0, 0 ); break;
+	case GDK_KEY_KP_1 :
+	case '1' : toggle_vis( glo, 0, 1 ); break;
+	case GDK_KEY_KP_2 :
+	case '2' : toggle_vis( glo, 1, -1 ); break;
+	case GDK_KEY_KP_3 :
+	case '3' : toggle_vis( glo, 2, -1 ); break;
 	case ' ' :
-		play_pause_call( NULL, (glostru *)vglo );
+		play_pause_call( NULL, glo );
 		break;
 	case 'r' :
-		rewind_call( NULL, (glostru *)vglo );
+		rewind_call( NULL, glo );
+		break;
+	case 'p' :
+		glo->panneau.png_save_drawpad( "drawpad.png" );
 		break;
 	case 'd' :
 		{
-		glostru * glo = (glostru *)vglo;
 		glo->panneau.dump();
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		fflush(stdout);
 		} break;
+	case GDK_KEY_F1 : glo->pro.palettize( glo->pro.Lspek.umax );
+		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	case GDK_KEY_F2 : glo->pro.palettize( glo->pro.Lspek.umax / 2 );
+		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	case GDK_KEY_F3 : glo->pro.palettize( glo->pro.Lspek.umax / 3);
+		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	case GDK_KEY_F4 : glo->pro.palettize( glo->pro.Lspek.umax / 4);
+		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	case GDK_KEY_F5 : glo->pro.palettize( glo->pro.Lspek.umax / 5);
+		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	case GDK_KEY_F6 : glo->pro.palettize( glo->pro.Lspek.umax / 6);
+		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
 	}
 }
 
