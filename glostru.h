@@ -37,7 +37,7 @@ int iplayp;		// index echantillon en pause
 int iplay0;		// index depart
 int iplay1;		// index fin
 
-#ifdef PAUDIO
+#ifdef USE_PORTAUDIO
 PaStream *stream;	// WAV player : portaudio stream
 double play_start_time;
 #endif

@@ -1,6 +1,6 @@
 // JAW = JLN's Audio Workstation
 // portaudio est necessaire pour jouer le son, mais on peut compiler sans lui pour tester le GUI
-#define  PAUDIO
+// pour l'activer, definir USE_PORTAUDIO dans le makefile ou le projet
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -21,7 +21,7 @@ using namespace std;
 #include "layers.h"
 #include "strips.h"
 #include "gluplot.h"
-#ifdef PAUDIO
+#ifdef USE_PORTAUDIO
   #include "portaudio.h"
   #include "pa_devs.h"
 #endif
@@ -43,7 +43,7 @@ GtkWindow * global_main_window = NULL;
 #define CODEC_QCHAN		2
 #define FRAMES_PER_BUFFER	256	// 256 <==> 5.8 ms i.e. 172.265625 buffers/s
 
-#ifdef PAUDIO
+#ifdef USE_PORTAUDIO
 
 // pilotage PLAY :	0 <= glo->iplay < glo->iplay1
 
@@ -160,7 +160,7 @@ char lbuf[128];
 volatile double newx;
 if	( glo->iplay >= 0 )
 	{			// Playing
-#ifdef PAUDIO
+#ifdef USE_PORTAUDIO
 	double t0 = (double)glo->iplay0 / (double)(glo->pro.wavp.freq);
 	// le temps present selon le timer portaudio, ramene au debut du play
 	double t = t0 + Pa_GetStreamTime( glo->stream ) - glo->play_start_time;
@@ -225,7 +225,7 @@ void play_pause_call( GtkWidget *widget, glostru * glo )
 {
 if	( glo->iplay < 0 )
 	{
-	#ifdef PAUDIO
+	#ifdef USE_PORTAUDIO
 	// demarrer le son
 	glo->play_start_time = Pa_GetStreamTime( glo->stream );
 	glo->iplay = glo->iplayp;
@@ -475,7 +475,7 @@ gtk_widget_show_all( glo->wmain );
 if	( argc < 2 )
 	gasp("fournir un nom de fichier WAV");
 
-#ifdef PAUDIO
+#ifdef USE_PORTAUDIO
 double mylatency = 0.090;	// 90 ms c'est conservateur
 int myoutput = -1;		// choose default device
 int pa_dev_options = 0;
@@ -488,7 +488,7 @@ if	( argc >= 3 )
 		mylatency = strtod( argv[2], NULL );
 		}
 	}
-// traiter choix options B1 vs B2 (c'est ballot, cette option n'est accessible que si on a PAUDIO)
+// traiter choix options B1 vs B2 (c'est ballot, cette option n'est accessible que si on a USE_PORTAUDIO)
 if	( pa_dev_options & 4 )
 	{
 	glo->panneau.drawab = glo->darea->window;	// special B1
@@ -522,7 +522,7 @@ glo->panneau.configure();
 
 rewind_call( NULL, glo );
 
-#ifdef PAUDIO
+#ifdef USE_PORTAUDIO
 // demarrer la sortie audio (en silence)
 audio_engine_start( glo, mylatency, myoutput, pa_dev_options );
 printf("audio engine started\n");
@@ -535,7 +535,7 @@ gtk_main();
 
 
 printf("closing\n");
-#ifdef PAUDIO
+#ifdef USE_PORTAUDIO
 audio_engine_stop( glo );
 #endif
 return(0);

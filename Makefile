@@ -1,17 +1,28 @@
 # directories
 # GTKBASE= F:/Appli/msys64/mingw32
 GTKBASE= /mingw32
-# PAUDIOBASE= F:/Appli/portaudio
 
+# choix de port audio I/O (laisser en blanc pour desactiver)
+#AUDIOPORT = PORTAUDIO
+AUDIOPORT = 
 
 # listes
-SOURCESC=wav_head.c modpop2.c 
-SOURCESCPP= layers.cpp gluplot.cpp jluplot.cpp spectro.cpp process.cpp gui.cpp param.cpp
-HEADERS= glostru.h  gluplot.h jluplot.h layers.h modpop2.h pa_devs.h process.h spectro.h wav_head.h param.h
-
-EXE= kawa.exe
+SOURCESC = wav_head.c modpop2.c 
+SOURCESCPP = layers.cpp gluplot.cpp jluplot.cpp spectro.cpp process.cpp gui.cpp param.cpp
+HEADERS = glostru.h gluplot.h jluplot.h layers.h modpop2.h pa_devs.h process.h spectro.h wav_head.h param.h
 
 OBJS= $(SOURCESC:.c=.o) $(SOURCESCPP:.cpp=.o)
+
+ifeq ($(AUDIOPORT), PORTAUDIO)
+     ADEF = -DUSE_PORTAUDIO
+     # winmm et ole32 requises par portaudio
+     ALIB  = -lportaudio -lwinmm -lole32
+     EXE = kawa.exe
+else
+     ADEF =
+     ALIB =
+     EXE = kawnoa.exe
+endif
 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
 
@@ -29,15 +40,15 @@ LIBS= -L$(GTKBASE)/lib \
 -lpangocairo-1.0 \
 -lpangowin32-1.0 \
 -L. -lfftw3f-3 \
--lportaudio -lwinmm -lole32
-# winmm et ole32 requises par portaudio
+$(ALIB)
+
 # -mwindows
 # enlever -mwindows pour avoir la console stdout
 
 
 # options
 # INCS= `pkg-config --cflags gtk+-2.0`
-INCS= -Wall -O2 -mms-bitfields \
+INCS= -Wall -O2 -mms-bitfields $(ADEF) \
 -I$(GTKBASE)/include/atk-1.0 \
 -I$(GTKBASE)/include/cairo \
 -I$(GTKBASE)/include/gdk-pixbuf-2.0 \
