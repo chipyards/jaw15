@@ -24,11 +24,13 @@ GtkWidget *   hbut;
 GtkWidget *     bpla;
 GtkWidget *     brew;
 GtkWidget *     esta;
+GtkWidget *     bpar;
 GtkWidget *     bqui;
 int darea_queue_flag;
 
 gpanel panneau;		// panneau principal (wav), dans darea
 gzoombar zbar;		// sa zoombar
+param_view para;	// la fenetre auxiliaire de parametres
 
 int iplay;		// index echantillon en train d'etre joue (-1 <==> idle)
 int iplayp;		// index echantillon en pause

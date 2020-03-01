@@ -22,13 +22,14 @@ using namespace std;
 #include "strips.h"
 #include "gluplot.h"
 #ifdef PAUDIO
-#include "portaudio.h"
-#include "pa_devs.h"
+  #include "portaudio.h"
+  #include "pa_devs.h"
 #endif
 #include "fftw3.h"
 #include "spectro.h"
 #include "wav_head.h"
 #include "process.h"
+#include "param.h"
 #include "glostru.h"
 #include "modpop2.h"
 
@@ -246,6 +247,11 @@ glo->iplay1 = (int)glo->panneau.MdeX((double)glo->panneau.ndx);
 // et va le retracer
 }
 
+void param_call( GtkWidget *widget, glostru * glo )
+{
+glo->para.show();
+}
+
 /** ============================ GLUPLOT call backs =============== */
 
 void clic_call_back( double M, double N, void * vglo )
@@ -440,6 +446,13 @@ gtk_entry_set_editable( GTK_ENTRY(curwidg), FALSE );
 gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 glo->esta = curwidg;
+
+/* simple bouton */
+curwidg = gtk_button_new_with_label (" Param ");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( param_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
+glo->bpar = curwidg;
 
 /* simple bouton */
 curwidg = gtk_button_new_with_label (" Quit ");

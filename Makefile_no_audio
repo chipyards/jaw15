@@ -4,8 +4,8 @@ GTKBASE= /mingw32
 
 # listes
 SOURCESC=wav_head.c modpop2.c 
-SOURCESCPP= layers.cpp gluplot.cpp jluplot.cpp spectro.cpp process.cpp gui.cpp
-HEADERS= glostru.h  gluplot.h jluplot.h layers.h modpop2.h pa_devs.h process.h spectro.h wav_head.h
+SOURCESCPP= layers.cpp gluplot.cpp jluplot.cpp spectro.cpp process.cpp gui.cpp param.cpp
+HEADERS= glostru.h  gluplot.h jluplot.h layers.h modpop2.h pa_devs.h process.h spectro.h wav_head.h param.h
 
 EXE= kawnoa.exe
 
