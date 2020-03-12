@@ -310,17 +310,9 @@ switch	( v )
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		fflush(stdout);
 		} break;
-	case GDK_KEY_F1 : glo->pro.palettize( glo->pro.Lspek.umax );
+	case GDK_KEY_F2 : glo->pro.wave_process_2();
 		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F2 : glo->pro.palettize( glo->pro.Lspek.umax / 2 );
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F3 : glo->pro.palettize( glo->pro.Lspek.umax / 3);
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F4 : glo->pro.palettize( glo->pro.Lspek.umax / 4);
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F5 : glo->pro.palettize( glo->pro.Lspek.umax / 5);
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F6 : glo->pro.palettize( glo->pro.Lspek.umax / 6);
+	case GDK_KEY_F3 : glo->pro.wave_process_3();
 		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
 	}
 }
@@ -498,10 +490,11 @@ else	printf("Sol. B2\n");
 #endif
 
 snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), argv[1] );
+snprintf( glo->pro.noise_fnam, sizeof( glo->pro.wnam), "noise.wav" );
 
-int retval = glo->pro.wave_process_full();
+int retval = glo->pro.wave_process_1();
 if	( retval )
-	gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
+	gasp("echec process %s, erreur %d", glo->pro.wnam, retval );
 fflush(stdout);
 // preparer le layout pour wav L (et R si stereo) et spectro
 glo->pro.prep_layout( &glo->panneau );
