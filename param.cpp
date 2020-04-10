@@ -1,5 +1,19 @@
 #include <gtk/gtk.h>
 
+using namespace std;
+#include <string>
+#include <iostream>
+#include <vector>
+
+#include "jluplot.h"
+#include "layers.h"
+#include "strips.h"
+#include "gluplot.h"
+#include "fftw3.h"
+#include "spectro.h"
+#include "wav_head.h"
+#include "process.h"
+
 #include "param.h"
 
 
@@ -58,6 +72,10 @@ vfil = curwidg;
 curwidg = gtk_vbox_new( FALSE, 10 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("I/O ports") );
 vpor = curwidg;
+
+/* creer une drawing area resizable depuis la fenetre */
+sarea = panneau.layout( 640, 320 );
+gtk_box_pack_start( GTK_BOX( vspe ), sarea, TRUE, TRUE, 0 );
 
 gtk_widget_show_all( wmain );
 }

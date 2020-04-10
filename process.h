@@ -15,8 +15,14 @@ unsigned char mutpal[PALSIZE];	// la palette 16 bits --> RGB
 // la partie du process qui traite en memeoire les wavs et le spectre
 int wave_process_full();
 // la partie du process en relation avec jluplot
+// layout pour le domaine temporel
 void prep_layout( gpanel * panneau );
 int connect_layout( gpanel * panneau );
+// layout pour le domaine frequentiel
+void prep_layout2( gpanel * panneau );
+int connect_layout2( gpanel * panneau, int pos );
+
+
 // adapte la palette a la limite iend et l'applique a tous les spectres
 void palettize( unsigned int iend );
 };

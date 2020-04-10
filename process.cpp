@@ -202,7 +202,7 @@ return 0;
 
 // la partie du process en relation avec jluplot
 
-// layout pour les waveforms - doit etre fait apres lecture wav data et calcul spectres
+// layout pour le domaine temporel - doit etre fait apres lecture wav data et calcul spectres
 void process::prep_layout( gpanel * panneau )
 {
 strip * curbande;
@@ -283,7 +283,7 @@ curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut
 // curbande->optcadre = 1;	// pour economiser le fill du fond
 // configurer le layer
 curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
-curcour2->set_m0( 0.5 * (double)Lspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
+curcour2->set_m0( 0.5 * (double)Lspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
 curcour2->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
 							// la midinote correspondant au bas du spectre
 curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
@@ -312,7 +312,7 @@ if	( qspek >= 2 )
 	// curbande->optcadre = 1;	// pour economiser le fill du fond
 	// configurer le layer
 	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
-	curcour2->set_m0( 0.5 * (double)Rspek.fftsize );		// recentrage au milieu de chaque fenetre FFT
+	curcour2->set_m0( 0.5 * (double)Rspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
 	curcour2->set_kn( (double)Rspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
 								// la midinote correspondant au bas du spectre
 	curcour2->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
@@ -373,6 +373,59 @@ if	( qspek >= 2 )
 printf("end layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 return 0;
 }
+
+// layout pour le domaine frequentiel
+void process::prep_layout2( gpanel * panneau )
+{
+strip * curbande;
+layer_u16 * curcour;
+
+panneau->offscreen_flag = 0;	// 1 par defaut
+// marge pour les textes
+panneau->mx = 60;
+
+// creer le strip pour les waves
+curbande = new strip;	// strip avec drawpad
+panneau->bandes.push_back( curbande );
+
+// configurer le strip
+curbande->bgcolor.dR = 0.8;
+curbande->bgcolor.dG = 0.8;
+curbande->bgcolor.dB = 0.8;
+curbande->Ylabel = "spec";
+curbande->optX = 1;
+curbande->optretX = 1;
+
+// creer un layer
+curcour = new layer_u16;	//
+curbande->courbes.push_back( curcour );
+// parentizer a cause des fonctions "set"
+panneau->parentize();
+
+// configurer le layer pour le spectre
+curcour->set_km( 1.0 );
+curcour->set_m0( 0.0 );
+curcour->set_kn( 1.0 );	// amplitude normalisee a +-1
+curcour->set_n0( 0.0 );
+curcour->label = string("Lin");
+curcour->fgcolor.dR = 0.0;
+curcour->fgcolor.dG = 0.0;
+curcour->fgcolor.dB = 0.0;
+}
+
+// connexion du layout aux data
+int process::connect_layout2( gpanel * panneau, int pos )
+{
+// pointeurs locaux sur les layers
+layer_u16 * layL = NULL;
+// connecter les layers de ce layout sur les buffers existants
+layL = (layer_u16 *)panneau->bandes[0]->courbes[0];
+layL->V = Lspek.spectre + ???? Lspek.H * pos ???? ; // attentio la wav est plus large que qsamp * Lspek.H * fftstride
+layL->qu = Lspek.H;
+return 0;
+}
+
+
 
 void fill_palette_simple( unsigned char * pal, unsigned int iend )
 {
