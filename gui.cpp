@@ -312,8 +312,6 @@ switch	( v )
 		} break;
 	case GDK_KEY_F2 : glo->pro.wave_process_2();
 		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F3 : glo->pro.wave_process_3();
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
 	}
 }
 
@@ -490,7 +488,6 @@ else	printf("Sol. B2\n");
 #endif
 
 snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), argv[1] );
-snprintf( glo->pro.noise_fnam, sizeof( glo->pro.wnam), "noise.wav" );
 
 int retval = glo->pro.wave_process_1();
 if	( retval )

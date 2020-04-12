@@ -36,12 +36,8 @@ retval = read_full_wav16( &wavp, wnam, &Lbuf, &Rbuf );
 if	( retval )
 	return retval;
 
-retval = read_full_wav16( &nwavp, noise_fnam, &NLbuf, &NRbuf );
-if	( retval )
-	return retval;
-
 // calcul de puissance main wav (canal L)
-pww = wavp.freq / 50;	// 1/50 s
+pww = wavp.freq / 24;	// pour une video a 24 im/s
 
 double avgpow, minpow;
 qpow = 1 + wavp.wavsize / pww;
@@ -52,12 +48,13 @@ if	( Pbuf == NULL )
 qpow = compute_power( Lbuf, wavp.wavsize, pww, Pbuf, &avgpow, &minpow );
 printf("computed power (L channel) on %u windows : avg = %g, min = %g\n", qpow, avgpow, minpow );
 
-noise_floor = 30000.0;
 
-// ecretage de la puissance pour visualiser les silences
+/* ecretage de la puissance pour visualiser les silences
+noise_floor = 5e6;
 for	( unsigned int i = 0; i < qpow ; ++i )
 	if	( Pbuf[i] > noise_floor )
 		Pbuf[i] = noise_floor;
+//*/
 
 return 0;
 }
@@ -67,7 +64,7 @@ int process::wave_process_2()
 // renoising
 double old_noise = Pbuf[0];
 double noise;
-unsigned int istart = 0, is = 0, in = 0;
+unsigned int istart = 0;
 for	( unsigned int i = 0; i < qpow ; ++i )
 	{
 	noise = Pbuf[i];
@@ -75,16 +72,8 @@ for	( unsigned int i = 0; i < qpow ; ++i )
 		{
 		if	( old_noise == noise_floor )
 			{
-			istart = i; in = 0;
+			istart = i;
 			printf("begin silence @ %g\n", double( i * pww )/double(wavp.freq) );
-			}
-		// mix here
-		for	( is = i * pww; is < ( ( i + 1 ) * pww ); ++is )
-			{
-			Lbuf[is] += NLbuf[in];
-			Rbuf[is] += NRbuf[in++];
-			if	( in >= nwavp.wavsize )
-				in = 0;
 			}
 		}
 	else 	if	( old_noise < noise_floor )
@@ -94,13 +83,6 @@ for	( unsigned int i = 0; i < qpow ; ++i )
 	}
 fflush(stdout);
 return 0;
-}
-
-int process::wave_process_3()
-{
-// test ecriture
-printf("be patien...\n"); fflush(stdout);
-return write_full_wav16( &wavp, "renoised.wav", Lbuf, Rbuf );
 }
 
 // la partie du process en relation avec jluplot

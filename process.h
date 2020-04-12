@@ -10,16 +10,11 @@ float * Pbuf;		// buffer pour la puissance
 unsigned int qpow;	// taille de son contenu
 unsigned int pww;	// taille de la fenetre de calcule de puissance en samples
 double noise_floor;	// seuil
-char noise_fnam[256];	// fichiers WAV
-wavpars nwavp;		// structure pour wav_head.c
-short * NLbuf;		// audio brut
-short * NRbuf;
 
 // methodes
 // la partie du process qui traite en memoire les wavs et le spectre
 int wave_process_1();
 int wave_process_2();
-int wave_process_3();
 // la partie du process en relation avec jluplot
 void prep_layout( gpanel * panneau );
 int connect_layout( gpanel * panneau );
