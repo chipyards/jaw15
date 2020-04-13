@@ -13,8 +13,8 @@ double noise_floor;	// seuil
 
 // methodes
 // la partie du process qui traite en memoire les wavs et le spectre
-int wave_process_1();
-int wave_process_2();
+int wave_process_1( tk17 * tk );
+int wave_process_2( tk17 * tk );
 // la partie du process en relation avec jluplot
 void prep_layout( gpanel * panneau );
 int connect_layout( gpanel * panneau );

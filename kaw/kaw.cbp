@@ -60,6 +60,7 @@
 			<Add library="gtk-win32-2.0" />
 			<Add library="pango-1.0" />
 			<Add library="libfftw3f-3" />
+			<Add library="libpcre" />
 			<Add directory="F:/Appli/msys64/mingw32/lib" />
 			<Add directory=".." />
 		</Linker>
@@ -81,10 +82,13 @@
 		<Unit filename="../pa_devs.h" />
 		<Unit filename="../param.cpp" />
 		<Unit filename="../param.h" />
+		<Unit filename="../pcreux.h" />
 		<Unit filename="../process.cpp" />
 		<Unit filename="../process.h" />
 		<Unit filename="../spectro.cpp" />
 		<Unit filename="../spectro.h" />
+		<Unit filename="../tk17.cpp" />
+		<Unit filename="../tk17.h" />
 		<Unit filename="../wav_head.c">
 			<Option compilerVar="CC" />
 		</Unit>

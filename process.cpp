@@ -19,8 +19,7 @@ using namespace std;
 #include "gluplot.h"
 
 #include "wav_head.h"
-#include "fftw3.h"
-#include "spectro.h"
+#include "tk17.h"
 #include "process.h"
 
 /** ============================ AUDIO data processing =============== */
@@ -28,7 +27,7 @@ using namespace std;
 
 // allocation memoire et lecture WAV 16 bits entier en memoire
 // donnees stockées dans l'objet process
-int process::wave_process_1()
+int process::wave_process_1( tk17 * tk )
 {
 int retval;
 
@@ -39,50 +38,39 @@ if	( retval )
 // calcul de puissance main wav (canal L)
 pww = wavp.freq / 24;	// pour une video a 24 im/s
 
-double avgpow, minpow;
+double maxpow, minpow;
 qpow = 1 + wavp.wavsize / pww;
 Pbuf = (float *)malloc( qpow * sizeof(float) );
 if	( Pbuf == NULL )
 	gasp("echec malloc Pbuf %d samples", (int)qpow );
 
-qpow = compute_power( Lbuf, wavp.wavsize, pww, Pbuf, &avgpow, &minpow );
-printf("computed power (L channel) on %u windows : avg = %g, min = %g\n", qpow, avgpow, minpow );
+qpow = compute_power( Lbuf, wavp.wavsize, pww, Pbuf, &maxpow, &minpow );
+printf("computed power (L channel) on %u windows : max = %g, min = %g\n", qpow, maxpow, minpow );
 
-
-/* ecretage de la puissance pour visualiser les silences
-noise_floor = 5e6;
+double k = tk->max_X / maxpow;
 for	( unsigned int i = 0; i < qpow ; ++i )
-	if	( Pbuf[i] > noise_floor )
-		Pbuf[i] = noise_floor;
-//*/
+	{
+	Pbuf[i] = tk->min_X + Pbuf[i] * k;
+	}
+tk->qframes = qpow;
+if	( tk->qframes > 1152 )
+	{
+	printf("Warning : sequence tronquee a 1152 frames\n");
+	tk->qframes = 1152;
+	}
+tk->X = Pbuf;
 
+fflush(stdout);
 return 0;
 }
 
-int process::wave_process_2()
+int process::wave_process_2( tk17 * tk )
 {
-// renoising
-double old_noise = Pbuf[0];
-double noise;
-unsigned int istart = 0;
-for	( unsigned int i = 0; i < qpow ; ++i )
-	{
-	noise = Pbuf[i];
-	if	( noise < noise_floor )
-		{
-		if	( old_noise == noise_floor )
-			{
-			istart = i;
-			printf("begin silence @ %g\n", double( i * pww )/double(wavp.freq) );
-			}
-		}
-	else 	if	( old_noise < noise_floor )
-			printf("end   silence @ %g\t%g\n", double( i * pww )/double(wavp.freq),
-						  double( (i-istart) * pww )/double(wavp.freq) );
-	old_noise = noise;
-	}
+if	(!( tk->src_fnam && tk->dst_fnam ))
+	return -200;
+int retval = tk->json_patch();
 fflush(stdout);
-return 0;
+return retval;
 }
 
 // la partie du process en relation avec jluplot
@@ -220,10 +208,13 @@ return 0;
 // calculer la puissance en fonction du temps, par fenetres de ww samples
 // la memoire doit etre allouee pour destbuf
 // rend le nombre effectif de samples mis dans destbuf
-unsigned int compute_power( short * srcbuf, unsigned int qsamp, unsigned int ww, float * destbuf, double * avg_pow, double * min_pow )
+unsigned int compute_power( short * srcbuf, unsigned int qsamp, unsigned int ww, float * destbuf, double * max_pow, double * min_pow )
 {
 unsigned int is, id, j;
-double val, sum; *avg_pow = 0.0; *min_pow = 32768.0 * 32768.0;
+double val, sum;
+// *avg_pow = 0.0;
+*max_pow = 0.0;
+*min_pow = 32768.0 * 32768.0;
 
 id = 0; j = 0; sum = 0.0;
 for	( is = 0; is < qsamp ; ++is )
@@ -234,13 +225,15 @@ for	( is = 0; is < qsamp ; ++is )
 		{
 		sum /= double(ww);
 		destbuf[id++] = float(sum);
-		*avg_pow += sum;
+		// *avg_pow += sum;
 		if	( sum < *min_pow )
 			*min_pow = sum;
+		if	( sum > *max_pow )
+			*max_pow = sum;
 		j = 0; sum = 0.0;
 		}
 	}
-*avg_pow /= double(id);
+// *avg_pow /= double(id);
 return id;
 }
 

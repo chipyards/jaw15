@@ -25,11 +25,10 @@ using namespace std;
   #include "portaudio.h"
   #include "pa_devs.h"
 #endif
-#include "fftw3.h"
-#include "spectro.h"
 #include "wav_head.h"
-#include "process.h"
 #include "param.h"
+#include "tk17.h"
+#include "process.h"
 #include "glostru.h"
 #include "modpop2.h"
 
@@ -310,7 +309,7 @@ switch	( v )
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		fflush(stdout);
 		} break;
-	case GDK_KEY_F2 : glo->pro.wave_process_2();
+	case GDK_KEY_F2 : glo->pro.wave_process_2( &glo->tk );
 		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
 	}
 }
@@ -381,7 +380,6 @@ glostru * glo = &theglo;
 GtkWidget *curwidg;
 
 gtk_init(&argc,&argv);
-
 curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 
 gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
@@ -469,6 +467,7 @@ if	( argc < 2 )
 double mylatency = 0.090;	// 90 ms c'est conservateur
 int myoutput = -1;		// choose default device
 int pa_dev_options = 0;
+/*
 if	( argc >= 3 )
 	{
 	if	( argc < 4 )
@@ -478,6 +477,7 @@ if	( argc >= 3 )
 		mylatency = strtod( argv[2], NULL );
 		}
 	}
+*/
 // traiter choix options B1 vs B2 (c'est ballot, cette option n'est accessible que si on a USE_PORTAUDIO)
 if	( pa_dev_options & 4 )
 	{
@@ -488,8 +488,12 @@ else	printf("Sol. B2\n");
 #endif
 
 snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), argv[1] );
+if	( argc > 2 )
+	glo->tk.src_fnam = argv[2];
+if	( argc > 3 )
+	glo->tk.dst_fnam = argv[3];
 
-int retval = glo->pro.wave_process_1();
+int retval = glo->pro.wave_process_1( &glo->tk );
 if	( retval )
 	gasp("echec process %s, erreur %d", glo->pro.wnam, retval );
 fflush(stdout);

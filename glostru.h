@@ -42,7 +42,8 @@ PaStream *stream;	// WAV player : portaudio stream
 double play_start_time;
 #endif
 
-process pro;		// le process : lecture wav calcul spectro, preparation layout
+process pro;		// le process : lecture wav, preparation layout
+tk17 tk;
 
 int darea_expose_cnt;
 int idle_profiler_cnt;
