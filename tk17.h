@@ -30,9 +30,9 @@ tk17() : src_fnam(NULL), dst_fnam(NULL), src_size(0), perso(1), itrack(126),
 	X(NULL), qframes(0), min_X(0.04), max_X(0.5) {};
 
 // methodes
-void gen1key( FILE *fil, int ifram, double x, double y, double z, tangent_t tangent, int last );
+void gen1key( FILE *fil, int ifram, double x, double y, double z, tangent_t tangent );
 void gen1trk_head( FILE *fil );
-void gen1trk( FILE *fil );
+void gen1trk( FILE *fil, double seuil = 0.0 );
 int json_load( const char * fnam );
 int json_patch();
 };

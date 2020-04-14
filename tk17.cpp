@@ -8,13 +8,15 @@
 #include "pcreux.h"
 #include "tk17.h"
 
-void tk17::gen1key( FILE *fil, int ifram, double x, double y, double z, tangent_t tangent, int last )
+// la difficulte c'est la virgule, il ne la faut pas a la fin de la derniere key
+// on choisit de mettre la virgule devant, SAUF a la premiere key
+// il DOIT exister une key a ifram == 0
+void tk17::gen1key( FILE *fil, int ifram, double x, double y, double z, tangent_t tangent )
 {
+if	( ifram != 0 )
+	fprintf( fil, ",\n");
 fprintf( fil, " \"Class\": {\n \"$ID\": \"Key\",\n \"I32\": %d,\n ", ifram );
 fprintf( fil, "\"VectorF32\": [%.10f, %.10f, %.10f],\n \"I32\": %d\n }", x, y, z, tangent );
-if	( last )
-	fprintf( fil, "\n}\n},\n");
-else	fprintf( fil, ",\n");
 }
 
 void tk17::gen1trk_head( FILE *fil )
@@ -22,17 +24,22 @@ void tk17::gen1trk_head( FILE *fil )
 fprintf( fil, "\"Class\": {\n\"$ID\": \"Track\",\n\"I32\": %d,\n\"I32\": %d,\n\"Array\": {\n", perso, itrack );
 }
 
-// emettre une key pour chaque frame selon X[]
-void tk17::gen1trk( FILE *fil )
+// emettre une key "scalaire" pour chaque frame selon X[]
+// le seuil sert a la fonction "economiseur"
+void tk17::gen1trk( FILE *fil, double seuil )
 {
 gen1trk_head( fil );
-int i;
-for	( i = 0; i < qframes-1; ++i )
+int i, cnt=0;
+for	( i = 0; i < qframes; ++i )
 	{
-	gen1key( fil, i, X[i], 0.0, 0.0, LIN, 0 );
+	if	( X[i] >= seuil )
+		{ gen1key( fil, i, X[i], 0.0, 0.0, LIN ); ++cnt; }
 	}
-gen1key( fil, i, X[i], 0.0, 0.0, LIN, 1 );
-printf("codage de %d frames termine\n", i+1 );
+// trame terminale, pour eviter un rebouclage immediat
+if	( i < 1152 )
+	gen1key( fil, 1152-1, X[0], 0.0, 0.0, LIN );
+fprintf( fil, "\n}\n},\n");	// fin de l'array et fin de la track
+printf("codage de %d frames de 0 a %d, + 1 frame @ 1151 : termine\n", cnt, i-1 );
 }
 
 int tk17::json_load( const char * fnam )

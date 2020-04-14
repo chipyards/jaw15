@@ -57,28 +57,69 @@ return 0;
 // seconde phase du process, differee pour permettre ajustement des slider
 int process::wave_process_2()
 {
+unsigned int i, j;
 
+// economiseur de keyframes :
+// si une sequence de plus de 2 keys consecutives satisfont la condition,
+// seules la premiere et la derniere sont conservees
+// les clef a omettre sont signalees par une valeur speciale (ici -1.0)
+int ocnt = 0;
+double Plim = sil16.get_value(); Plim *= Plim;	// sil16 au carre
+
+for	( i = 0; i < qpow ; ++i )
+	{
+	if	( Pbuf[i] < Plim )	// condition <==> silence
+		{
+		++ocnt;
+		}
+	else	{
+		if	( ocnt > 2 )	// on est a la fin d'une sequence
+			{		// qui va de i-ocnt (inclus) a i (exclu)
+			for	( j = i - ocnt + 1; j < i - 1; ++j )
+				Pbuf[j] = -1.0;	// signalisation pour omission
+			}
+		ocnt = 0;
+		}
+	}
+if	( ocnt > 2 )	// terminer une eventuelle sequence en cours
+	{
+	for	( j = i - ocnt + 1; j < i - 1; ++j )
+		Pbuf[i] = -1.0;
+	}
+
+// copie vers lipXbuf[] avec mise a l'echelle
 letk->min_X = lipmin.get_value();
 letk->max_X = lipmax.get_value();
-
 double k = letk->max_X / maxpow;
-for	( unsigned int i = 0; i < qpow ; ++i )
+unsigned int ii = floor(intro.get_value());
+lipXbuf[0] = letk->min_X;
+for	( j = 1; j < ii; ++j )
+	lipXbuf[j] = -0.01; // signalisation pour omission
+j = ii;
+for	( i = 0; i < qpow ; ++i )
 	{
-	Pbuf[i] = letk->min_X + Pbuf[i] * k;
+	if	( Pbuf[i] == -1.0 )
+		lipXbuf[j] = -0.01; // signalisation pour omission
+	else	lipXbuf[j] = letk->min_X + Pbuf[i] * k;
+	++j;
+	if	( j >= 1152 )
+		{
+		printf("Warning : sequence tronquee a 1152 frames\n");
+		break;
+		}
 	}
-letk->qframes = qpow;
-if	( letk->qframes > 1152 )
-	{
-	printf("Warning : sequence tronquee a 1152 frames\n");
-	letk->qframes = 1152;
-	}
-letk->X = Pbuf;
+letk->qframes = j;
+letk->X = lipXbuf;
 
+// mise a jour display
+((layer_f *)lepanneau->bandes[1]->courbes[0])->V = lipXbuf;
+((layer_f *)lepanneau->bandes[1]->courbes[0])->qu = letk->qframes;
 ((layer_f *)lepanneau->bandes[1]->courbes[0])->scan();
-printf("scan X : [%g, %g]\n",
+printf("scan X : %d frames, [%g, %g]\n", letk->qframes,
 	lepanneau->bandes[1]->courbes[0]->get_Vmin(),
 	lepanneau->bandes[1]->courbes[0]->get_Vmax() );
-lepanneau->bandes[1]->fullN();
+//lepanneau->bandes[1]->fullN();
+lepanneau->fullMN();
 lepanneau->force_repaint = 1; lepanneau->force_redraw = 1;
 
 fflush(stdout);
@@ -131,7 +172,7 @@ panneau->parentize();
 // configurer le layer pour le canal L ou mono
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
-curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
+curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
 curcour->label = string("Left");
 curcour->fgcolor.dR = 0.75;
@@ -152,7 +193,7 @@ if	( wavp.chan > 1 )
 	// configurer le layer
 	curcour->set_km( 1.0 );
 	curcour->set_m0( 0.0 );
-	curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
+	curcour->set_kn( 1.0 );
 	curcour->set_n0( 0.0 );
 	curcour->label = string("Right");
 	curcour->fgcolor.dR = 0.0;
@@ -247,6 +288,14 @@ GtkWidget *curwidg, *hbut;
 if	( para->wmain == NULL )
 	para->build();
 
+intro.tag = "duree intro (frames)";
+intro.amin = 0.0;
+intro.amax = 72.0;
+intro.decimales = 0;
+curwidg = intro.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+intro.set_value( 24.0 );
+
 lipmin.tag = "jaw anim min";
 lipmin.amin = 0.0;
 lipmin.amax = 0.3;
@@ -262,6 +311,14 @@ lipmax.decimales = 2;
 curwidg = lipmax.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
 lipmax.set_value( 0.60 );
+
+sil16.tag = "seuil silence (en sl16)";
+sil16.amin = 0.0;
+sil16.amax = 1000.0;
+sil16.decimales = 0;
+curwidg = sil16.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+sil16.set_value( 300.0 );
 
 /* creer boite horizontale */
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */

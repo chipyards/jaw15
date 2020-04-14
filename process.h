@@ -15,8 +15,11 @@ double minpow;
 
 // parametres pour le process tk17
 tk17 * letk;		// pour reference ulterieure
-param_analog lipmin;
+float lipXbuf[1152];
+param_analog intro;	// duree intro en frames
+param_analog lipmin;	// range pour track 126
 param_analog lipmax;
+param_analog sil16;	// seuil de silence (en unites audio sl16)
 
 // methodes
 // la partie du process en relation avec jluplot
