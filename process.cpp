@@ -20,16 +20,20 @@ using namespace std;
 
 #include "wav_head.h"
 #include "tk17.h"
+#include "param.h"
 #include "process.h"
 
 /** ============================ AUDIO data processing =============== */
 
 
-// allocation memoire et lecture WAV 16 bits entier en memoire
-// donnees stockées dans l'objet process
+// prmeiere phase du process, pour visualisation des courbes
+// lecture WAV 16 bits entier en memoire
+// calcul puissance
+// (donnees stockées dans l'objet process)
 int process::wave_process_1( tk17 * tk )
 {
 int retval;
+letk = tk;	//pour le seconde phase
 
 retval = read_full_wav16( &wavp, wnam, &Lbuf, &Rbuf );
 if	( retval )
@@ -38,7 +42,6 @@ if	( retval )
 // calcul de puissance main wav (canal L)
 pww = wavp.freq / 24;	// pour une video a 24 im/s
 
-double maxpow, minpow;
 qpow = 1 + wavp.wavsize / pww;
 Pbuf = (float *)malloc( qpow * sizeof(float) );
 if	( Pbuf == NULL )
@@ -47,28 +50,48 @@ if	( Pbuf == NULL )
 qpow = compute_power( Lbuf, wavp.wavsize, pww, Pbuf, &maxpow, &minpow );
 printf("computed power (L channel) on %u windows : max = %g, min = %g\n", qpow, maxpow, minpow );
 
-double k = tk->max_X / maxpow;
+fflush(stdout);
+return 0;
+}
+
+// seconde phase du process, differee pour permettre ajustement des slider
+int process::wave_process_2()
+{
+
+letk->min_X = lipmin.get_value();
+letk->max_X = lipmax.get_value();
+
+double k = letk->max_X / maxpow;
 for	( unsigned int i = 0; i < qpow ; ++i )
 	{
-	Pbuf[i] = tk->min_X + Pbuf[i] * k;
+	Pbuf[i] = letk->min_X + Pbuf[i] * k;
 	}
-tk->qframes = qpow;
-if	( tk->qframes > 1152 )
+letk->qframes = qpow;
+if	( letk->qframes > 1152 )
 	{
 	printf("Warning : sequence tronquee a 1152 frames\n");
-	tk->qframes = 1152;
+	letk->qframes = 1152;
 	}
-tk->X = Pbuf;
+letk->X = Pbuf;
+
+((layer_f *)lepanneau->bandes[1]->courbes[0])->scan();
+printf("scan X : [%g, %g]\n",
+	lepanneau->bandes[1]->courbes[0]->get_Vmin(),
+	lepanneau->bandes[1]->courbes[0]->get_Vmax() );
+lepanneau->bandes[1]->fullN();
+lepanneau->force_repaint = 1; lepanneau->force_redraw = 1;
 
 fflush(stdout);
 return 0;
 }
 
-int process::wave_process_2( tk17 * tk )
+// 3eme phase du process, differee pour permettre revue des courbes
+int process::wave_process_3()
 {
-if	(!( tk->src_fnam && tk->dst_fnam ))
+if	(!( letk->src_fnam && letk->dst_fnam ))
 	return -200;
-int retval = tk->json_patch();
+
+int retval = letk->json_patch();
 fflush(stdout);
 return retval;
 }
@@ -80,6 +103,8 @@ void process::prep_layout( gpanel * panneau )
 {
 strip * curbande;
 layer_s16_lod * curcour;
+
+lepanneau = panneau;	// pour reference ulterieure
 
 panneau->offscreen_flag = 1;	// 1 par defaut
 // marge pour les textes
@@ -204,6 +229,60 @@ printf("end connect layout, %d strips\n\n", panneau->bandes.size() ); fflush(std
 return 0;
 }
 
+static void phase_2_call( GtkWidget *widget, process * pro )
+{
+pro->wave_process_2();
+}
+
+static void phase_3_call( GtkWidget *widget, process * pro )
+{
+pro->wave_process_3();
+}
+
+// les param_analog appartiennent au process, ils sont juste packes dans un
+// conteneur de la fenetre param
+void process::prep_layout_pa( param_view * para )
+{
+GtkWidget *curwidg, *hbut;
+if	( para->wmain == NULL )
+	para->build();
+
+lipmin.tag = "jaw anim min";
+lipmin.amin = 0.0;
+lipmin.amax = 0.3;
+lipmin.decimales = 2;
+curwidg = lipmin.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+lipmin.set_value( 0.05 );
+
+lipmax.tag = "jaw anim max";
+lipmax.amin = 0.3;
+lipmax.amax = 1.0;
+lipmax.decimales = 2;
+curwidg = lipmax.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+lipmax.set_value( 0.60 );
+
+/* creer boite horizontale */
+curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
+gtk_container_set_border_width( GTK_CONTAINER (curwidg), 5);
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+hbut = curwidg;
+
+/* simple bouton */
+curwidg = gtk_button_new_with_label (" Phase 2 : courbe jaw down ");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( phase_2_call ), (gpointer)this );
+gtk_box_pack_start( GTK_BOX( hbut ), curwidg, TRUE, TRUE, 0 );
+
+/* simple bouton */
+curwidg = gtk_button_new_with_label (" Phase 3 : json patch ");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( phase_3_call ), (gpointer)this );
+gtk_box_pack_start( GTK_BOX( hbut ), curwidg, TRUE, TRUE, 0 );
+
+gtk_widget_show_all( hbut );
+}
 
 // calculer la puissance en fonction du temps, par fenetres de ww samples
 // la memoire doit etre allouee pour destbuf

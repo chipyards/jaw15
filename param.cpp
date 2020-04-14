@@ -39,15 +39,15 @@ curwidg = gtk_notebook_new();
 gtk_container_add( GTK_CONTAINER( wmain ), curwidg );
 nmain = curwidg;
 
+// container pour les params de process
+curwidg = gtk_vbox_new( FALSE, 10 );
+gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Process") );
+vpro = curwidg;
+
 // container pour les params de layout
 curwidg = gtk_vbox_new( FALSE, 10 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Multitrack") );
 vlay = curwidg;
-
-// container pour les params de spectre
-curwidg = gtk_vbox_new( FALSE, 10 );
-gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Spectrum") );
-vspe = curwidg;
 
 // container pour les fichiers
 curwidg = gtk_vbox_new( FALSE, 10 );
@@ -73,4 +73,37 @@ else	build();
 void param_view::hide()
 {
 gtk_widget_hide( wmain );
+}
+
+/** param_analog : un slider */
+
+GtkWidget * param_analog::build()
+{
+hbox = gtk_hbox_new( FALSE, 4 );
+label = gtk_label_new( tag );
+gtk_box_pack_start( GTK_BOX(hbox), label, FALSE, FALSE, 0);
+double ainc = 1.0; int d = decimales;
+while	( d > 0 )
+	{ ainc *= 0.1; --d; }
+						//value,lower,upper,step_increment,page_increment,page_size);
+adjustment = GTK_ADJUSTMENT( gtk_adjustment_new( amin, amin, amax, ainc, ainc*2, 0 ) );
+if	( callback )
+	g_signal_connect( adjustment, "value_changed", G_CALLBACK(callback), (gpointer)this );
+
+hscale = gtk_hscale_new(adjustment);
+gtk_scale_set_digits( GTK_SCALE(hscale), decimales );
+gtk_box_pack_start( GTK_BOX(hbox), hscale, TRUE, TRUE, 0 );
+gtk_widget_show_all( hbox );
+
+return hbox;
+}
+
+double param_analog::get_value()
+{
+return adjustment->value;
+}
+
+void param_analog::set_value( double v )
+{
+adjustment->value = v;
 }

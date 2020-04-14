@@ -255,7 +255,7 @@ glo->para.show();
 
 void clic_call_back( double M, double N, void * vglo )
 {
-printf("youtpi %g %g\n", M, N );
+// printf("clicked %g %g\n", M, N );
 glostru * glo = (glostru *)vglo;
 glo->iplayp = M;
 // normalement idle_call va detecter si le curseur n'est pas au bon endroit
@@ -309,8 +309,9 @@ switch	( v )
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		fflush(stdout);
 		} break;
-	case GDK_KEY_F2 : glo->pro.wave_process_2( &glo->tk );
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	case GDK_KEY_F2 : glo->pro.wave_process_2();
+		// glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+		break;
 	}
 }
 
@@ -503,6 +504,7 @@ retval = glo->pro.connect_layout( &glo->panneau );
 if	( retval )
 	gasp("echec connect layout, erreur %d", retval );
 fflush(stdout);
+glo->pro.prep_layout_pa( &glo->para );
 
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );

@@ -4,20 +4,31 @@ char wnam[256];		// fichiers WAV
 wavpars wavp;		// structure pour wav_head.c
 short * Lbuf;		// audio brut
 short * Rbuf;
+gpanel * lepanneau;	// pour reference ulterieure
 
-// les attributs relatifs a l'application renoiser
+// les attributs relatifs a l'application
 float * Pbuf;		// buffer pour la puissance
 unsigned int qpow;	// taille de son contenu
 unsigned int pww;	// taille de la fenetre de calcule de puissance en samples
-double noise_floor;	// seuil
+double maxpow;		// stats
+double minpow;
+
+// parametres pour le process tk17
+tk17 * letk;		// pour reference ulterieure
+param_analog lipmin;
+param_analog lipmax;
 
 // methodes
-// la partie du process qui traite en memoire les wavs et le spectre
-int wave_process_1( tk17 * tk );
-int wave_process_2( tk17 * tk );
 // la partie du process en relation avec jluplot
 void prep_layout( gpanel * panneau );
 int connect_layout( gpanel * panneau );
+// la partie du process en relation avec la fenetre de param
+void prep_layout_pa( param_view * para );
+// les actions
+int wave_process_1( tk17 * tk );
+int wave_process_2();
+int wave_process_3();
+
 };
 
 // fonctions
