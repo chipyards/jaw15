@@ -336,7 +336,7 @@ neck_angle.amax = 20.0;
 neck_angle.decimales = 1;
 curwidg = neck_angle.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
-neck_angle.set_value( 3.0 );
+neck_angle.set_value( 1.0 );
 
 neck_period.tag = 	"periode moy random neck (frames)";
 neck_period.amin = 0.0;
@@ -353,6 +353,15 @@ blink_period.decimales = 0;
 curwidg = blink_period.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
 blink_period.set_value( 40.0 );
+
+breath_breadth.tag = 	"amplitude inspiration";
+breath_breadth.amin = 0.0;
+breath_breadth.amax = 0.02;
+breath_breadth.decimales = 4;
+curwidg = breath_breadth.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+breath_breadth.set_value( 0.004 );
+
 
 /* creer boite horizontale */
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */

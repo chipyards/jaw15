@@ -23,6 +23,7 @@ param_analog sil16;		// seuil de silence (en unites audio sl16)
 param_analog neck_angle;	// sigma des rotations random neck (degres)
 param_analog neck_period;	// periode moyenne des rotations random neck (frames)
 param_analog blink_period;	// periode moyenne des eye blink
+param_analog breath_breadth;	// amplitude inspiration (vertebre 3)
 
 // methodes
 // la partie du process en relation avec jluplot

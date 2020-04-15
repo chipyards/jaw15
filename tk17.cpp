@@ -23,7 +23,12 @@ fprintf( fil, "\"VectorF32\": [%.10f, %.10f, %.10f],\n \"I32\": %d\n }", x, y, z
 
 void tk17::gen1trk_head( FILE *fil, int itrack )
 {
-fprintf( fil, "\"Class\": {\n\"$ID\": \"Track\",\n\"I32\": %d,\n\"I32\": %d,\n\"Array\": {\n", perso, itrack );
+fprintf( fil, "\n\"Class\": {\n\"$ID\": \"Track\",\n\"I32\": %d,\n\"I32\": %d,\n\"Array\": {\n", perso, itrack );
+}
+
+void tk17::gen1trk_tail( FILE *fil )
+{
+fprintf( fil, "\n}\n},\n");	// fin de l'array et fin de la track
 }
 
 int tk17::json_load( const char * fnam )
@@ -75,28 +80,7 @@ return 0;
 
 /** fonctions specifiques de quelques tracks ============================================================ */
 
-// animation "continue" (typiquement pour jaw open 126)
-// emettre une key "scalaire" pour chaque frame de 0 a qframes-1 selon X[]
-// le seuil sert a la fonction "economiseur"
-void tk17::gen_jaw_trk_126( FILE *fil, double seuil )
-{
-int itrack = 126;
-gen1trk_head( fil, itrack );
-int i, cnt=0;
-for	( i = 0; i < qframes; ++i )
-	{
-	if	( X[i] >= seuil )
-		{ gen1key( fil, i, X[i], 0.0, 0.0, LIN ); ++cnt; }
-	}
-// trame terminale, pour eviter un rebouclage immediat
-if	( i < 1152 )
-	gen1key( fil, 1152-1, X[0], 0.0, 0.0, LIN );
-fprintf( fil, "\n}\n},\n");	// fin de l'array et fin de la track
-printf("track %d : %g < X < %g\n", itrack, min_X, max_X );
-printf("track %d : codage de %d frames de 0 a %d, + 1 frame @ 1151 : termine\n", itrack, cnt, i-1 );
-}
-
-// animation full random pour petits mouvements (typiquement pour neck rotation 15)
+// animation discrete pour petits mouvements 3D (typiquement pour neck rotation 15)
 void tk17::gen_neck_trk_15( FILE *fil )
 {
 int itrack = 15; double x, y, z;
@@ -114,12 +98,128 @@ while	( i < qframes )
 		interval = 6;
 	i += interval;
 	}
-// trame terminale, pour eviter un rebouclage immediat
+// key terminale, pour eviter un rebouclage immediat
 gen1key( fil, 1152-1, 0.0, 0.0, 0.0, LIN );
-fprintf( fil, "\n}\n},\n");	// fin de l'array et fin de la track
+gen1trk_tail( fil );
 printf("track %d : periode moy. %d frames, sigma angle %g\n", itrack, neck_period, neck_angle );
 printf("track %d : codage de %d frames de 0 a %d, + 1 frame @ 1151 : termine\n", itrack, cnt, qframes );
 }
+
+// animation "continue" (typiquement pour jaw open 126)
+// emettre une key "scalaire" pour chaque frame de 0 a qframes-1 selon X[]
+// le seuil sert a la fonction "economiseur"
+void tk17::gen_jaw_trk_126( FILE *fil, double seuil )
+{
+int itrack = 126;
+gen1trk_head( fil, itrack );
+int i, cnt=0;
+for	( i = 0; i < qframes; ++i )
+	{
+	if	( X[i] >= seuil )
+		{ gen1key( fil, i, X[i], 0.0, 0.0, LIN ); ++cnt; }
+	}
+// key terminale, pour eviter un rebouclage immediat
+if	( i < 1152 )
+	gen1key( fil, 1152-1, X[0], 0.0, 0.0, LIN );
+gen1trk_tail( fil );
+printf("track %d : %g < X < %g\n", itrack, min_X, max_X );
+printf("track %d : codage de %d frames de 0 a %d, + 1 frame @ 1151 : termine\n", itrack, cnt, i-1 );
+}
+
+void tk17::gen_blink_events()
+{
+// preparation du blink, a faire a l'avance car utilise par 2 tracks
+int i, cnt=0, interval;
+i = random_normal_int( blink_period, 7 );
+while	( i < qframes )
+	{
+	blink_flag[i] = 1;
+	++cnt;
+	interval = random_normal_int( blink_period, 7 );
+	if	( interval < 6 )
+		interval = 6;
+	i += interval;
+	}
+printf("prepared %d blink events\n", cnt );
+}
+
+// animation discrete pour mouvements 1D impulsionnels (typiquement eye blink 136+137)
+void tk17::gen_blink_trk_136_137( FILE *fil, int itrack )
+{
+gen1trk_head( fil, itrack );
+int i=0, cnt=0;
+gen1key( fil, i, 0.0, 0.0, 0.0, LIN );	// TOUJOURS une key @ 0
+for	( i = 1; i < qframes-2; ++i )
+	{
+	if	( blink_flag[i] )
+		{
+		gen1key( fil, i,   0.0, 0.0, 0.0, LIN );
+		gen1key( fil, i+1, 0.7, 0.0, 0.0, LIN );
+		gen1key( fil, i+2, 0.0, 0.0, 0.0, LIN );
+		++cnt;
+		}
+	}
+// key terminale, pour eviter un rebouclage immediat
+gen1key( fil, 1152-1, 0.0, 0.0, 0.0, LIN );
+gen1trk_tail( fil );
+printf("track %d : periode moy. %d frames\n", itrack, blink_period );
+printf("track %d : codage de %d events de 0 a %d, + 1 frame @ 1151 : termine\n", itrack, cnt, qframes );
+}
+
+void tk17::gen_breath_events( double seuil )
+{
+// preparation du breath, basee sur les silences
+int i=0, cnt=0; float oldX = 1.0;
+int ii = -1;	// frame de debut inspire
+int ie;		// frame de fin inspire
+for	( i = 1; i < qframes-1; ++i )
+	{
+	if	( ( X[i] < seuil ) && ( oldX >= seuil ) )
+		{	// debut de silence
+		ii = i-1;
+		}
+	if	( ( X[i] >= seuil ) && ( oldX < seuil ) )
+		{	// fin de silence
+		ie = i+1;
+		if	( ( ie - ii ) > 6 )
+			{
+			if	( ii > 0 )
+				breath_flag[ii] = -1;	// debut inspire
+			breath_flag[ie] =  1;		// fin inspire
+			cnt++;
+			}
+		}
+	oldX = X[i];
+	}
+printf("prepared %d inspirations\n", cnt );
+}
+
+// animation discrete pour mouvements 1D a 2 temps (typiquement breath = vertebra 3 152)
+void tk17::gen_breath_trk_152( FILE *fil )
+{
+int itrack = 152;
+gen1trk_head( fil, itrack );
+int i=0, cnt=0;
+gen1key( fil, i, 0.0, 0.0, 0.0, LIN );	// TOUJOURS une key @ 0
+for	( i = 1; i < qframes-2; ++i )
+	{
+	if	( breath_flag[i] == -1 )	// debut inspire
+		{
+		gen1key( fil, i, 0.0, 0.0, 0.0, SMOOTH );
+		++cnt;
+		}
+	if	( breath_flag[i] == 1 )	// fin inspire
+		{
+		gen1key( fil, i, 0.0, 0.0, breath_breadth, SMOOTH );
+		}
+	}
+// key terminale, pour eviter un rebouclage immediat
+gen1key( fil, 1152-1, 0.0, 0.0, 0.0, LIN );
+gen1trk_tail( fil );
+printf("track %d : codage de %d respirations de 0 a %d, + 1 frame @ 1151 : termine\n", itrack, cnt, qframes );
+}
+
+
 
 /** fonction principale ============================================================ */
 
@@ -164,6 +264,47 @@ retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
 
 // ecriture nouvelle track 126
 gen_jaw_trk_126( dfil );
+
+ioldend = iend;
+
+// recherche de la track 136 ------------------------------
+retval = json_search( 136, &ibegin, &iend );
+if	( retval != 0 )		return retval;
+if	( ibegin < ioldend )	return -666;
+
+retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
+// printf("ecrit %s : %u bytes\n", dst_fnam, retval );
+
+// ecriture nouvelle track 136
+gen_blink_events();
+gen_blink_trk_136_137( dfil, 136 );
+
+ioldend = iend;
+
+// recherche de la track 137 ------------------------------
+retval = json_search( 137, &ibegin, &iend );
+if	( retval != 0 )		return retval;
+if	( ibegin < ioldend )	return -666;
+
+retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
+// printf("ecrit %s : %u bytes\n", dst_fnam, retval );
+
+// ecriture nouvelle track 137
+gen_blink_trk_136_137( dfil, 137 );
+
+ioldend = iend;
+
+// recherche de la track 152 ------------------------------
+retval = json_search( 152, &ibegin, &iend );
+if	( retval != 0 )		return retval;
+if	( ibegin < ioldend )	return -666;
+
+retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
+// printf("ecrit %s : %u bytes\n", dst_fnam, retval );
+
+// ecriture nouvelle track 152
+gen_breath_events();
+gen_breath_trk_152( dfil );
 
 ioldend = iend;
 
