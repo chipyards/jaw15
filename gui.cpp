@@ -462,8 +462,9 @@ gtk_widget_show_all( glo->wmain );
 
 
 if	( argc < 2 )
+	{
 	gasp("fournir un nom de fichier WAV");
-
+	}
 #ifdef USE_PORTAUDIO
 double mylatency = 0.090;	// 90 ms c'est conservateur
 int myoutput = -1;		// choose default device

@@ -57,9 +57,12 @@ return 0;
 // seconde phase du process, differee pour permettre ajustement des slider
 int process::wave_process_2()
 {
-unsigned int i, j;
+// recuperation des sliders
+letk->min_X = lipmin.get_value();
+letk->max_X = lipmax.get_value();
 
-// economiseur de keyframes :
+unsigned int i, j;
+// animation continue : economiseur de keyframes :
 // si une sequence de plus de 2 keys consecutives satisfont la condition,
 // seules la premiere et la derniere sont conservees
 // les clef a omettre sont signalees par une valeur speciale (ici -1.0)
@@ -88,8 +91,6 @@ if	( ocnt > 2 )	// terminer une eventuelle sequence en cours
 	}
 
 // copie vers lipXbuf[] avec mise a l'echelle
-letk->min_X = lipmin.get_value();
-letk->max_X = lipmax.get_value();
 double k = letk->max_X / maxpow;
 unsigned int ii = floor(intro.get_value());
 lipXbuf[0] = letk->min_X;
@@ -121,7 +122,7 @@ printf("scan X : %d frames, [%g, %g]\n", letk->qframes,
 //lepanneau->bandes[1]->fullN();
 lepanneau->fullMN();
 lepanneau->force_repaint = 1; lepanneau->force_redraw = 1;
-
+printf("\n*** PHASE 2 FINIE ***\n\n");
 fflush(stdout);
 return 0;
 }
@@ -132,7 +133,16 @@ int process::wave_process_3()
 if	(!( letk->src_fnam && letk->dst_fnam ))
 	return -200;
 
+// recuperation des sliders
+letk->neck_angle = neck_angle.get_value();	// sigma des rotations random neck (degres)
+letk->neck_period = neck_period.get_value();	// periode moyenne des rotations random neck (frames)
+letk->blink_period = blink_period.get_value();	// periode moyenne des eye blink
+
 int retval = letk->json_patch();
+if	( retval )
+	printf("json_patch : %d\n", retval );
+
+printf("\n*** PHASE 3 FINIE ***\n\n");
 fflush(stdout);
 return retval;
 }
@@ -319,6 +329,30 @@ sil16.decimales = 0;
 curwidg = sil16.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
 sil16.set_value( 300.0 );
+
+neck_angle.tag = 	"sigma angle random neck (degres)";
+neck_angle.amin = 0.0;
+neck_angle.amax = 20.0;
+neck_angle.decimales = 1;
+curwidg = neck_angle.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+neck_angle.set_value( 3.0 );
+
+neck_period.tag = 	"periode moy random neck (frames)";
+neck_period.amin = 0.0;
+neck_period.amax = 100.0;
+neck_period.decimales = 0;
+curwidg = neck_period.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+neck_period.set_value( 19.0 );
+
+blink_period.tag = 	"periode moyenne eye blink";
+blink_period.amin = 0.0;
+blink_period.amax = 100.0;
+blink_period.decimales = 0;
+curwidg = blink_period.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+blink_period.set_value( 40.0 );
 
 /* creer boite horizontale */
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
