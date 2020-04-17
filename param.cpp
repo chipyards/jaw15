@@ -31,7 +31,7 @@ gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
 gtk_window_set_title( GTK_WINDOW(curwidg), "Parameters" );
 gtk_container_set_border_width( GTK_CONTAINER(curwidg), 2 );
 // set a minimum size
-gtk_widget_set_size_request( curwidg, 640, 480 );
+gtk_widget_set_size_request( curwidg, 640, 640 );
 wmain = curwidg;
 
 // notebook (collection de tabs)

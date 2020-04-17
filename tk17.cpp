@@ -65,7 +65,7 @@ lareu->lalen = src_size;
 lareu->start = 0;
 if	( lareu->matchav() > 0 )
 	{
-	printf("regex match %d(%d:%d)%d\n", lareu->ovector[0], lareu->ovector[2], lareu->ovector[3], lareu->ovector[1] ); fflush(stdout);
+	// printf("regex match %d(%d:%d)%d\n", lareu->ovector[0], lareu->ovector[2], lareu->ovector[3], lareu->ovector[1] ); fflush(stdout);
 	}
 else	return -10;
 
@@ -78,31 +78,112 @@ if	( lareu->ovector[3] > src_size )
 return 0;
 }
 
+// lire le premier vecteur qui se presente a partir de la position pos dans json_src[], rend 0 si ok
+int tk17::json_search_1vect( int pos, double * x, double * y, double * z )
+{
+const char * lepat = "\"VectorF32\":\\s+\\[([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)\\]";
+//printf("pattern : %s\n", lepat ); fflush(stdout);
+
+pcreux * lareu;
+lareu = new pcreux( lepat, PCRE_NEWLINE_ANY | PCRE_MULTILINE | PCRE_DOTALL );
+lareu->letexte = json_src+pos;
+lareu->lalen = src_size;
+lareu->start = 0;
+if	( lareu->matchav() > 0 )
+	{
+	//printf("regex match %d:%d: %d:%d %d:%d\n",
+	//	lareu->ovector[2], lareu->ovector[3],
+	//	lareu->ovector[4], lareu->ovector[5],
+	//	lareu->ovector[6], lareu->ovector[7] ); fflush(stdout);
+	}
+else	return -10;
+
+json_src[pos+lareu->ovector[3]] = 0;
+json_src[pos+lareu->ovector[5]] = 0;
+json_src[pos+lareu->ovector[7]] = 0;
+//printf("|%s| |%s| |%s|\n",	json_src+pos+lareu->ovector[2],
+//				json_src+pos+lareu->ovector[4], json_src+pos+lareu->ovector[6] );
+*x = strtod( json_src+pos+lareu->ovector[2], NULL );
+*y = strtod( json_src+pos+lareu->ovector[4], NULL );
+*z = strtod( json_src+pos+lareu->ovector[6], NULL );
+return 0;
+}
+
 /** fonctions specifiques de quelques tracks ============================================================ */
 
 // animation discrete pour petits mouvements 3D (typiquement pour neck rotation 15)
-void tk17::gen_neck_trk_15( FILE *fil )
+
+void tk17::gen_3D_trk( FILE *fil, int itrack, double sigma_X, double sigma_Y, double sigma_Z, double Y0, int period )
 {
-int itrack = 15; double x, y, z;
+double x, y, z;
 gen1trk_head( fil, itrack );
 int i=0, cnt=0, interval;
 while	( i < qframes )
 	{
-	x = random_normal_double( 0.0, neck_angle );
-	y = random_normal_double( 0.0, neck_angle );
-	z = random_normal_double( 0.0, neck_angle );
+	x = random_normal_double( 0.0, sigma_X );
+	y = random_normal_double( Y0,  sigma_Y );
+	z = random_normal_double( 0.0, sigma_Z );
 	gen1key( fil, i, x, y, z, SMOOTH );
 	++cnt;
-	interval = random_normal_int( neck_period, 8 );
+	interval = random_normal_int( period, 8 );
 	if	( interval < 6 )
 		interval = 6;
 	i += interval;
 	}
 // key terminale, pour eviter un rebouclage immediat
-gen1key( fil, 1152-1, 0.0, 0.0, 0.0, LIN );
+gen1key( fil, 1152-1, 0.0, Y0, 0.0, LIN );
 gen1trk_tail( fil );
-printf("track %d : periode moy. %d frames, sigma angle %g\n", itrack, neck_period, neck_angle );
+printf("track %d : periode moy. %d frames, 3D sigma %g %g %g\n", itrack, period, sigma_X, sigma_Y, sigma_Z );
 printf("track %d : codage de %d frames de 0 a %d, + 1 frame @ 1151 : termine\n", itrack, cnt, qframes );
+}
+
+// animation rotation bassin :
+void tk17::gen_hips_trk_1( FILE *fil, double y0 )
+{		//	tangage		lacet	roulis
+gen_3D_trk( fil, 1, hips_angle*0.4, hips_angle, hips_angle*0.4, y0, hips_period );
+}
+
+// animation neck : meme amplitude sur les 3 axes
+void tk17::gen_neck_trk_15( FILE *fil )
+{
+gen_3D_trk( fil, 15, neck_angle, neck_angle, neck_angle, 0.0, neck_period );
+}
+
+void tk17::gen_shoulders_events()
+{
+// preparation des shoulders, a faire a l'avance car utilise par 2 tracks
+int i, cnt=0, interval;
+i = random_normal_int( shoulders_period, 7 );
+while	( i < qframes )
+	{
+	shoulders[i] = random_normal_double( -shoulders_angle, shoulders_angle );
+	++cnt;
+	interval = random_normal_int( shoulders_period, 7 );
+	if	( interval < 6 )
+		interval = 6;
+	i += interval;
+	}
+printf("prepared %d shoulders events\n", cnt );
+}
+
+// animation shoulders : -Y only, 2 epaules idem selon shoulders[]
+void tk17::gen_shoulders_trk_17_18( FILE *fil, int itrack )
+{
+gen1trk_head( fil, itrack );
+int i=0, cnt=0; double Z_init = 8.1544904709;	// valeur initiale pour pose "sitting"
+gen1key( fil, i, 0.0, 0.0, Z_init, LIN );	// TOUJOURS une key @ 0
+for	( i = 1; i < qframes; ++i )
+	{
+	if	( shoulders[i] != 0.0 )
+		{
+		gen1key( fil, i, 0.0, shoulders[i], Z_init, SMOOTH );
+		++cnt;
+		}
+	}
+// key terminale, pour eviter un rebouclage immediat
+gen1key( fil, 1152-1, 0.0, 0.0, Z_init, SMOOTH );
+gen1trk_tail( fil );
+printf("track %d : codage de %d events de 0 a %d, + 1 frame @ 1151 : termine\n", itrack, cnt, qframes );
 }
 
 // animation "continue" (typiquement pour jaw open 126)
@@ -240,6 +321,25 @@ if	( dfil == NULL )
 
 ioldend = 0;
 
+// recherche de la track 1 ------------------------------
+retval = json_search( 1, &ibegin, &iend );
+if	( retval != 0 ) 	return retval;
+if	( ibegin < ioldend )	return -666;
+
+double x, y, z;
+retval = json_search_1vect( ibegin, &x, &y, &z );
+if	( retval != 0 ) 	return retval;
+printf("track 1 : 1er vecteur : [%g %g %g]\n", x, y, z );
+
+// ecriture de ce qui la precede
+retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
+// printf("ecrit %s : %u bytes\n", dst_fnam, retval );
+
+// ecriture nouvelle track 1
+gen_hips_trk_1( dfil, y );
+
+ioldend = iend;
+
 // recherche de la track 15 ------------------------------
 retval = json_search( 15, &ibegin, &iend );
 if	( retval != 0 ) 	return retval;
@@ -251,6 +351,33 @@ retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
 
 // ecriture nouvelle track 15
 gen_neck_trk_15( dfil );
+
+ioldend = iend;
+
+// recherche de la track 17 ------------------------------
+retval = json_search( 17, &ibegin, &iend );
+if	( retval != 0 )		return retval;
+if	( ibegin < ioldend )	return -666;
+
+retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
+// printf("ecrit %s : %u bytes\n", dst_fnam, retval );
+
+// ecriture nouvelle track 17
+gen_shoulders_events();
+gen_shoulders_trk_17_18( dfil, 17 );
+
+ioldend = iend;
+
+// recherche de la track 18 ------------------------------
+retval = json_search( 18, &ibegin, &iend );
+if	( retval != 0 )		return retval;
+if	( ibegin < ioldend )	return -666;
+
+retval = fwrite( json_src+ioldend, 1, ibegin-ioldend, dfil );
+// printf("ecrit %s : %u bytes\n", dst_fnam, retval );
+
+// ecriture nouvelle track 18
+gen_shoulders_trk_17_18( dfil, 18 );
 
 ioldend = iend;
 

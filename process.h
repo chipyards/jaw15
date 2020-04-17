@@ -20,8 +20,10 @@ param_analog intro;		// duree intro en frames
 param_analog lipmin;		// range pour track 126
 param_analog lipmax;
 param_analog sil16;		// seuil de silence (en unites audio sl16)
+param_analog hips_angle;	// sigma des rotations random bassin (degres)
 param_analog neck_angle;	// sigma des rotations random neck (degres)
 param_analog neck_period;	// periode moyenne des rotations random neck (frames)
+param_analog shoulders_angle;	// sigma des haussements(degres)
 param_analog blink_period;	// periode moyenne des eye blink
 param_analog breath_breadth;	// amplitude inspiration (vertebre 3)
 

@@ -133,10 +133,15 @@ int process::wave_process_3()
 if	(!( letk->src_fnam && letk->dst_fnam ))
 	return -200;
 
-// recuperation des sliders
-letk->neck_angle = neck_angle.get_value();	// sigma des rotations random neck (degres)
-letk->neck_period = neck_period.get_value();	// periode moyenne des rotations random neck (frames)
-letk->blink_period = blink_period.get_value();	// periode moyenne des eye blink
+// recuperation des sliders (6 sliders pour 8 params) (4 ont deja ete recuperes par wave_process_2())
+letk->hips_angle = hips_angle.get_value();
+letk->hips_period = neck_period.get_value();		// cheat!
+letk->neck_angle = neck_angle.get_value();
+letk->neck_period = neck_period.get_value();
+letk->blink_period = blink_period.get_value();
+letk->shoulders_angle = shoulders_angle.get_value();
+letk->shoulders_period = blink_period.get_value();	// cheat!
+letk->breath_breadth = breath_breadth.get_value();
 
 int retval = letk->json_patch();
 if	( retval )
@@ -312,7 +317,7 @@ lipmin.amax = 0.3;
 lipmin.decimales = 2;
 curwidg = lipmin.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
-lipmin.set_value( 0.05 );
+lipmin.set_value( 0.00 );
 
 lipmax.tag = "jaw anim max";
 lipmax.amin = 0.3;
@@ -324,11 +329,19 @@ lipmax.set_value( 0.60 );
 
 sil16.tag = "seuil silence (en sl16)";
 sil16.amin = 0.0;
-sil16.amax = 1000.0;
+sil16.amax = 2000.0;
 sil16.decimales = 0;
 curwidg = sil16.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
-sil16.set_value( 300.0 );
+sil16.set_value( 900.0 );
+
+hips_angle.tag = 	"sigma angle random hips (degres)";
+hips_angle.amin = 0.0;
+hips_angle.amax = 20.0;
+hips_angle.decimales = 1;
+curwidg = hips_angle.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+hips_angle.set_value( 0.8 );
 
 neck_angle.tag = 	"sigma angle random neck (degres)";
 neck_angle.amin = 0.0;
@@ -346,6 +359,14 @@ curwidg = neck_period.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
 neck_period.set_value( 19.0 );
 
+shoulders_angle.tag = 	"sigma angle haussement epaules (degres)";
+shoulders_angle.amin = 0.0;
+shoulders_angle.amax = 20.0;
+shoulders_angle.decimales = 1;
+curwidg = shoulders_angle.build();
+gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
+shoulders_angle.set_value( 1.4 );
+
 blink_period.tag = 	"periode moyenne eye blink";
 blink_period.amin = 0.0;
 blink_period.amax = 100.0;
@@ -360,7 +381,7 @@ breath_breadth.amax = 0.02;
 breath_breadth.decimales = 4;
 curwidg = breath_breadth.build();
 gtk_box_pack_start( GTK_BOX(para->vpro), curwidg, FALSE, FALSE, 0 );
-breath_breadth.set_value( 0.004 );
+breath_breadth.set_value( 0.005 );
 
 
 /* creer boite horizontale */
