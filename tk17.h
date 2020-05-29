@@ -75,6 +75,9 @@ int json_patch();
 
 // utilitaires
 
+// generation d'un table de conversion de timestamps
+void generate_timetable( int intro );
+
 // generation d'un double pseudo gaussien (Irwin-Hall distribution)
 // dans l'intervalle [avg-6*sigma, avg+6*sigma]
 double random_normal_double( double avg, double sigma );

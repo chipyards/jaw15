@@ -448,6 +448,30 @@ return 0;
 
 /** utilitaires ====================================================================== */
 
+/* generation d'un table de conversion de timestamps
+		step		section		total max
+						12 sections
+				8 steps		96 steps
+		12 frames	96 frames	1152 frames
+		0.5s		4s		48s		@ 24 FPS
+*/
+void generate_timetable( int intro )
+{
+double fps = 24.0;
+double tframe = 1.0 / fps;
+int section, step;
+printf("\ntimestamp en secondes pour chaque step\n");
+for	( section = 0; section < 12; ++section )
+	{
+	printf("s%3d    ", section );
+	for	( step = 0; step < 8; ++step )
+		printf("%8.2f ", ( 96 * section + 12 * step - intro ) * tframe );
+	printf("\n");
+	}
+printf("\n");
+}
+
+
 // generation d'un double pseudo gaussien (Irwin-Hall distribution)
 // dans l'intervalle [avg-6*sigma, avg+6*sigma]
 double random_normal_double( double avg, double sigma )

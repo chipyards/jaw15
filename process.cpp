@@ -109,6 +109,12 @@ for	( i = 0; i < qpow ; ++i )
 		break;
 		}
 	}
+for	( i = 0; i < ii ; ++i )		// outtro
+	{
+	lipXbuf[j++] = -0.01;
+	if	( j >= 1152 )
+		break;
+	}
 letk->qframes = j;
 letk->X = lipXbuf;
 
@@ -122,6 +128,7 @@ printf("scan X : %d frames, [%g, %g]\n", letk->qframes,
 //lepanneau->bandes[1]->fullN();
 lepanneau->fullMN();
 lepanneau->force_repaint = 1; lepanneau->force_redraw = 1;
+generate_timetable( ii );
 printf("\n*** PHASE 2 FINIE ***\n\n");
 fflush(stdout);
 return 0;
