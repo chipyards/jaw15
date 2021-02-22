@@ -60,6 +60,15 @@ void line( cairo_t * cair );
 void draw( cairo_t * cair );	// automatique
 };
 
+// gstrip derive du strip de jluplot
+class gstrip : public strip {
+public :
+// widgets associes
+GtkWidget * menu1_y;
+// constructeur
+gstrip() : menu1_y(NULL) {};
+};
+
 // gpanel derive du panel de jluplot
 class gpanel : public panel {
 public :
@@ -72,7 +81,6 @@ GdkWindow * drawab;	// GDK drawable de la drawing area contenant le panel
 GdkGC * gc;		// GDK drawing context
 // widgets associes
 GtkWidget * menu1_x;
-GtkWidget * menu1_y;
 ghost_drag drag;
 // flags et indicateurs
 int offscreen_flag;	// autorise utilisation du buffer offscreen aka drawpad
@@ -93,6 +101,7 @@ gpanel() : laregion(NULL), drawpad(NULL), offcai(NULL), drawab(NULL), gc(NULL),
 GtkWidget * layout( int w, int h );
 void configure();
 void expose();
+void toggle_vis( unsigned int ib, int ic );
 void paint();			// copie automatique du drawpad sur la drawing area
 void draw();			// dessin vectoriel automatique sur le drawpad
 void drawpad_resize();		// automatique, alloue ou re-alloue le pad, cree le cairo
@@ -103,18 +112,18 @@ void clic( GdkEventButton * event );
 void motion( GdkEventMotion * event );
 void wheel( GdkEventScroll * event );
 void key( GdkEventKey * event );
+// png service methods
+void png_save_drawpad( const char * fnam );
 // pdf service widgets
 GtkWidget * wchoo;
 GtkWidget * fchoo;
 GtkWidget * edesc;
-// png service methods
-void png_save_drawpad( const char * fnam );
 // pdf service methods
 void pdf_modal_layout( GtkWidget * mainwindow );
 void pdf_ok_call();
 // context menu service
 GtkWidget * mkmenu1( const char * title );
-int selected_strip;	// strip duquel on a appele le menu (avec les flags de marges)
+int selected_strip;	// strip duquel on a appele le menu (flags de marges inclus)
 // bindkey service
 int selected_key;	// touche couramment pressee
 // callback service

@@ -206,7 +206,7 @@ return 0;
 // layout pour le domaine temporel - doit etre fait apres lecture wav data et calcul spectres
 void process::prep_layout( gpanel * panneau )
 {
-strip * curbande;
+gstrip * curbande;
 layer_s16_lod * curcour;
 
 panneau->offscreen_flag = 1;	// 1 par defaut
@@ -214,7 +214,7 @@ panneau->offscreen_flag = 1;	// 1 par defaut
 panneau->mx = 60;
 
 // creer le strip pour les waves
-curbande = new strip;	// strip avec drawpad
+curbande = new gstrip;
 panneau->bandes.push_back( curbande );
 
 // configurer le strip
@@ -224,6 +224,7 @@ curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "mono";
 curbande->optX = 1;
 curbande->optretX = 1;
+curbande->menu1_y = panneau->mkmenu1("SIGNAL AXIS");
 
 // creer un layer
 curcour = new layer_s16_lod;	// wave a pas uniforme
@@ -265,13 +266,8 @@ if	( wavp.chan > 1 )
 
 layer_rgb * curcour2;
 /* creer le strip pour le spectro */
-curbande = new strip;
+curbande = new gstrip;
 panneau->bandes.push_back( curbande );
-// creer le layer
-curcour2 = new layer_rgb;
-curbande->courbes.push_back( curcour2 );
-// parentizer a cause des fonctions "set"
-panneau->parentize();
 // configurer le strip
 curbande->bgcolor.dR = 1.0;
 curbande->bgcolor.dG = 1.0;
@@ -281,7 +277,14 @@ curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas
 curbande->optretX = 0;
 curbande->optretY = 0;
 curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
+curbande->menu1_y = panneau->mkmenu1("FREQU AXIS");
 // curbande->optcadre = 1;	// pour economiser le fill du fond
+
+// creer le layer
+curcour2 = new layer_rgb;
+curbande->courbes.push_back( curcour2 );
+// parentizer a cause des fonctions "set"
+panneau->parentize();
 // configurer le layer
 curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
 curcour2->set_m0( 0.5 * (double)Lspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
@@ -294,13 +297,8 @@ if	( qspek >= 2 )
 	panneau->bandes.back()->Ylabel = "midi L";
 
 	/* creer le strip pour le spectro */
-	curbande = new strip;
+	curbande = new gstrip;
 	panneau->bandes.push_back( curbande );
-	// creer le layer
-	curcour2 = new layer_rgb;
-	curbande->courbes.push_back( curcour2 );
-	// parentizer a cause des fonctions "set"
-	panneau->parentize();
 	// configurer le strip
 	curbande->bgcolor.dR = 1.0;
 	curbande->bgcolor.dG = 1.0;
@@ -310,7 +308,14 @@ if	( qspek >= 2 )
 	curbande->optretX = 0;
 	curbande->optretY = 0;
 	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
+    curbande->menu1_y = panneau->mkmenu1("FREQU AXIS");
 	// curbande->optcadre = 1;	// pour economiser le fill du fond
+
+	// creer le layer
+	curcour2 = new layer_rgb;
+	curbande->courbes.push_back( curcour2 );
+	// parentizer a cause des fonctions "set"
+	panneau->parentize();
 	// configurer le layer
 	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
 	curcour2->set_m0( 0.5 * (double)Rspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
@@ -378,7 +383,7 @@ return 0;
 // layout pour le domaine frequentiel
 void process::prep_layout2( gpanel * panneau )
 {
-strip * curbande;
+gstrip * curbande;
 layer_u16 * curcour;
 
 panneau->offscreen_flag = 0;	// 1 par defaut
@@ -386,7 +391,7 @@ panneau->offscreen_flag = 0;	// 1 par defaut
 panneau->mx = 60;
 
 // creer le strip pour les waves
-curbande = new strip;	// strip avec drawpad
+curbande = new gstrip;
 panneau->bandes.push_back( curbande );
 
 // configurer le strip
@@ -396,6 +401,7 @@ curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "spec";
 curbande->optX = 1;
 curbande->optretX = 1;
+curbande->menu1_y = panneau->mkmenu1("??? AXIS");
 
 // creer un layer
 curcour = new layer_u16;	//

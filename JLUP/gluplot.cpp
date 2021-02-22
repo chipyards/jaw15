@@ -197,7 +197,6 @@ drag.mode = nil;
 selected_key = 0;
 
 menu1_x = mkmenu1("X AXIS");
-menu1_y = mkmenu1("Y AXIS");
 // on desactive ici le double buffer pour le controler plus finement
 // avec gdk_window_begin_paint_region() et gdk_window_end_paint()
 gtk_widget_set_double_buffered( widget, FALSE );
@@ -410,10 +409,10 @@ if	( xcursor >= 0.0 )
 	double x = xcursor + (double)mx;
 	if	( cair == NULL )
 		cair = gdk_cairo_create( widget->window );
-	cairo_set_source_rgba( cair, 0.5, 0.5, 0.5, 1.0 );
+	cairo_set_source_rgba( cair, 0.0, 0.0, 0.0, 1.0 );
 	cairo_set_line_width( cair, 0.5 );
 	cairo_move_to( cair, x, 0.0 );
-	cairo_line_to( cair, x, fdy );
+	cairo_line_to( cair, x, fdy-my );
 	cairo_stroke(cair);
 	xdirty = xcursor;
 	}
@@ -441,13 +440,30 @@ void gpanel::configure()
 {
 int ww, wh;
 gdk_drawable_get_size( widget->window, &ww, &wh );
-printf("gpanel configuzed %d x %d\n", ww, wh );
+// printf("gpanel configuzed %d x %d\n", ww, wh );
 resize( ww, wh );
 // mettre a jour la region qui sert pour begin_paint
 if	( laregion )
 	gdk_region_destroy( laregion );
 laregion = gdk_drawable_get_clip_region( widget->window );
 force_repaint = 1; fflush(stdout);
+}
+
+void gpanel::toggle_vis( unsigned int ib, int ic )
+{
+if	( ib >= bandes.size() )
+	return;
+if	( ic < 0 )
+	bandes[ib]->visible ^= 1;
+else	{
+	if	( ic >= (int)bandes[ib]->courbes.size() )
+		return;
+	bandes[ib]->courbes[ic]->visible ^= 1;
+	}
+				// les dimensions de la drawing area ne changent pas
+this->resize( fdx, fdy );	// mais il faut recalculer la hauteur des bandes
+refresh_proxies();
+force_repaint = 1;
 }
 
 /** ===================== gpanel event handling methods =============================== */
@@ -556,8 +572,12 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 							event->button, event->time );
 				else if	( istrip & CLIC_MARGE_GAUCHE )
 					{
-					gtk_menu_popup( (GtkMenu *)menu1_y, NULL, NULL, NULL, NULL,
-							event->button, event->time );
+					int lestrip = istrip & (~CLIC_MARGE);
+					printf("context menu strip %d\n", lestrip );
+					GtkWidget * lemenu = ((gstrip *)bandes.at(lestrip))->menu1_y;
+					if	( lemenu )
+						gtk_menu_popup( (GtkMenu *)lemenu, NULL, NULL, NULL, NULL,
+								event->button, event->time );
 					}
 				}
 			}
@@ -800,6 +820,9 @@ gtk_main_quit();
 
 /** ===================== context menus =================================== */
 
+// menu de base, commun pour X-Axis et Y-Axis - peut être enrichi par l'application.
+// les callbacks peuvent differencier X de Y, et identifier le strip pour Y
+// grace au pointeur sur le panel qui leur est passe, qui leur donne acces a selected_strip
 GtkWidget * gpanel::mkmenu1( const char * title )
 {
 GtkWidget * curmenu;
@@ -946,7 +969,7 @@ if	( panneau )
 	double k1 = ( panneau->MdeX((double)panneau->ndx) - panneau->fullmmin ) / fullspan;
 	zoom( k0, k1 );
 	}
-printf("gzoombar configuzed %d x %d\n", ww, wh ); fflush(stdout);
+// printf("gzoombar configuzed %d x %d\n", ww, wh ); fflush(stdout);
 }
 
 void gzoombar::clic( GdkEventButton * event )
