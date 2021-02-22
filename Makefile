@@ -74,19 +74,35 @@ INCS= -Wall -Wno-parentheses -Wno-deprecated-declarations -O2 -mms-bitfields $(A
 ALL : $(OBJS)
 	g++ -o $(EXE) -s $(OBJS) $(LIBS)
 
-clean : 
+clean :
 	rm *.o
 
-.cpp.o: 
-	g++ $(INCS) -c $<
-
-.c.o: 
+.c.o:
 	gcc $(INCS) -c $<
+
+gluplot.o :
+	gcc $(INCS) -c JLUP/gluplot.cpp
+jluplot.o :
+	gcc $(INCS) -c JLUP/jluplot.cpp
+layer_rgb.o :
+	gcc $(INCS) -c JLUP/layer_rgb.cpp
+layer_s16_lod.o :
+	gcc $(INCS) -c JLUP/layer_s16_lod.cpp
+layer_u16.o :
+	gcc $(INCS) -c JLUP/layer_u16.cpp
+
+spectro.o :
+	gcc $(INCS) -c spectro.cpp
+process.o :
+	gcc $(INCS) -c process.cpp
+gui.o :
+	gcc $(INCS) -c gui.cpp
+param.o :
+	gcc $(INCS) -c param.cpp
 
 # dependances
 wav_head.o : ${HEADERS}
 modpop2.o : ${HEADERS}
-layers.o : ${HEADERS}
 gluplot.o : ${HEADERS}
 jluplot.o : ${HEADERS}
 spectro.o : ${HEADERS}

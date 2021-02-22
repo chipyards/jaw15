@@ -464,8 +464,6 @@ if	( bandes.size() )
 		// printf("panel::resize : 0 bande visible\n" );
 		return;
 		}
- 	// bandes d'egale hauteur
-	bndy = ndy / cnt;
 	// bandes d'egale hauteur
 	bndy = ndy / cnt;
 	// reste de la division applique a la premiere bande
@@ -654,49 +652,142 @@ if ( i ) --i;
 return( tickbase * coef[i] );
 }
 
-// conversion double-->texte, avec un format de precision
-// en rapport avec la valeur du tick.
-// si la valeur du tick est nulle ou absente, utilisation
-// du format anterieur memorise
-// retour = nombre de chars utiles
-// lbuf doit pouvoir contenir 32 bytes
+// conversion double-->texte, avec un format de precision lie a la valeur du tick.
+// si la valeur du tick est <= 0.0 ou absente, utilisation du format anterieur memorise
+// par rapport au %g, il y a 3 differences :
+//	- le format est choisi en fonction du tick, pas seulement de la valeur elle-meme,
+//	  de maniere a pouvoir toujours differencier un ecart d'un tick
+//	- la memorisation du format assure un format homogene sur une echelle
+//	- les exposants "eN" sont remplaces par les suffixes "fpnum kMGT"
+// la valeur est supposee etre multiple du tick (i.e. elle sera souvent arrondie au tick)
+//	- retour = nombre de chars utiles
+//	- lbuf doit pouvoir contenir 32 bytes
+//
+#define ANTI_MK		// option moderant l'usage des sufixes m et k
 int scientout( char * lbuf, double val, double tick )
 {
 //                          0123456789
-static const char *osuff = "fpnum kMGT";
-// ces deux valeurs memorisent le format
-static int triexp = 0;	// exposant, multiple de 3
-static int preci = 1;	// nombre digits apres dot
-if ( tick > 0.0 )	// preparation format
-   {
-   int tikexp; double aval;
-   // normalisation
-   aval = fabs(val);
-   if ( aval < tick )	// couvre le cas val == 0.0
-      aval = tick;
-   triexp = (int)floor( log10( aval ) / 3 );
-   triexp *= 3;
-   // ordre de grandeur du tick (en evitant arrondi du 1 vers 0.99999)
-   tikexp = (int)floor( log10(tick) + 1e-12 );
-   preci = triexp - tikexp;
-   if ( preci < 0 ) preci = 0;
-   // printf("~>%d <%d> .%d\n", triexp, tikexp, preci );
-   }
-if ( val == 0.0 )
-   { sprintf( lbuf, "0" ); return 1; }
-unsigned int cnt;	// affichage selon format
-if ( triexp )
-   val *= exp( -triexp * log(10) );
-// int snprintf (char *s, size t size, const char *template, . . . )
-// rend le nombre de chars utiles
-cnt = snprintf( lbuf, 20, "%.*f", preci, val );
-if ( triexp == 0 )
-   return cnt;
-if ( ( triexp < -15 ) || ( triexp > 12 ) )
-   {
-   cnt += snprintf( lbuf + cnt, 8, "e%d", triexp );
-   return cnt;
-   }
-sprintf( lbuf + cnt, "%c", osuff[ ( triexp/3 ) + 5 ] );
+static const char *osuff = "fpnum kMGT";		// de femto a Tera
+static const double opow[] = {
+	1e-15, 1e-14, 1e-13, 1e-12, 1e-11, 1e-10,
+	1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2,
+	0.1, 1, 10, 100, 1000,
+	1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15 };
+
+int v_exp;		// ordre de grandeur de la valeur, arrondi par defaut
+static int v_exp3 = 0;	// ordre de grandeur de la valeur, arrondi par defaut au multiple de 3
+int t_exp; 		// ordre de grandeur du tick, arrondi par defaut
+static int qfrac = 1;	// resolution de la partie fractionnaire (nombre digits apres dot)
+
+	/// ----------------------- preparation format --------------------------------------------
+if	( tick > 0.0 )
+	{
+	double aval;
+	// normalisation
+	aval = fabs(val);
+	if ( aval < ( 5.0 * tick ) )	// couvre le cas val == 0.0
+	   aval = ( 5.0 * tick );	// et les valeurs autour de 0 peu representatives
+	// ordre de grandeur de la valeur
+	aval = log10( aval );
+	v_exp  = (int)floor( aval );
+	v_exp3 = (int)floor( aval / 3 );
+	v_exp3 *= 3;	// exemple : -3 de 0.001 a 0.999, 0 de 1 a 999; 3 de 1000 a 9999
+	// ordre de grandeur du tick (en evitant arrondi du 1 vers 0.99999)
+	t_exp = (int)floor( log10(tick) + 1e-12 );
+	// estimation de la resolution necessaire
+	qfrac = v_exp3 - t_exp;
+	if ( qfrac < 0 ) qfrac = 0;
+	// printf("\nv_exp = %d   v_exp3 = %d    t-exp = %d --> qfrac = %d\n", v_exp, v_exp3, t_exp, qfrac );
+	#ifdef ANTI_MK
+	switch	( v_exp )
+		{
+		case -1 : v_exp3 = 0;
+			break;
+		case 3: v_exp3 = 0;
+			break;
+		case 4:
+		case 5: if ( qfrac > 0 ) v_exp3 = 0;
+			break;
+		}
+	qfrac = v_exp3 - t_exp;
+	if ( qfrac < 0 ) qfrac = 0;
+	// printf("v_exp = %d   v_exp3 = %d    t-exp = %d --> qfrac = %d\n", v_exp, v_exp3, t_exp, qfrac );
+	#endif
+	}
+	/// ----------------------- formatage -----------------------------------------------------
+int cnt;
+// premier cas trivial
+if	( val == 0.0 )
+	{ sprintf( lbuf, "0" ); return 1; }
+// cas extremes : suffixes non disponibles
+if	( ( v_exp3 < -15 ) || ( v_exp3 > 12 ) )
+	{
+	cnt = snprintf( lbuf, 30, "%g", val );
+	return cnt;
+	}
+// application de l'exposant
+if	( v_exp3 )
+	{
+	// val *= exp( -v_exp3 * log(10) );
+	val *= opow[15 - v_exp3];
+	}
+// formatage en virgule fixe
+cnt = snprintf( lbuf, 30, "%.*f", qfrac, val );
+if	( cnt < 0 )	// debordement ?
+	cnt = snprintf( lbuf, 30, "%g", val );
+// second cas trivial : pas besoin de suffixe
+if	( v_exp3 == 0 )
+	return cnt;
+// ajouter suffixe
+sprintf( lbuf + cnt, "%c", osuff[ ( v_exp3/3 ) + 5 ] );
 return( cnt + 1 );
 }
+
+/*
+void scientout_test1( double val, double tick=0.0 )
+{
+char tbuf[32]; int cnt;
+cnt = scientout( tbuf, val, tick );
+printf("%10g, %10g, --> %2d : %s\n", val, tick, cnt, tbuf );
+}
+
+void scientout_tests()
+{
+// test v_exp3
+scientout_test1( 100, 0.01 );
+scientout_test1( 999.9, 0.01 );
+scientout_test1( 1000, 0.01 );
+scientout_test1( 0.001, 0.0001 );
+scientout_test1( 0.999, 0.0001 );
+
+scientout_test1( 1.1, 0.01 ); scientout_test1( 1.2 ); scientout_test1( 1.25 ); scientout_test1( 0 );
+scientout_test1( 11.123, 0.02 ); scientout_test1( 13 ); scientout_test1( 25.01 ); scientout_test1( 0 );
+scientout_test1( 500, 2 ); scientout_test1( 1200 ); scientout_test1( 12000 ); scientout_test1( 0 );
+scientout_test1( -500, 2 ); scientout_test1( -1200 ); scientout_test1( -12000 ); scientout_test1( 0 );
+scientout_test1( 0.1, 0.001 ); scientout_test1( -0.1 ); scientout_test1( -0.2 ); scientout_test1( 0 );
+
+// test ANTI_MK (k)
+scientout_test1( 1000, 1 ); scientout_test1( 11000 ); scientout_test1( -200 ); scientout_test1( 0 );
+scientout_test1( 10000, 10 ); scientout_test1( 11000 ); scientout_test1( -200 ); scientout_test1( 0 );
+scientout_test1( 10000, 1000 ); scientout_test1( 11000 ); scientout_test1( -200000 ); scientout_test1( 0 );
+scientout_test1( 100000, 1 ); scientout_test1( 11001 ); scientout_test1( -99999 ); scientout_test1( 0 );
+scientout_test1( 100000, 1000 ); scientout_test1( 11000 ); scientout_test1( -200000 ); scientout_test1( 0 );
+// test ANTI_MK (m)
+scientout_test1( 0.5, 0.001 ); scientout_test1( 1 ); scientout_test1( -2 ); scientout_test1( 0 );
+scientout_test1( 0.0, 0.005 ); scientout_test1( 1 ); scientout_test1( -2 ); scientout_test1( 0 );
+scientout_test1( 0.0, 0.01 ); scientout_test1( 1 ); scientout_test1( -2 ); scientout_test1( 0 );
+scientout_test1( 0.0, 0.02 ); scientout_test1( 1 ); scientout_test1( -2 ); scientout_test1( 0 );
+scientout_test1( 3, 0.001 ); scientout_test1( 1 ); scientout_test1( -2 ); scientout_test1( 0 );
+
+// cas extremes
+scientout_test1( -120e-15 , 5e-15 ); scientout_test1( 10e-15 ); scientout_test1( 33e-15 ); scientout_test1( 0 );
+scientout_test1( -120e-19 , 5e-19 ); scientout_test1( 10e-18 ); scientout_test1( 33e-19 ); scientout_test1( 0 );
+scientout_test1( 33e15, 2e15 ); scientout_test1( -1e15 ); scientout_test1( 200e15 ); scientout_test1( 0 );
+scientout_test1( 33e12, 2e12 ); scientout_test1( -1e12 ); scientout_test1( 200e12 ); scientout_test1( 0 );
+scientout_test1( 200000000 , 5e-15 ); scientout_test1( 100000 ); scientout_test1( 1e15 ); scientout_test1( 0 );
+//
+// scientout_test1(  ); scientout_test1(  ); scientout_test1(  ); scientout_test1( 0 );
+}
+*/
+
+

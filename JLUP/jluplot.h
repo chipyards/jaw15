@@ -135,7 +135,7 @@ virtual double get_Vmax() = 0;
 virtual void draw( cairo_t * cai ) = 0;	// dessin
 // dump
 virtual void dump() {
-  printf("      layer %s\n", label.c_str() );
+  printf("      layer %s, %s\n", label.c_str(), (visible?"visible":"invisible") );
   printf("\tm0=%-12.5g km=%-12.5g n0=%-12.5g kn=%-12.5g\n", m0, km, n0, kn );
   printf("\tu0=%-12.5g ku=%-12.5g v0=%-12.5g kv=%-12.5g\n", u0, ku, v0, kv );
   };
@@ -193,7 +193,7 @@ void parentize() {
 // dump
 void dump() {
 unsigned int i;
-printf("   strip fdy=%d, %d layers\n", fdy, courbes.size() );
+printf("   strip fdy=%d, %s, %d layers\n", fdy, (visible?"visible":"invisible"), courbes.size() );
 printf("\ty0=%-12.5g ky=%-12.5g r0=%-12.5g kr=%-12.5g\n", y0, ky, r0, kr );
 for ( i = 0; i < courbes.size(); i++ )
     courbes.at(i)->dump();
@@ -301,7 +301,8 @@ void dump() {
   printf("panel fdx=%d fdy=%d, %d strips\n", fdx, fdy, bandes.size() );
   printf("\tx0=%-12.5g kx=%-12.5g q0=%-12.5g kq=%-12.5g\n", x0, kx, q0, kq );
   for	( i = 0; i < bandes.size(); i++ )
-	if (bandes.at(i)->visible) bandes.at(i)->dump();
+	//if	(bandes.at(i)->visible)
+		bandes.at(i)->dump();
   };
 };
 
