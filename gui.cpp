@@ -1,6 +1,7 @@
 // JAW = JLN's Audio Workstation
 // portaudio est necessaire pour jouer le son, mais on peut compiler sans lui pour tester le GUI
 // pour l'activer, definir USE_PORTAUDIO dans le makefile ou le projet
+// de plus pour qu'il utilise ASIO, definir PA_USE_ASIO
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -110,7 +111,7 @@ if	( err != paNoError )
 PaStreamParameters papa;
 if	( mydevice < 0 )
 	{
-	// print_pa_devices( pa_dev_options );
+	print_pa_devices( pa_dev_options );
 	papa.device = Pa_GetDefaultOutputDevice();	// un device index au sens de PA (all host APIs merged)
 	}
 else 	papa.device = mydevice;

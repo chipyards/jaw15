@@ -1,7 +1,8 @@
 /* pa_devs.c de portaudio est un programme standalone
-   on en a extrait le coeur pour lister els devices audio
+   on en a extrait le coeur pour lister les devices audio
 */
 
+#ifdef USE_PORTAUDIO
 
 #include <stdio.h>
 #include <math.h>
@@ -10,7 +11,7 @@
 #include "pa_devs.h"
 
 #ifdef WIN32
-#if PA_USE_ASIO
+#ifdef PA_USE_ASIO
 #include "pa_asio.h"
 #endif
 #endif
@@ -120,7 +121,7 @@ for 	( i=0; i<numDevices; i++ )
         printf( "Default high output latency = %8.4f\n", deviceInfo->defaultHighOutputLatency  );
 
 #ifdef WIN32
-#if PA_USE_ASIO
+#ifdef PA_USE_ASIO
         isasio =  ( Pa_GetHostApiInfo( deviceInfo->hostApi )->type == paASIO );
 	/* ASIO specific latency information */
         if	( ( isasio ) && ( options & 2 ) )
@@ -186,3 +187,4 @@ for 	( i=0; i<numDevices; i++ )
     	printf("----------------------------------------------\n");
 return numDevices;
 }
+#endif

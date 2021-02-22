@@ -1,4 +1,3 @@
-#define	PA_USE_ASIO	1
 
 #ifdef  __cplusplus
 extern "C" {

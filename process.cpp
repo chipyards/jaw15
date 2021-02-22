@@ -420,8 +420,9 @@ int process::connect_layout2( gpanel * panneau, int pos )
 layer_u16 * layL = NULL;
 // connecter les layers de ce layout sur les buffers existants
 layL = (layer_u16 *)panneau->bandes[0]->courbes[0];
-layL->V = Lspek.spectre + ???? Lspek.H * pos ???? ; // attentio la wav est plus large que qsamp * Lspek.H * fftstride
-layL->qu = Lspek.H;
+//layL->V = Lspek.spectre + ???? Lspek.H * pos ???? ; // attentio la wav est plus large que qsamp * Lspek.H * fftstride
+//layL->qu = Lspek.H;
+layL->qu = 0;
 return 0;
 }
 
