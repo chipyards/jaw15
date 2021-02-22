@@ -23,10 +23,16 @@ endif
 
 # listes
 SOURCESC = wav_head.c modpop2.c $(ADEV)
-SOURCESCPP = layers.cpp gluplot.cpp jluplot.cpp spectro.cpp process.cpp gui.cpp param.cpp
-HEADERS = glostru.h gluplot.h jluplot.h layers.h modpop2.h pa_devs.h process.h spectro.h wav_head.h param.h
+SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp \
+    JLUP/layer_rgb.cpp JLUP/layer_s16_lod.cpp JLUP/layer_u16.cpp \
+    spectro.cpp process.cpp gui.cpp param.cpp
+HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
+    JLUP/layer_rgb.h JLUP/layer_s16_lod.h JLUP/layer_u16.h \
+    modpop2.h pa_devs.h process.h glostru.h spectro.h wav_head.h param.h
 
-OBJS= $(SOURCESC:.c=.o) $(SOURCESCPP:.cpp=.o)
+OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
+    layer_rgb.o layer_s16_lod.o layer_u16.o \
+    spectro.o process.o gui.o param.o
 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
 

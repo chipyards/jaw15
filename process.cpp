@@ -13,10 +13,11 @@ using namespace std;
 #include <iostream>
 #include <vector>
 
-#include "jluplot.h"
-#include "layers.h"
-#include "strips.h"
-#include "gluplot.h"
+#include "JLUP/jluplot.h"
+#include "JLUP/gluplot.h"
+#include "JLUP/layer_s16_lod.h"
+#include "JLUP/layer_rgb.h"
+#include "JLUP/layer_u16.h"
 
 #include "wav_head.h"
 #include "fftw3.h"

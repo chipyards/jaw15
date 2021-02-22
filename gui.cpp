@@ -18,10 +18,8 @@ using namespace std;
 #include <iostream>
 #include <vector>
 
-#include "jluplot.h"
-#include "layers.h"
-#include "strips.h"
-#include "gluplot.h"
+#include "JLUP/jluplot.h"
+#include "JLUP/gluplot.h"
 #ifdef USE_PORTAUDIO
   #include "portaudio.h"
   #include "pa_devs.h"

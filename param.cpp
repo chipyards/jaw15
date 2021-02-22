@@ -5,10 +5,8 @@ using namespace std;
 #include <iostream>
 #include <vector>
 
-#include "jluplot.h"
-#include "layers.h"
-#include "strips.h"
-#include "gluplot.h"
+#include "JLUP/jluplot.h"
+#include "JLUP/gluplot.h"
 #include "fftw3.h"
 #include "spectro.h"
 #include "wav_head.h"

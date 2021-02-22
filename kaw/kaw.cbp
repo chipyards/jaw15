@@ -64,14 +64,18 @@
 			<Add directory="F:/Appli/msys64/mingw32/lib" />
 			<Add directory=".." />
 		</Linker>
+		<Unit filename="../JLUP/gluplot.cpp" />
+		<Unit filename="../JLUP/jluplot.cpp" />
+		<Unit filename="../JLUP/layer_rgb.cpp" />
+		<Unit filename="../JLUP/layer_s16_lod.cpp" />
+		<Unit filename="../JLUP/layer_u16.cpp" />
+		<Unit filename="../JLUP/gluplot.h" />
+		<Unit filename="../JLUP/jluplot.h" />
+		<Unit filename="../JLUP/layer_rgb.h" />
+		<Unit filename="../JLUP/layer_s16_lod.h" />
+		<Unit filename="../JLUP/layer_u16.h" />
 		<Unit filename="../glostru.h" />
-		<Unit filename="../gluplot.cpp" />
-		<Unit filename="../gluplot.h" />
 		<Unit filename="../gui.cpp" />
-		<Unit filename="../jluplot.cpp" />
-		<Unit filename="../jluplot.h" />
-		<Unit filename="../layers.cpp" />
-		<Unit filename="../layers.h" />
 		<Unit filename="../modpop2.c">
 			<Option compilerVar="CC" />
 		</Unit>

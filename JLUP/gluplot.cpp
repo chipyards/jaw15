@@ -11,7 +11,6 @@ using namespace std;
 #include <vector>
 
 #include "jluplot.h"
-#include "layers.h"
 #include "gluplot.h"
 
 /** ======================= C-style callbacks ================================ */
