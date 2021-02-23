@@ -28,7 +28,7 @@ using namespace std;
 
 
 // allocation memoire et lecture WAV 16 bits entier en memoire
-// donnees stockÃ©es dans l'objet process
+// donnees stockées dans l'objet process
 // puis calculs spectrogramme dans l'objet process
 int process::wave_process_full()
 {
@@ -215,7 +215,7 @@ panneau->mx = 60;
 
 // creer le strip pour les waves
 curbande = new gstrip;
-panneau->bandes.push_back( curbande );
+panneau->add_strip( curbande );
 
 // configurer le strip
 curbande->bgcolor.dR = 1.0;
@@ -224,13 +224,11 @@ curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "mono";
 curbande->optX = 1;
 curbande->optretX = 1;
-curbande->menu1_y = panneau->mkmenu1("SIGNAL AXIS");
+gpanel::smenu_set_title( curbande->smenu_y, "SIGNAL AXIS" );
 
 // creer un layer
 curcour = new layer_s16_lod;	// wave a pas uniforme
-curbande->courbes.push_back( curcour );
-// parentizer a cause des fonctions "set"
-panneau->parentize();
+curbande->add_layer( curcour );
 
 // configurer le layer pour le canal L ou mono
 curcour->set_km( 1.0 );
@@ -249,9 +247,7 @@ if	( wavp.chan > 1 )
 
 	// creer le layer
 	curcour = new layer_s16_lod;	// wave a pas uniforme
-	curbande->courbes.push_back( curcour );
-	// parentizer a cause des fonctions "set"
-	panneau->parentize();
+	curbande->add_layer( curcour );
 
 	// configurer le layer
 	curcour->set_km( 1.0 );
@@ -267,7 +263,7 @@ if	( wavp.chan > 1 )
 layer_rgb * curcour2;
 /* creer le strip pour le spectro */
 curbande = new gstrip;
-panneau->bandes.push_back( curbande );
+panneau->add_strip( curbande );
 // configurer le strip
 curbande->bgcolor.dR = 1.0;
 curbande->bgcolor.dG = 1.0;
@@ -277,14 +273,13 @@ curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas
 curbande->optretX = 0;
 curbande->optretY = 0;
 curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
-curbande->menu1_y = panneau->mkmenu1("FREQU AXIS");
+gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
 // curbande->optcadre = 1;	// pour economiser le fill du fond
 
 // creer le layer
 curcour2 = new layer_rgb;
-curbande->courbes.push_back( curcour2 );
-// parentizer a cause des fonctions "set"
-panneau->parentize();
+curbande->add_layer( curcour2 );
+
 // configurer le layer
 curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
 curcour2->set_m0( 0.5 * (double)Lspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
@@ -298,7 +293,7 @@ if	( qspek >= 2 )
 
 	/* creer le strip pour le spectro */
 	curbande = new gstrip;
-	panneau->bandes.push_back( curbande );
+    panneau->add_strip( curbande );
 	// configurer le strip
 	curbande->bgcolor.dR = 1.0;
 	curbande->bgcolor.dG = 1.0;
@@ -308,14 +303,13 @@ if	( qspek >= 2 )
 	curbande->optretX = 0;
 	curbande->optretY = 0;
 	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
-    curbande->menu1_y = panneau->mkmenu1("FREQU AXIS");
+	gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
 	// curbande->optcadre = 1;	// pour economiser le fill du fond
 
 	// creer le layer
 	curcour2 = new layer_rgb;
-	curbande->courbes.push_back( curcour2 );
-	// parentizer a cause des fonctions "set"
-	panneau->parentize();
+	curbande->add_layer( curcour2 );
+
 	// configurer le layer
 	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
 	curcour2->set_m0( 0.5 * (double)Rspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
@@ -390,9 +384,9 @@ panneau->offscreen_flag = 0;	// 1 par defaut
 // marge pour les textes
 panneau->mx = 60;
 
-// creer le strip pour les waves
+// creer le strip pour les spectres
 curbande = new gstrip;
-panneau->bandes.push_back( curbande );
+panneau->add_strip( curbande );
 
 // configurer le strip
 curbande->bgcolor.dR = 0.8;
@@ -401,13 +395,11 @@ curbande->bgcolor.dB = 0.8;
 curbande->Ylabel = "spec";
 curbande->optX = 1;
 curbande->optretX = 1;
-curbande->menu1_y = panneau->mkmenu1("??? AXIS");
+// gpanel::smenu_set_title( curbande->smenu_y, "MAG ?" );
 
 // creer un layer
 curcour = new layer_u16;	//
-curbande->courbes.push_back( curcour );
-// parentizer a cause des fonctions "set"
-panneau->parentize();
+curbande->add_layer( curcour );
 
 // configurer le layer pour le spectre
 curcour->set_km( 1.0 );

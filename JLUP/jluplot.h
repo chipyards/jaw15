@@ -186,10 +186,11 @@ void set_ky( double kY );
 double get_y0() { return y0; };
 double get_ky() { return ky; };
 
-void parentize() {
-  for ( unsigned int i = 0; i < courbes.size(); i++ )
-      courbes.at(i)->parent = this;
-  };
+void add_layer( layer_base * lacourbe ) {
+lacourbe->parent = this;
+courbes.push_back( lacourbe );
+}
+
 // dump
 void dump() {
 unsigned int i;
@@ -271,13 +272,11 @@ void set_kx( double kX );
 double get_x0() { return x0; };
 double get_kx() { return kx; };
 
-void parentize() {
-  for ( unsigned int i = 0; i < bandes.size(); i++ )
-      {
-      bandes.at(i)->parent = this;
-      bandes.at(i)->parentize();
-      }
-  };
+void add_strip( strip * labande ) {
+labande->parent = this;
+bandes.push_back( labande );
+}
+
 // dessin
 void zoomM( double mmin, double mmax );	// zoom absolu
 void zoomX( double xmin, double xmax );	// zoom relatif

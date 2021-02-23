@@ -255,30 +255,11 @@ glo->para.show();
 
 void clic_call_back( double M, double N, void * vglo )
 {
-printf("youtpi %g %g\n", M, N );
+// printf("clic M N %g %g\n", M, N );
 glostru * glo = (glostru *)vglo;
 glo->iplayp = M;
 // normalement idle_call va detecter si le curseur n'est pas au bon endroit
 // et va le retracer
-}
-
-// cette fonction devra etre transportee dans gpanel
-static void toggle_vis( glostru * glo, unsigned int ib, int ic )	// ignore ic pour le moment
-{
-if	( ib >= glo->panneau.bandes.size() )
-	return;
-if	( ic < 0 )
-	glo->panneau.bandes[ib]->visible ^= 1;
-else	{
-	if	( ic >= (int)glo->panneau.bandes[ib]->courbes.size() )
-		return;
-	glo->panneau.bandes[ib]->courbes[ic]->visible ^= 1;
-	}
-int ww, wh;
-ww = glo->panneau.fdx; wh = glo->panneau.fdy;	// les dimensions de la drawing area ne changent pas
-glo->panneau.resize( ww, wh );			// mais il faut recalculer la hauteur des bandes
-glo->panneau.refresh_proxies();
-glo->panneau.force_repaint = 1;
 }
 
 void key_call_back( int v, void * vglo )
@@ -287,13 +268,13 @@ glostru * glo = (glostru *)vglo;
 switch	( v )
 	{
 	case GDK_KEY_KP_0 :
-	case '0' : toggle_vis( glo, 0, 0 ); break;
+	case '0' : glo->panneau.toggle_vis( 0, 0 ); break;
 	case GDK_KEY_KP_1 :
-	case '1' : toggle_vis( glo, 0, 1 ); break;
+	case '1' : glo->panneau.toggle_vis( 0, 1 ); break;
 	case GDK_KEY_KP_2 :
-	case '2' : toggle_vis( glo, 1, -1 ); break;
+	case '2' : glo->panneau.toggle_vis( 1, -1 ); break;
 	case GDK_KEY_KP_3 :
-	case '3' : toggle_vis( glo, 2, -1 ); break;
+	case '3' : glo->panneau.toggle_vis( 2, -1 ); break;
 	case ' ' :
 		play_pause_call( NULL, glo );
 		break;
@@ -359,7 +340,7 @@ GtkWidget * curmenu;
 GtkWidget * curitem;
 GSList *group = NULL;
 
-curmenu = glo->panneau.menu1_x;    // Don't need to show menus
+curmenu = glo->panneau.smenu_x;    // Don't need to show menus
 
 curitem = gtk_separator_menu_item_new();
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );

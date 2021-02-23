@@ -77,7 +77,7 @@ static void gpanel_pdf_ok_button( GtkWidget *widget, gpanel * p )
 p->pdf_ok_call();
 }
 
-static void menu1_full( GtkWidget *widget, gpanel * p )
+static void smenu_full( GtkWidget *widget, gpanel * p )
 {
 // printf("Full clic %08x\n", p->selected_strip );
 if	( p->selected_strip & ( CLIC_MARGE_INF | CLIC_ZOOMBAR ) )
@@ -94,7 +94,7 @@ else if ( p->selected_strip & CLIC_MARGE_GAUCHE )
 	}
 }
 
-static void menu1_zoomin( GtkWidget *widget, gpanel * p )
+static void smenu_zoomin( GtkWidget *widget, gpanel * p )
 {
 if	( p->selected_strip & ( CLIC_MARGE_INF | CLIC_ZOOMBAR ) )
 	{
@@ -109,7 +109,7 @@ p->force_repaint = 1;
 // gtk_widget_queue_draw( p->widget );
 }
 
-static void menu1_zoomout( GtkWidget *widget, gpanel * p )
+static void smenu_zoomout( GtkWidget *widget, gpanel * p )
 {
 if	( p->selected_strip & ( CLIC_MARGE_INF | CLIC_ZOOMBAR ) )
 	{
@@ -196,7 +196,7 @@ gtk_widget_set_events ( widget, gtk_widget_get_events(widget)
 drag.mode = nil;
 selected_key = 0;
 
-menu1_x = mkmenu1("X AXIS");
+smenu_x = mksmenu("X AXIS");
 // on desactive ici le double buffer pour le controler plus finement
 // avec gdk_window_begin_paint_region() et gdk_window_end_paint()
 gtk_widget_set_double_buffered( widget, FALSE );
@@ -568,13 +568,13 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 				{
 				selected_strip = istrip;
 				if	( istrip & CLIC_MARGE_INF )
-					gtk_menu_popup( (GtkMenu *)menu1_x, NULL, NULL, NULL, NULL,
+					gtk_menu_popup( (GtkMenu *)smenu_x, NULL, NULL, NULL, NULL,
 							event->button, event->time );
 				else if	( istrip & CLIC_MARGE_GAUCHE )
 					{
 					int lestrip = istrip & (~CLIC_MARGE);
 					printf("context menu strip %d\n", lestrip );
-					GtkWidget * lemenu = ((gstrip *)bandes.at(lestrip))->menu1_y;
+					GtkWidget * lemenu = ((gstrip *)bandes.at(lestrip))->smenu_y;
 					if	( lemenu )
 						gtk_menu_popup( (GtkMenu *)lemenu, NULL, NULL, NULL, NULL,
 								event->button, event->time );
@@ -821,9 +821,9 @@ gtk_main_quit();
 /** ===================== context menus =================================== */
 
 // menu de base, commun pour X-Axis et Y-Axis - peut être enrichi par l'application.
-// les callbacks peuvent differencier X de Y, et identifier le strip pour Y
-// grace au pointeur sur le panel qui leur est passe, qui leur donne acces a selected_strip
-GtkWidget * gpanel::mkmenu1( const char * title )
+// chaque callback peut differencier X de Y, et identifier le strip pour Y
+// grace au pointeur sur le panel qui lui est passe, qui lui donne acces a selected_strip
+GtkWidget * gpanel::mksmenu( const char * title )
 {
 GtkWidget * curmenu;
 GtkWidget * curitem;
@@ -840,24 +840,36 @@ gtk_widget_show ( curitem );
 
 curitem = gtk_menu_item_new_with_label("Full");
 g_signal_connect( G_OBJECT( curitem ), "activate",
-		  G_CALLBACK( menu1_full ), (gpointer)this );
+		  G_CALLBACK( smenu_full ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
 gtk_widget_show ( curitem );
 
 curitem = gtk_menu_item_new_with_label("Zoom in");
 g_signal_connect( G_OBJECT( curitem ), "activate",
-		  G_CALLBACK( menu1_zoomin ), (gpointer)this );
+		  G_CALLBACK( smenu_zoomin ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL(curmenu), curitem );
 gtk_widget_show ( curitem );
 
 curitem = gtk_menu_item_new_with_label("Zoom out");
 g_signal_connect( G_OBJECT( curitem ), "activate",
-		  G_CALLBACK( menu1_zoomout ), (gpointer)this );
+		  G_CALLBACK( smenu_zoomout ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL(curmenu), curitem );
 gtk_widget_show ( curitem );
 
 return curmenu;
 }
+
+// personnalisation du titre (en remplacement du titre par defaut)
+void gpanel::smenu_set_title( GtkWidget * lemenu, const char *titre )
+{
+GList * momes = gtk_container_get_children( GTK_CONTAINER(lemenu) );
+if	( momes )
+	{	// on prend le premier child, sur lequel pointe deja la liste
+	if	( GTK_IS_MENU_ITEM( momes->data ) )
+		gtk_menu_item_set_label( GTK_MENU_ITEM(momes->data), titre );
+	}
+}
+
 /** ===================== ghost_drag methods ===================================== */
 
 void ghost_drag::zone( cairo_t * cair )
@@ -1008,7 +1020,7 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 			else if ( event->button == 3 )
 				{
 				panneau->selected_strip = CLIC_ZOOMBAR;
-				gtk_menu_popup( (GtkMenu *)panneau->menu1_x, NULL, NULL, NULL, NULL,
+				gtk_menu_popup( (GtkMenu *)panneau->smenu_x, NULL, NULL, NULL, NULL,
 							event->button, event->time );
 				}
 			}

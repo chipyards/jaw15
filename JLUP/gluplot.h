@@ -64,9 +64,9 @@ void draw( cairo_t * cair );	// automatique
 class gstrip : public strip {
 public :
 // widgets associes
-GtkWidget * menu1_y;
+GtkWidget * smenu_y;    // scale menu : menu contextuel pour les echelles Y
 // constructeur
-gstrip() : menu1_y(NULL) {};
+gstrip() : smenu_y(NULL) {};
 };
 
 // gpanel derive du panel de jluplot
@@ -80,7 +80,7 @@ cairo_t * offcai;	// le cairo persistant pour le drawpad
 GdkWindow * drawab;	// GDK drawable de la drawing area contenant le panel
 GdkGC * gc;		// GDK drawing context
 // widgets associes
-GtkWidget * menu1_x;
+GtkWidget * smenu_x;    // scale menu : menu contextuel pour les echelles X
 ghost_drag drag;
 // flags et indicateurs
 int offscreen_flag;	// autorise utilisation du buffer offscreen aka drawpad
@@ -93,12 +93,20 @@ int paint_cnt;		// profilage
 void (*clic_call_back)(double,double,void*);	// pointeur callback pour clic sur courbe
 void (*key_call_back)(int,void*);		// pointeur callback pour touche clavier
 void * call_back_data;			// pointeur a passer aux callbacks
-// constructeur
+
+// constructeur (N.B. l'initialisation est obligatoirmeent completee par la methode layout() )
 gpanel() : laregion(NULL), drawpad(NULL), offcai(NULL), drawab(NULL), gc(NULL),
 	   offscreen_flag(1), force_repaint(1), queue_flag(0), xcursor(-1.0), xdirty(-1.0),
 	   paint_cnt(0), clic_call_back(NULL), key_call_back(NULL) {};
+
 // methodes
 GtkWidget * layout( int w, int h );
+
+void add_strip( gstrip * labande ) {
+	panel::add_strip( labande );
+	labande->smenu_y = mksmenu("Y AXIS");
+	}
+
 void configure();
 void expose();
 void toggle_vis( unsigned int ib, int ic );
@@ -121,8 +129,9 @@ GtkWidget * edesc;
 // pdf service methods
 void pdf_modal_layout( GtkWidget * mainwindow );
 void pdf_ok_call();
-// context menu service
-GtkWidget * mkmenu1( const char * title );
+// scale menu service
+GtkWidget * mksmenu( const char * title );
+static void smenu_set_title( GtkWidget * lemenu, const char *titre );
 int selected_strip;	// strip duquel on a appele le menu (flags de marges inclus)
 // bindkey service
 int selected_key;	// touche couramment pressee
