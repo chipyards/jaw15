@@ -22,13 +22,13 @@ else
 endif
 
 # listes
-SOURCESC = wav_head.c modpop2.c $(ADEV)
+SOURCESC = wav_head.c modpop3.c $(ADEV)
 SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp \
     JLUP/layer_rgb.cpp JLUP/layer_s16_lod.cpp JLUP/layer_u16.cpp \
     spectro.cpp process.cpp gui.cpp param.cpp
 HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
     JLUP/layer_rgb.h JLUP/layer_s16_lod.h JLUP/layer_u16.h \
-    modpop2.h pa_devs.h process.h glostru.h spectro.h wav_head.h param.h
+    modpop3.h pa_devs.h process.h glostru.h spectro.h wav_head.h param.h
 
 OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
     layer_rgb.o layer_s16_lod.o layer_u16.o \
@@ -65,8 +65,8 @@ INCS= -Wall -Wno-parentheses -Wno-deprecated-declarations -O2 -mms-bitfields $(A
 -I$(GTKBASE)/include/gdk-pixbuf-2.0 \
 -I$(GTKBASE)/include/glib-2.0 \
 -I$(GTKBASE)/include/gtk-2.0 \
--I$(GTKBASE)/include/pango-1.0 \
 -I$(GTKBASE)/include/harfbuzz \
+-I$(GTKBASE)/include/pango-1.0 \
 -I$(GTKBASE)/lib/glib-2.0/include \
 -I$(GTKBASE)/lib/gtk-2.0/include \
 # cibles
@@ -80,31 +80,26 @@ clean :
 .c.o:
 	gcc $(INCS) -c $<
 
-gluplot.o :
+gluplot.o : JLUP/gluplot.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/gluplot.cpp
-jluplot.o :
+jluplot.o : JLUP/jluplot.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/jluplot.cpp
-layer_rgb.o :
+layer_rgb.o : JLUP/layer_rgb.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/layer_rgb.cpp
-layer_s16_lod.o :
+layer_s16_lod.o : JLUP/layer_s16_lod.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/layer_s16_lod.cpp
-layer_u16.o :
+layer_u16.o : JLUP/layer_u16.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/layer_u16.cpp
 
-spectro.o :
+spectro.o : spectro.cpp ${HEADERS}
 	gcc $(INCS) -c spectro.cpp
-process.o :
+process.o : process.cpp ${HEADERS}
 	gcc $(INCS) -c process.cpp
-gui.o :
+gui.o : gui.cpp ${HEADERS}
 	gcc $(INCS) -c gui.cpp
-param.o :
+param.o : param.cpp ${HEADERS}
 	gcc $(INCS) -c param.cpp
 
 # dependances
 wav_head.o : ${HEADERS}
-modpop2.o : ${HEADERS}
-gluplot.o : ${HEADERS}
-jluplot.o : ${HEADERS}
-spectro.o : ${HEADERS}
-process.o : ${HEADERS}
-gui.o : ${HEADERS}
+modpop3.o : ${HEADERS}

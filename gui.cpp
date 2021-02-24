@@ -30,7 +30,7 @@ using namespace std;
 #include "process.h"
 #include "param.h"
 #include "glostru.h"
-#include "modpop2.h"
+#include "modpop3.h"
 
 // unique variable globale exportee pour gasp() de modpop2
 GtkWindow * global_main_window = NULL;
@@ -106,12 +106,12 @@ if	( err != paNoError )
 //  set PA_RECOMMENDED_OUTPUT_DEVICE=1
 //  The user should first determine the available device ids by using the supplied application "pa_devs"."
 
+if	( pa_dev_options >= 0 )
+	print_pa_devices( pa_dev_options );
+
 PaStreamParameters papa;
 if	( mydevice < 0 )
-	{
-	print_pa_devices( pa_dev_options );
 	papa.device = Pa_GetDefaultOutputDevice();	// un device index au sens de PA (all host APIs merged)
-	}
 else 	papa.device = mydevice;
 papa.channelCount = 2;    		// JAW uses always stereo output, best portability
 papa.sampleFormat = paInt16;		// 16 bits, same reason
@@ -363,6 +363,8 @@ gtk_widget_show ( curitem );
 
 /** ============================ main, quoi ======================= */
 
+#include <locale.h>
+
 static glostru theglo;
 
 int main( int argc, char *argv[] )
@@ -371,6 +373,7 @@ glostru * glo = &theglo;
 GtkWidget *curwidg;
 
 gtk_init(&argc,&argv);
+setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
 
 curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 
@@ -451,33 +454,89 @@ enrich_wav_X_menu( glo );
 
 gtk_widget_show_all( glo->wmain );
 
-
-if	( argc < 2 )
-	gasp("fournir un nom de fichier WAV");
-
-#ifdef USE_PORTAUDIO
+// Traitement des arguments CLI, accepte dans n'importe quel ordre :
+// - des options de la forme -Xval ou -X=val ou -X Val ou -X
+// - une chaine nue t.q. file path
+ 
+//	variables concernees, avec les valeurs par defaut
 double mylatency = 0.090;	// 90 ms c'est conservateur
-int myoutput = -1;		// choose default device
-int pa_dev_options = 0;
-if	( argc >= 3 )
+int myoutput = -1;		// -1 = choose system default device
+int pa_dev_options = -1;	// listage audio devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)
+int solB = 0;			// variante pour copie drawpad (cf gluplot.cpp) "-B" pour B1, sinon defaut = B2 
+const char * fnam = NULL;
+
+// 	parsage CLI
+char key = 0;	// une lettre, apres un dash
+const char * val;
+int val_sep_flag = 0;	// indique qu'une valeur separee de la key a ete consommee
+int err_flag = 0;
+char errmsg[64];
+for	( int iopt = 1; iopt < argc; ++iopt )
 	{
-	if	( argc < 4 )
-		pa_dev_options = atoi( argv[2] );
-	else	{
-		myoutput = atoi( argv[3] );
-		mylatency = strtod( argv[2], NULL );
+	if	( ( argv[iopt][0] == '-' ) && ( argv[iopt][1] > ' ' ) )
+		{
+		key = argv[iopt][1];
+		val = argv[iopt]+2;		// valeur collee a la lettre clef
+		val_sep_flag = 0;
+		if	( *val == '=' )
+			val += 1;		// valeur apres signe '='
+		else if	( *val == 0 )
+			{			// valeur separee, ou pas de valeur
+			if	( (iopt+1) < argc )
+				{ val = argv[iopt+1]; ++val_sep_flag; }
+			}
+		switch	( key )
+			{
+			case 'L' :	// latence
+				if	( *val )
+					mylatency = strtod( val, NULL );
+				else	++err_flag;
+				break;
+			case 'd' :	// device
+				if	( *val )
+					myoutput = atoi( val );
+				else	++err_flag;
+				break;
+			case 'p' :	// pa listing
+				if	( *val )
+					pa_dev_options = atoi( val );
+				else	++err_flag;
+				break;
+			case 'B' :	// option B1 pour drawpad
+				solB = 1;
+				val_sep_flag = 0;	// cette option ne prend pas de valeur
+				break;
+			default  :
+				++err_flag;
+			}
+		if	( val_sep_flag )
+			++iopt;
+		if	( err_flag )
+			{
+			snprintf( errmsg, sizeof(errmsg), "erreur sur arg. \"-%c\"", key );
+			break;
+			}
 		}
+	else	fnam = argv[iopt];	// N.B. un dash isole va sortir comme fnam
 	}
-// traiter choix options B1 vs B2 (c'est ballot, cette option n'est accessible que si on a USE_PORTAUDIO)
-if	( pa_dev_options & 4 )
+
+if	( err_flag )
+	gasp( errmsg );
+
+if	( fnam == 0 )
+	gasp("fournir un nom de fichier WAV");
+snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), fnam );
+
+printf( "output device %d, latency %g, pa_dev option %d\n", myoutput, mylatency, pa_dev_options );
+ 
+// traiter choix options B1 vs B2
+if	( solB == 1 )
 	{
-	glo->panneau.drawab = glo->darea->window;	// special B1
+	glo->panneau.drawab = glo->darea->window;	// force B1  pour gpanel::drawpad_compose()
 	printf("Sol. B1\n");
 	}
 else	printf("Sol. B2\n");
-#endif
 
-snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), argv[1] );
 
 int retval = glo->pro.wave_process_full();
 if	( retval )
