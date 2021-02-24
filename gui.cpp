@@ -31,6 +31,7 @@ using namespace std;
 #include "param.h"
 #include "glostru.h"
 #include "modpop3.h"
+#include "cli_parse.h"
 
 // unique variable globale exportee pour gasp() de modpop2
 GtkWindow * global_main_window = NULL;
@@ -459,71 +460,24 @@ gtk_widget_show_all( glo->wmain );
 // - une chaine nue t.q. file path
  
 //	variables concernees, avec les valeurs par defaut
-double mylatency = 0.090;	// 90 ms c'est conservateur
-int myoutput = -1;		// -1 = choose system default device
-int pa_dev_options = -1;	// listage audio devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)
-int solB = 0;			// variante pour copie drawpad (cf gluplot.cpp) "-B" pour B1, sinon defaut = B2 
+double mylatency = 0.090;	// -L // 90 ms c'est conservateur
+int myoutput = -1;		// -d // -1 = choose system default device
+int pa_dev_options = -1;	// -p // listage audio devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)
+int solB = 0;			// -B // variante pour copie drawpad (cf gluplot.cpp) "-B" pour B1, sinon defaut = B2 
 const char * fnam = NULL;
 
 // 	parsage CLI
-char key = 0;	// une lettre, apres un dash
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "Ldp" );
+// le parsage est fait, on recupere les args !
 const char * val;
-int val_sep_flag = 0;	// indique qu'une valeur separee de la key a ete consommee
-int err_flag = 0;
-char errmsg[64];
-for	( int iopt = 1; iopt < argc; ++iopt )
-	{
-	if	( ( argv[iopt][0] == '-' ) && ( argv[iopt][1] > ' ' ) )
-		{
-		key = argv[iopt][1];
-		val = argv[iopt]+2;		// valeur collee a la lettre clef
-		val_sep_flag = 0;
-		if	( *val == '=' )
-			val += 1;		// valeur apres signe '='
-		else if	( *val == 0 )
-			{			// valeur separee, ou pas de valeur
-			if	( (iopt+1) < argc )
-				{ val = argv[iopt+1]; ++val_sep_flag; }
-			}
-		switch	( key )
-			{
-			case 'L' :	// latence
-				if	( *val )
-					mylatency = strtod( val, NULL );
-				else	++err_flag;
-				break;
-			case 'd' :	// device
-				if	( *val )
-					myoutput = atoi( val );
-				else	++err_flag;
-				break;
-			case 'p' :	// pa listing
-				if	( *val )
-					pa_dev_options = atoi( val );
-				else	++err_flag;
-				break;
-			case 'B' :	// option B1 pour drawpad
-				solB = 1;
-				val_sep_flag = 0;	// cette option ne prend pas de valeur
-				break;
-			default  :
-				++err_flag;
-			}
-		if	( val_sep_flag )
-			++iopt;
-		if	( err_flag )
-			{
-			snprintf( errmsg, sizeof(errmsg), "erreur sur arg. \"-%c\"", key );
-			break;
-			}
-		}
-	else	fnam = argv[iopt];	// N.B. un dash isole va sortir comme fnam
-	}
+if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
+if	( ( val = lepar->get( 'd' ) ) )	myoutput = atoi( val );
+if	( ( val = lepar->get( 'p' ) ) )	pa_dev_options = atoi( val );
+if	( ( val = lepar->get( 'B' ) ) )	solB = 1;
+fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
 
-if	( err_flag )
-	gasp( errmsg );
 
-if	( fnam == 0 )
+if	( fnam == NULL )
 	gasp("fournir un nom de fichier WAV");
 snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), fnam );
 

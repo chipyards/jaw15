@@ -76,6 +76,7 @@
 		<Unit filename="../JLUP/layer_u16.h" />
 		<Unit filename="../glostru.h" />
 		<Unit filename="../gui.cpp" />
+		<Unit filename="../cli_parse.h" />
 		<Unit filename="../modpop3.c">
 			<Option compilerVar="CC" />
 		</Unit>
