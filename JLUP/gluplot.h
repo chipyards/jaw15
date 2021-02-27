@@ -7,17 +7,30 @@ GLUPLOT est une couche au dessus de JLUPLOT, dont le but est :
 En plus cette version apporte :
 	- piloter JLUPLOT pour lui faire faire un trace vectoriel intermediaire sur un drawpad GDK,
 	  en vue d'accelerer les rafraichissement (lorsqu'il n'y a pas zoom ni pan)
+	  (option offscreen_flag)
 	- supporter le trace incremental sur l'ecran (drawing area) pour le curseur "audio play",
 	  ce qui implique de desactiver temporairement le double-buffer
 	- supporter un widget auxiliaire "zoombar"
 
 Implementation :
 	- la classe gpanel est derivee de la classe panel de JLUPLOT.
-	  sa methode draw dessine sur le drawpad (si necessaire) en iterant les appels a strip::draw()
-	  comme ferait panel::draw() (qui n'est pas utilisee)
+	- sa methode draw() dessine sur le drawpad (si necessaire) en iterant les appels a strip::draw()
+	  comme ferait panel::draw() (qui n'est pas utilisee par gpanel::draw() )
+	- l'allocation memoire pour le drawpad est automatique via gpanel::drawpad_resize(),
+	  appele automatiquement par gpanel::draw()
+	- sa methode paint() est au niveau au-dessus,
+		elle peut appelle gpanel::draw() ou panel::draw() selon l'option offscreen_flag
+		elle trace les overlays t.q. rectangle de selection et curseur audio 
 	- les niveaux strip et layer ne sont pas concernes par le passage par un drawpad
 	- il y a 2 modes de copie du drawpad sur l'ecran : B1 et B2, le choix est fait par le membre
 	  drawab ( drawab == NULL ==> B2 ) - normalement pas d'impact sur le resultat visuel
+
+Callback :
+	- l'application peut enregistrere 2 callbacks :
+		- clic_call_back : pour interpreter les clics sur le panel
+		  N.B. sont deja interceptes ppour zoom et pan : wheel, right drag, left drag + spacebar
+		- key_call_back : pour les actions clavier
+		  N.B. 'f' est deja interceptee pour full zoom XY
 
 Concepts :
 	- "ecran" ou "drawing area" : zone de frame buffer, visualisee en direct ou via un frame buffer cache
@@ -138,6 +151,11 @@ int selected_key;	// touche couramment pressee
 // callback service
 void clic_callback_register( void (*fon)(double,double,void*), void * data );
 void key_callback_register( void (*fon)(int,void*), void * data );
+// dev utility
+void dump() {
+	panel::dump();
+	printf("offscreen_flag = %d\n", offscreen_flag );
+	};
 };
 
 // la zoombar, en version horizontale

@@ -6,6 +6,7 @@
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <cairo-pdf.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +34,7 @@ using namespace std;
 #include "modpop3.h"
 #include "cli_parse.h"
 
-// unique variable globale exportee pour gasp() de modpop2
+// unique variable globale exportee pour gasp() de modpop3
 GtkWindow * global_main_window = NULL;
 
 
@@ -207,14 +208,11 @@ if	( ( glo->panneau.queue_flag ) || ( glo->panneau.force_repaint ) )
 return( -1 );
 }
 
-gint close_event_call( GtkWidget *widget,
-                        GdkEvent  *event,
-                        gpointer   data )
+gint close_event_call( GtkWidget *widget, GdkEvent *event, gpointer data )
 {
 gtk_main_quit();
 return (TRUE);		// ne pas destroyer tout de suite
 }
-
 
 void quit_call( GtkWidget *widget, glostru * glo )
 {
@@ -363,8 +361,6 @@ gtk_widget_show ( curitem );
 }
 
 /** ============================ main, quoi ======================= */
-
-#include <locale.h>
 
 static glostru theglo;
 

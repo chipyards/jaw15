@@ -60,6 +60,14 @@
    N.B. ?? window resize et zoom relatif ne marchent que s'il y a eu au moins 1 zoom absolu !
    ATTENTION PIEGE CAIRO : l'espace XY de Cairo est l'espace XY de JLUPLOT au signe de Y pres !!!
    ==> dans le draw() des layers, le signe de Y est change systematiquement avant d'etre passe a Cairo
+
+3) Full Zooms
+	- jluplot s'appuie entierement sur les methodes get_Umin(), get_Umax(), get_Vmin(), get_Vmax()
+	  que tout layer doit implementer (obligatoire).
+	- en general les valeurs par defaut de min et max sont codees en dur dans chaque layer derive,
+	  et appliquees par le constructeur du layer
+	- chaque layer derive peut implementer une methode scan() pour mettre a jour ses min et max,
+	  a charge pour l'application de l'appeler quand les data sont mises a jour
 */
 class panel;
 class strip;
@@ -300,8 +308,7 @@ void dump() {
   printf("panel fdx=%d fdy=%d, %d strips\n", fdx, fdy, bandes.size() );
   printf("\tx0=%-12.5g kx=%-12.5g q0=%-12.5g kq=%-12.5g\n", x0, kx, q0, kq );
   for	( i = 0; i < bandes.size(); i++ )
-	//if	(bandes.at(i)->visible)
-		bandes.at(i)->dump();
+	bandes.at(i)->dump();
   };
 };
 
