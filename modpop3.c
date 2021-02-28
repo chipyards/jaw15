@@ -177,7 +177,6 @@ GtkWidget * curwin;
 GtkWidget * curbox;
 GtkWidget * curwidg;
 
-buf[0] = 0;
 modpop_entry_data.buf = buf;
 modpop_entry_data.size = size;
 
@@ -208,7 +207,7 @@ gtk_widget_show( curwidg );
 /* l'entree de texte */
 curwidg = gtk_entry_new();
 gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
-gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
+gtk_entry_set_text( GTK_ENTRY(curwidg), buf );
 g_signal_connect( curwidg, "activate",
                   G_CALLBACK( Ok_call ), NULL );
 gtk_box_pack_start( GTK_BOX( curbox ), curwidg, TRUE, TRUE, 0 );

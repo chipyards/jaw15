@@ -84,13 +84,11 @@ if	( p->selected_strip & ( CLIC_MARGE_INF | CLIC_ZOOMBAR ) )
 	{
 	p->fullM();
 	p->force_repaint = 1;
-	// gtk_widget_queue_draw( p->widget );
 	}
 else if ( p->selected_strip & CLIC_MARGE_GAUCHE )
 	{
 	p->bandes.at(p->selected_strip & (~CLIC_MARGE))->fullN();
 	p->force_repaint = 1;
-	// gtk_widget_queue_draw( p->widget );
 	}
 }
 
@@ -106,7 +104,6 @@ else if ( p->selected_strip & CLIC_MARGE_GAUCHE )
 	b->zoomYbyK( 0.5 );
 	}
 p->force_repaint = 1;
-// gtk_widget_queue_draw( p->widget );
 }
 
 static void smenu_zoomout( GtkWidget *widget, gpanel * p )
@@ -121,7 +118,6 @@ else if ( p->selected_strip & CLIC_MARGE_GAUCHE )
 	b->zoomYbyK( 2.0 );
 	}
 p->force_repaint = 1;
-// gtk_widget_queue_draw( p->widget );
 }
 
 static gboolean gzoombar_click( GtkWidget * widget, GdkEventButton * event, gzoombar * z )
@@ -348,14 +344,10 @@ if	( ( force_redraw ) || ( strip_redraws ) )
 	}
 }
 
-// cette methode automatique met a jour la "drawing area" dite "ecran" (une zone du frame buffer en fait)
-//	- si c'est suffisant elle va seulement mettre a jour le play cursor directement sur l'ecran
-//	  en copiant une minuscule zone de drawpad pour effacer l'ancien curseur
-//	- si c'est demande par force_repaint ou par une activite de drag elle va d'abord mettre a jour
-//	  le panel entier sur l'ecran en copiant le drawpad.
-//	  le drawpad aura eventuellement ete regenere par la methode draw()
-//	- s'il y a drag en cours elle va dessiner par dessus tout un motif fantome
-// l'action curseur est effectuee en single buffer si elle est seule
+// Cette methode automatique met a jour la "drawing area" dite "ecran" (une zone du frame buffer en fait)
+// Elle est destinee a etre appelee periodiquement (typiquement 30 fois par seconde)
+// Elle est econome, s'il n'y a rien a faire elle ne fait rien
+// (detail sur gluplot.h)
 void gpanel::paint()
 {
 // special profileur
@@ -367,7 +359,10 @@ if	( drag.mode != nil )
 
 if	( force_repaint )
 	{
-	// entrer en mode double-buffer
+	// entrer explicitement en mode double-buffer, car le fonctionnement implicite
+	// a ete desactive dans gpanel::layout() :
+	//	gtk_widget_set_double_buffered( widget, FALSE );
+	//
 	gdk_window_begin_paint_region( widget->window, laregion );
 	cair = gdk_cairo_create( widget->window );
 	cairo_set_line_width( cair, 0.5 );
@@ -433,20 +428,20 @@ if	( force_repaint )
 void gpanel::expose()
 {
 force_repaint = 1;
-paint();
+// paint();
 }
 
 void gpanel::configure()
 {
 int ww, wh;
 gdk_drawable_get_size( widget->window, &ww, &wh );
-// printf("gpanel configuzed %d x %d\n", ww, wh );
+// printf("gpanel configuzed %d x %d\n", ww, wh ); fflush(stdout);
 resize( ww, wh );
 // mettre a jour la region qui sert pour begin_paint
 if	( laregion )
 	gdk_region_destroy( laregion );
 laregion = gdk_drawable_get_clip_region( widget->window );
-force_repaint = 1; fflush(stdout);
+force_repaint = 1;
 }
 
 void gpanel::toggle_vis( unsigned int ib, int ic )
@@ -488,7 +483,6 @@ if	( event->type == GDK_KEY_PRESS )
 			if	( selected_key == 'f' )
 				{
 				fullMN(); force_repaint = 1;
-				// gtk_widget_queue_draw( widget );
 				}
 			// autres, transmises a l'appli
 			else	{
@@ -627,7 +621,6 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 			}
 		drag.mode = nil;
 		force_repaint = 1;
-		// gtk_widget_queue_draw( widget );
 		}
 	}
 }
@@ -640,8 +633,7 @@ if	( ( state & GDK_BUTTON1_MASK ) || ( state & GDK_BUTTON3_MASK ) )
 	{
 	drag.x1 = event->x;
 	drag.y1 = event->y;
-	queue_flag = 1;		// attention on compte sur la fonction idle de l'appli pour queuter le draw
-	// gtk_widget_queue_draw( widget );
+	force_repaint = 1;	// attention on compte sur la fonction idle de l'appli pour appeler paint()
 	}
 }
 
@@ -664,7 +656,6 @@ if	( istrip & CLIC_MARGE_INF )
 		else	zoomXbyK( 1.11 );
 		}
 	force_repaint = 1;
-	// gtk_widget_queue_draw( widget );
 	}
 else if	( istrip & CLIC_MARGE_GAUCHE )
 	{
@@ -682,7 +673,6 @@ else if	( istrip & CLIC_MARGE_GAUCHE )
 		else	b->zoomYbyK( 1.11 );
 		}
 	force_repaint = 1;
-	// gtk_widget_queue_draw( widget );
 	}
 else	{
 	// strip * b = bandes.at(istrip & (~CLIC_MARGE));	// pour science
@@ -697,7 +687,6 @@ else	{
 		panXbyK( 0.02 );	// pour audio
 		}
 	force_repaint = 1;
-	// gtk_widget_queue_draw( widget );
 	}
 }
 
@@ -1040,7 +1029,6 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 			mmax += panneau->fullmmin;
 			panneau->zoomM( mmin, mmax );
 			panneau->force_repaint = 1;
-			// gtk_widget_queue_draw( panneau->widget );
 			}
 		}
 	}
@@ -1071,7 +1059,6 @@ if	( panneau )
 		panneau->zoomXbyK( 1.1 );
 		}
 	panneau->force_repaint = 1;
-	// gtk_widget_queue_draw( panneau->widget );
 	}
 }
 

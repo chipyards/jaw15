@@ -17,6 +17,7 @@ using namespace std;
 #include "jluplot.h"
 #include "gluplot.h"
 #include "layer_f.h"
+#include "layer_f_param.h"
 
 #include "../modpop3.h"
 #include "../cli_parse.h"
@@ -32,12 +33,11 @@ static glostru theglo;
 int idle_call( glostru * glo )
 {
 // moderateur de drawing
-if	( ( glo->panneau.queue_flag ) || ( glo->panneau.force_repaint ) )
-	{
-	// gtk_widget_queue_draw( glo->darea );
-	glo->panneau.queue_flag = 0;
-	glo->panneau.paint();
-	}
+if	( glo->panneau1.force_repaint )
+	glo->panneau1.paint();
+	
+if	( glo->panneau2.force_repaint )
+	glo->panneau2.paint();
 
 return( -1 );
 }
@@ -78,49 +78,64 @@ switch	( v )
 	{
 	// la visibilite
 	case GDK_KEY_KP_0 :
-	case '0' : glo->panneau.toggle_vis( 0, 0 ); break;
+	case '0' : glo->panneau1.toggle_vis( 0, 0 ); break;
 	case GDK_KEY_KP_1 :
-	case '1' : glo->panneau.toggle_vis( 0, 1 ); break;
+	case '1' : glo->panneau1.toggle_vis( 0, 1 ); break;
 	// l'option offscreen drawpad
-	case 'o' : glo->panneau.offscreen_flag = 1; break;
-	case 'n' : glo->panneau.offscreen_flag = 0; break;
+	case 'o' : glo->panneau1.offscreen_flag = 1; break;
+	case 'n' : glo->panneau1.offscreen_flag = 0; break;
 	// le dump, aussi utile pour faire un flush de stdout
 	case 'd' :
 		{
-		glo->panneau.dump();
+		glo->panneau1.dump();
+		glo->panneau2.dump();
 		fflush(stdout);
 		} break;
+	//
+	case 'k' :
+		{
+		char tbuf[32];
+		snprintf( tbuf, sizeof(tbuf), "%g", glo->k );
+		modpop_entry( "K setting", "rapport des frequences", tbuf, sizeof(tbuf), GTK_WINDOW(glo->wmain) );
+		glo->k = strtod( tbuf, NULL );
+		glo->gen_data();
+		glo->panneau1.force_repaint = 1;
+		glo->panneau1.force_redraw = 1;		// necessaire pour panneau1 a cause de offscreen_flag
+		glo->panneau2.force_repaint = 1;
+		}
 	}
 }
 
 /** ============================ l'application ==================== */
 
-#define QBUF 		(1<<15)		// taille de buffer
-#define BUFMASK 	(QBUF-1)
+void glostru::gen_data()
+{
+// donnees pour les tests
+double omega1 = 2.0 * M_PI / 100.0;
+double omega2 = k * omega1;
+for	( int i = 0; i < QBUF; ++i )
+	{
+	// Xbuf[i] = 0.012  * (float)( i % 100 );
+	Xbuf[i] = 0.12 + (float)cos( omega1 * (float)i ); 
+	Ybuf[i] = (float)sin( omega2 * (float)i ); 
+	}
+
+}
 
 void glostru::process()
 {
-// donnees pour les tests
-static float Xbuf[QBUF];
-static float Ybuf[QBUF];
-double omega1 = 2.0 * M_PI / 100.0;
-for	( int i = 0; i < QBUF; ++i )
-	{
-	Xbuf[i] = 0.012  * (float)( i % 100 );
-	Ybuf[i] = (float)sin( omega1 * (float)i ); 
-	}
+gen_data();
 
 // layout jluplot
-gstrip * curbande;
-layer_f * curcour;
 
 // marge pour les textes
-// panneau.mx = 60;
-// panneau.offscreen_flag = 0;
+// panneau1.mx = 60;
+// panneau1.offscreen_flag = 0;
 
 // creer le strip pour les waves
+gstrip * curbande;
 curbande = new gstrip;
-panneau.add_strip( curbande );
+panneau1.add_strip( curbande );
 
 // configurer le strip
 curbande->bgcolor.dR = 1.0;
@@ -131,6 +146,7 @@ curbande->optX = 1;
 curbande->optretX = 1;
 
 // creer un layer
+layer_f * curcour;
 curcour = new layer_f;
 curbande->add_layer( curcour );
 
@@ -159,15 +175,52 @@ curcour->fgcolor.dG = 0.0;
 curcour->fgcolor.dB = 0.8;
 
 // connexion layout - data
-curcour = (layer_f *)panneau.bandes[0]->courbes[0];
+curcour = (layer_f *)panneau1.bandes[0]->courbes[0];
 curcour->V = Xbuf;
 curcour->qu = QBUF;
 curcour->scan();	// alors on peut faire un scan
 
-curcour = (layer_f *)panneau.bandes[0]->courbes[1];
+curcour = (layer_f *)panneau1.bandes[0]->courbes[1];
 curcour->V = Ybuf;
 curcour->qu = QBUF;
 curcour->scan();	// alors on peut faire un scan
+
+// layout jluplot pour panneau2
+panneau2.offscreen_flag = 0;
+
+// creer le strip
+curbande = new gstrip;
+panneau2.add_strip( curbande );
+
+// configurer le strip
+curbande->bgcolor.dR = 1.0;
+curbande->bgcolor.dG = 0.9;
+curbande->bgcolor.dB = 0.8;
+curbande->Ylabel = "XY";
+curbande->optX = 1;
+curbande->optretX = 1;
+
+// creer un layer
+layer_f_param * curcour2;
+curcour2 = new layer_f_param;
+curbande->add_layer( curcour2 );
+
+// configurer le layer
+curcour2->set_km( 1.0 );
+curcour2->set_m0( 0.0 );
+curcour2->set_kn( 1.0 );
+curcour2->set_n0( 0.0 );
+curcour2->label = string("Y");
+curcour2->fgcolor.dR = 0.75;
+curcour2->fgcolor.dG = 0.0;
+curcour2->fgcolor.dB = 0.0;
+
+// connexion layout - data
+curcour2 = (layer_f_param *)panneau2.bandes[0]->courbes[0];
+curcour2->U = Xbuf;
+curcour2->V = Ybuf;
+curcour2->qu = QBUF;
+curcour2->scan();	// alors on peut faire un scan
 
 }
 
@@ -200,13 +253,17 @@ gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
-glo->darea = glo->panneau.layout( 800, 600 );
-gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea, TRUE, TRUE, 0 );
+glo->darea1 = glo->panneau1.layout( 800, 360 );
+gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea1, TRUE, TRUE, 0 );
 
 /* creer une drawing area  qui ne sera pas resizee en hauteur par la hbox
    mais quand meme en largeur (par chance !!!) */
-glo->sarea = glo->zbar.layout( 640 );
-gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->sarea, FALSE, FALSE, 0 );
+glo->zarea1 = glo->zbar.layout( 640 );
+gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->zarea1, FALSE, FALSE, 0 );
+
+/* creer une drawing area resizable depuis la fenetre */
+glo->darea2 = glo->panneau2.layout( 800, 360 );
+gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea2, TRUE, TRUE, 0 );
 
 /* creer boite horizontale */
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
@@ -229,21 +286,23 @@ gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->bpau = curwidg;
 
 // connecter la zoombar au panel et inversement
-glo->panneau.zoombar = &glo->zbar;
-glo->panneau.zbarcall = gzoombar_zoom;
-glo->zbar.panneau = &glo->panneau;
+glo->panneau1.zoombar = &glo->zbar;
+glo->panneau1.zbarcall = gzoombar_zoom;
+glo->zbar.panneau = &glo->panneau1;
 
 gtk_widget_show_all( glo->wmain );
 
-glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
-glo->panneau.key_callback_register( key_call_back, (void *)glo );
+glo->panneau1.clic_callback_register( clic_call_back, (void *)glo );
+glo->panneau1.key_callback_register( key_call_back, (void *)glo );
 
 glo->process();
 
 // forcer un full initial pour que tous les coeffs de transformations soient a jour
-glo->panneau.full_valid = 0;
+glo->panneau1.full_valid = 0;
+glo->panneau2.full_valid = 0;
 // refaire un configure car celui appele par GTK est arrive trop tot
-glo->panneau.configure();
+glo->panneau1.configure();
+glo->panneau2.configure();
 
 g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
 

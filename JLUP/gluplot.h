@@ -8,6 +8,7 @@ En plus cette version apporte :
 	- piloter JLUPLOT pour lui faire faire un trace vectoriel intermediaire sur un drawpad GDK,
 	  en vue d'accelerer les rafraichissement (lorsqu'il n'y a pas zoom ni pan)
 	  (option offscreen_flag)
+	- supporter un overlay "fantome" temporaire t.q. rectangle de selection 
 	- supporter le trace incremental sur l'ecran (drawing area) pour le curseur "audio play",
 	  ce qui implique de desactiver temporairement le double-buffer
 	- supporter un widget auxiliaire "zoombar"
@@ -18,10 +19,10 @@ Implementation :
 	  comme ferait panel::draw() (qui n'est pas utilisee par gpanel::draw() )
 	- l'allocation memoire pour le drawpad est automatique via gpanel::drawpad_resize(),
 	  appele automatiquement par gpanel::draw()
-	- sa methode paint() est au niveau au-dessus,
-		elle peut appelle gpanel::draw() ou panel::draw() selon l'option offscreen_flag
+	- sa methode gpanel::paint() est au niveau au-dessus,
+		elle peut appeller gpanel::draw() ou panel::draw() selon l'option offscreen_flag
 		elle trace les overlays t.q. rectangle de selection et curseur audio 
-	- les niveaux strip et layer ne sont pas concernes par le passage par un drawpad
+	- les niveaux strip et layer ne sont pas impactes par le passage par un drawpad
 	- il y a 2 modes de copie du drawpad sur l'ecran : B1 et B2, le choix est fait par le membre
 	  drawab ( drawab == NULL ==> B2 ) - normalement pas d'impact sur le resultat visuel
 
@@ -41,16 +42,38 @@ Concepts :
 	- automatique : methode capable de decider automatiquement si elle a quelque chose a faire
 	  on peut l'appeler "a toutes fins utiles"
 
-
------------------------ Actions de GTK GUI :
-IDLE FUNCTION
-si le curseur a bouge : (que ce soit a cause de playing ou autre motif)
-	met a jour gpanel::xcursor
-	met gpanel::queue_flag a 1
-si gpanel::queue_flag :
-	met gpanel::queue_flag a 0
-	appelle gpanel::paint()
-
+Methode gpanel::paint :
+	Cette methode automatique met a jour la "drawing area" dite "ecran" (une zone du frame buffer en fait)
+	Elle est destinee a etre appelee periodiquement (typiquement 30 fois par seconde)
+	Elle est econome, s'il n'y a rien a faire elle ne fait rien
+	Elle superpose 3 couches, dans cet ordre :
+		1) les strips, soit par draw direct soit par copie du drawpad (offscreen buffer)
+		2) un motif fantome t.q. rectangle de zoom ou de selection ou curseur manuel
+		3) un curseur audio et la zone qu'il occupait auparavent
+	Ces actions dependent de flags
+		1) les strips seulement s'il y a force_repaint ou drag.mode
+		2) le fantome s'il y a drag.mode
+		3) la zone quittee par le curseur si xdirty>=0.0, le curseur si xcursor>=0.0
+		   de plus s'il n'y a ni force_repaint ni drag.mode, la couche 3 sera tracee en single-buffer 
+	Pour les strips il y a 2 modes possibles :
+		offscreen_flag == 0 : mode direct, le draw est fait directement sur la drawing area
+		offscreen_flag == 1 : le draw est fait sur un drawpad qui est copie sur la drawing area,
+		le but est d'economiser le couteux dessin vectoriel dans les cas ou le repaint est demande
+		seulement parceque :
+			- la fenetre est exposee
+			- le fantome a bouge
+			- le curseur audio a bouge 
+		pour forcer le rafraichissement vectoriel du drawpad, utiliser le flag force_redraw,
+		soit au niveau du panel soit au niveau du strip
+	Notes :
+		- les flags force_redraw n'ont pas d'effet en mode direct (offscreen_flag == 0)
+		- l'animation du curseur audio n'est praticable qu'avec le drawpad (offscreen_flag == 0)
+paint "queue" :
+	Pour eviter de faire plusieurs paints consecutifs dans le meme tour de boucle, l'appel de
+	la methode paint est centralise dans l'idle function, celle-ci va appeler paint() seulement si :
+		- le curseur a bouge, ou
+		- un event a mis force_repaint a 1
+	N.B. pour mettre a jour seulement le curseur, appeler paint() avec force_repaint = 0
 
 */
 
@@ -98,7 +121,6 @@ ghost_drag drag;
 // flags et indicateurs
 int offscreen_flag;	// autorise utilisation du buffer offscreen aka drawpad
 int force_repaint;	// zero pour dessin cumulatif en single-buffer
-int queue_flag;		// flag de redraw optimise
 double xcursor;		// position demandee pour le curseur tempporel, abcisse en pixels
 double xdirty;		// region polluee par le curseur temporel, abcisse en pixels
 int paint_cnt;		// profilage
@@ -109,7 +131,7 @@ void * call_back_data;			// pointeur a passer aux callbacks
 
 // constructeur (N.B. l'initialisation est obligatoirmeent completee par la methode layout() )
 gpanel() : laregion(NULL), drawpad(NULL), offcai(NULL), drawab(NULL), gc(NULL),
-	   offscreen_flag(1), force_repaint(1), queue_flag(0), xcursor(-1.0), xdirty(-1.0),
+	   offscreen_flag(1), force_repaint(1), xcursor(-1.0), xdirty(-1.0),
 	   paint_cnt(0), clic_call_back(NULL), key_call_back(NULL) {};
 
 // methodes
