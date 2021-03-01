@@ -1,10 +1,8 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
-// #include <cairo-pdf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-// #include "modpop.h"
 
 using namespace std;
 #include <string>
@@ -706,7 +704,7 @@ fflush(stdout);
 
 /** ===================== pdf service methods =================================== */
 
-// fonction bloquante
+// fonction bloquante : GTK file chooser (si on n'aime pas, appeler panel::pdfplot() directement)  
 void gpanel::pdf_modal_layout( GtkWidget * mainwindow )
 {
 if ( bandes.size() == 0 )
@@ -756,8 +754,8 @@ gtk_box_pack_start( GTK_BOX( curbox ), curwidg, FALSE, FALSE, 0);
 
 curwidg = gtk_file_chooser_widget_new( GTK_FILE_CHOOSER_ACTION_SAVE );
 gtk_box_pack_start( GTK_BOX( curbox ), curwidg, TRUE, TRUE, 0 );
-gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER(curwidg), "C:\\tmp");
-gtk_file_chooser_set_current_name( GTK_FILE_CHOOSER(curwidg), "pipu.pdf" );
+gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER(curwidg), ".");
+gtk_file_chooser_set_current_name( GTK_FILE_CHOOSER(curwidg), "jluplot.pdf" );
 fchoo = curwidg;
 
 // boite horizontale
@@ -780,7 +778,7 @@ gtk_widget_show_all( curwin );
 
 /* on est venu ici alors qu'on est deja dans 1 boucle gtk_main
    alors donc on en imbrique une autre. Le prochain appel a
-   gtk_main_quit() fera sortir de cell-ci (innermost)
+   gtk_main_quit() fera sortir de celle-ci (innermost)
  */
 gtk_main();
 gtk_widget_destroy( curwin );
@@ -790,20 +788,11 @@ gtk_widget_destroy( curwin );
 void gpanel::pdf_ok_call()
 {
 char * fnam = gtk_file_chooser_get_filename( GTK_FILE_CHOOSER(fchoo) );
-if ( fnam )
-   {
-   unsigned int iban;
-   for	( iban = 0; iban < bandes.size(); iban++ )
-	bandes[iban]->optcadre = 1; // ici demo fond blanc + cadre en couleur
-   int retval = pdfplot( fnam, gtk_entry_get_text( GTK_ENTRY(edesc) ) );
-   printf("retour panel::pdfplot %s : %d\n", fnam, retval );
-   for	( iban = 0; iban < bandes.size(); iban++ )
-	bandes[iban]->optcadre = 0; // ici demo
-   }
-// remettre aux dimensions de la drawing area
-int ww, wh;
-gdk_drawable_get_size( widget->window, &ww, &wh );
-resize( ww, wh );
+if	( fnam )
+	{
+	int retval = pdfplot( fnam, gtk_entry_get_text( GTK_ENTRY(edesc) ) );
+	printf("retour panel::pdfplot %s : %d\n", fnam, retval );
+	}
 gtk_main_quit();
 }
 

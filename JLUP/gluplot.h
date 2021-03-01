@@ -74,6 +74,9 @@ paint "queue" :
 		- le curseur a bouge, ou
 		- un event a mis force_repaint a 1
 	N.B. pour mettre a jour seulement le curseur, appeler paint() avec force_repaint = 0
+PDF plot :
+	gpanel::pdf_modal_layout offre un dialogue incluant GTK file chooser,
+	si on n'aime pas, appeler panel::pdfplot() de jluplot  
 
 */
 

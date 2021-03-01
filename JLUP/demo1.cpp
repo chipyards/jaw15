@@ -57,10 +57,20 @@ gtk_main_quit();
 void run_call( GtkWidget *widget, glostru * glo )
 {
 glo->running = 1;
+glo->panneau2.pdf_modal_layout( glo->wmain );
 }
+
 void pause_call( GtkWidget *widget, glostru * glo )
 {
 glo->running = 0;
+char fnam[32], capt[128];
+snprintf( fnam, sizeof(fnam), "demo1.2.pdf" );
+modpop_entry( "PDF plot", "nom du fichier", fnam, sizeof(fnam), GTK_WINDOW(glo->wmain) );
+if	( ( glo->panneau2.bandes.size() ) && ( glo->panneau2.bandes[0]->courbes.size() ) )
+	snprintf( capt, sizeof(capt), "demo1.2: %s", glo->panneau2.bandes[0]->courbes[0]->label.c_str() );
+else	return;
+modpop_entry( "PDF plot", "description", capt, sizeof(capt), GTK_WINDOW(glo->wmain) );
+glo->panneau2.pdfplot( fnam, capt );
 }
 
 /** ============================ GLUPLOT call backs =============== */
@@ -91,7 +101,7 @@ switch	( v )
 		glo->panneau2.dump();
 		fflush(stdout);
 		} break;
-	//
+	// demo modpop3
 	case 'k' :
 		{
 		char tbuf[32];
@@ -102,7 +112,24 @@ switch	( v )
 		glo->panneau1.force_repaint = 1;
 		glo->panneau1.force_redraw = 1;		// necessaire pour panneau1 a cause de offscreen_flag
 		glo->panneau2.force_repaint = 1;
-		}
+		} break;
+	//
+	case 't' :
+		glo->panneau1.qtkx *= 1.5;
+		glo->panneau2.qtkx *= 1.5;
+		glo->panneau1.force_repaint = 1;
+		glo->panneau1.force_redraw = 1;		// necessaire pour panneau1 a cause de offscreen_flag
+		glo->panneau2.force_repaint = 1;
+		break;
+	//
+	case 'P' :
+		char fnam[32], capt[128];
+		snprintf( fnam, sizeof(fnam), "demo1.1.pdf" );
+		modpop_entry( "PDF plot", "nom du fichier", fnam, sizeof(fnam), GTK_WINDOW(glo->wmain) );
+		snprintf( capt, sizeof(capt), "C'est imposant ma soeur" );
+		modpop_entry( "PDF plot", "description", capt, sizeof(capt), GTK_WINDOW(glo->wmain) );
+		glo->panneau1.pdfplot( fnam, capt );
+		break;
 	}
 }
 
@@ -138,9 +165,7 @@ curbande = new gstrip;
 panneau1.add_strip( curbande );
 
 // configurer le strip
-curbande->bgcolor.dR = 1.0;
-curbande->bgcolor.dG = 0.9;
-curbande->bgcolor.dB = 0.8;
+curbande->bgcolor.set( 1.0, 0.9, 0.8 );
 curbande->Ylabel = "val";
 curbande->optX = 1;
 curbande->optretX = 1;
@@ -156,9 +181,7 @@ curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
 curcour->label = string("ValX");
-curcour->fgcolor.dR = 0.75;
-curcour->fgcolor.dG = 0.0;
-curcour->fgcolor.dB = 0.0;
+curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 
 // creer un layer
 curcour = new layer_f;
@@ -170,9 +193,7 @@ curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
 curcour->label = string("ValY");
-curcour->fgcolor.dR = 0.0;
-curcour->fgcolor.dG = 0.0;
-curcour->fgcolor.dB = 0.8;
+curcour->fgcolor.set( 0.0, 0.0, 0.8 );
 
 // connexion layout - data
 curcour = (layer_f *)panneau1.bandes[0]->courbes[0];
@@ -193,9 +214,7 @@ curbande = new gstrip;
 panneau2.add_strip( curbande );
 
 // configurer le strip
-curbande->bgcolor.dR = 1.0;
-curbande->bgcolor.dG = 0.9;
-curbande->bgcolor.dB = 0.8;
+curbande->bgcolor.set( 1.0, 0.9, 0.8 );
 curbande->Ylabel = "XY";
 curbande->optX = 1;
 curbande->optretX = 1;
@@ -210,10 +229,8 @@ curcour2->set_km( 1.0 );
 curcour2->set_m0( 0.0 );
 curcour2->set_kn( 1.0 );
 curcour2->set_n0( 0.0 );
-curcour2->label = string("Y");
-curcour2->fgcolor.dR = 0.75;
-curcour2->fgcolor.dG = 0.0;
-curcour2->fgcolor.dB = 0.0;
+curcour2->label = string("Lissajoux");
+curcour2->fgcolor.set( 0.75, 0.0, 0.0 );
 
 // connexion layout - data
 curcour2 = (layer_f_param *)panneau2.bandes[0]->courbes[0];
@@ -272,14 +289,14 @@ gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
 glo->hbut = curwidg;
 
 /* simple bouton */
-curwidg = gtk_button_new_with_label (" Run ");
+curwidg = gtk_button_new_with_label ("PDF (file chooser)");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( run_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->brun = curwidg;
 
 /* simple bouton */
-curwidg = gtk_button_new_with_label (" Pause ");
+curwidg = gtk_button_new_with_label ("PDF (modpop3)");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( pause_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );

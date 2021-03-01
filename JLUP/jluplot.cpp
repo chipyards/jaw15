@@ -157,11 +157,16 @@ void strip::draw( cairo_t * cai )
 cairo_save( cai );
 // faire le fond
 cairo_set_source_rgb( cai, bgcolor.dR, bgcolor.dG, bgcolor.dB );
-cairo_rectangle( cai, 0, 0, parent->ndx, ndy );
-if   ( optcadre )
-     cairo_stroke( cai );
-else cairo_fill( cai );
-
+if	( optcadre )
+	{
+	double linew = cairo_get_line_width( cai );
+	cairo_rectangle( cai, linew, linew, parent->ndx - linew * 2, ndy - linew * 2 );
+	cairo_stroke( cai );
+	}
+else	{
+	cairo_rectangle( cai, 0, 0, parent->ndx, ndy );
+	cairo_fill( cai );
+	}
 // preparer le clip, englobant les graduations Y car il peut leur arriver de deborder
 // mais pas celles de X car on ne veut pas que les courbes debordent dessus
 cairo_rectangle( cai, -parent->mx, 0, parent->fdx, ndy );
@@ -170,8 +175,6 @@ cairo_clip( cai );
 // translater l'origine Y en bas de la zone utile des courbes
 // l'origine X est deja au bord gauche de cette zone
 cairo_translate( cai, 0, ndy );
-
-
 
 // tracer les courbes
 int i;
@@ -527,18 +530,29 @@ for ( i = 0; i < bandes.size(); i++ )
 cairo_restore( cai );
 }
 
-// cadrage auto si dvtot <= 0.0, sinon "centerY"
 // rend 0 si Ok
 int panel::pdfplot( const char * fnam, const char * caption )
 {
 cairo_surface_t * cursurf;
 cairo_status_t cairo_status;
 cairo_t * lecair;
-double pdf_w, pdf_h;
+unsigned int saved_fdx, saved_fdy, saved_optcadre[bandes.size()];
+jcolor saved_bgcolor[bandes.size()];
 
-// format A4 landscape
+double pdf_w, pdf_h, pdf_margin;
+
+// format A4 landscape, en points
 pdf_w = ( 297.0 / 25.4 ) * 72;
 pdf_h = ( 210.0 / 25.4 ) * 72;
+pdf_margin = 24.0;
+
+// save draw context
+saved_fdx = fdx; saved_fdy = fdy;
+for	( unsigned int iban = 0; iban < bandes.size(); iban++ )
+	{
+	saved_optcadre[iban] = bandes[iban]->optcadre;
+	saved_bgcolor[iban] = bandes[iban]->bgcolor;
+	}
 
 cursurf = cairo_pdf_surface_create( fnam, pdf_w, pdf_h );
 
@@ -549,12 +563,18 @@ if   ( cairo_status != CAIRO_STATUS_SUCCESS )
 lecair = cairo_create( cursurf );
 
 // un peu de marge (en points)
-cairo_translate( lecair, 24.0, 24.0 );
+cairo_translate( lecair, pdf_margin, pdf_margin );
 
-resize( (int)pdf_w - 48, (int)pdf_h - 72 );
+// set PDF draw context
+resize( (int)pdf_w - ( 2 * pdf_margin ), (int)pdf_h - ( 3 * pdf_margin ) );
+for	( unsigned int iban = 0; iban < bandes.size(); iban++ )
+	{
+	bandes[iban]->optcadre = 1;
+	bandes[iban]->bgcolor.set( 0.0, 0.0, 1.0 );
+	}
 
-// preparer font a l'avance
-cairo_select_font_face( lecair, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+// preparer font (attention aux pb de compatiblite PDF... 'monospace' ==> bug sporadique)
+cairo_select_font_face( lecair, "Courier", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 cairo_set_font_size( lecair, 12.0 );
 cairo_set_line_width( lecair, 0.5 );
 
@@ -562,11 +582,20 @@ cairo_set_line_width( lecair, 0.5 );
 draw( lecair );
 
 // the caption
-cairo_move_to( lecair, 10.0, pdf_h - 72.0 + 24 );
+cairo_move_to( lecair, 10.0, pdf_h - ( 2 * pdf_margin ) );
 cairo_show_text( lecair, caption );
 
 cairo_destroy( lecair );
 cairo_surface_destroy( cursurf );
+
+// restore draw context
+resize( saved_fdx, saved_fdy );
+for	( unsigned int iban = 0; iban < bandes.size(); iban++ )
+	{
+	bandes[iban]->optcadre = saved_optcadre[iban];
+	bandes[iban]->bgcolor = saved_bgcolor[iban];
+	}
+
 return 0;
 }
 

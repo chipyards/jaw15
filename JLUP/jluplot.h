@@ -68,6 +68,13 @@
 	  et appliquees par le constructeur du layer
 	- chaque layer derive peut implementer une methode scan() pour mettre a jour ses min et max,
 	  a charge pour l'application de l'appeler quand les data sont mises a jour
+
+4) PDF plot
+	- la methode pdfplot( fnam, caption ) modifie le contexte :
+		- pour les elements fixes en pixels : 1 pixel -> 1 pt ( 0.353 mm )
+		- format A4 landscape indep. de la taille de fenetre
+		- fond transparent (optcadre = 1)
+	  elle restitue le contexte au retour.
 */
 class panel;
 class strip;
@@ -265,7 +272,7 @@ void(* zbarcall)(void*, double, double); 	// callback de zoom normalise
 // constructeur
 panel() : x0(0.0), kx(1.0), q0(0.0), kq(1.0),
 	  tdq(10.0), ftq(1.0), qtkx(11), full_valid(0), force_redraw(1),
-	  fdx(200), fdy(200), mx(80), my(20),
+	  fdx(200), fdy(200), mx(60), my(20),
 	  zbarcall(NULL)
 	  { ndx = fdx - mx; };
 // methodes
