@@ -165,10 +165,10 @@ curbande = new gstrip;
 panneau1.add_strip( curbande );
 
 // configurer le strip
-curbande->bgcolor.set( 1.0, 0.9, 0.8 );
+curbande->bgcolor.set( 0.90, 0.95, 1.0 );
 curbande->Ylabel = "val";
 curbande->optX = 1;
-curbande->optretX = 1;
+curbande->subtk = 2;
 
 // creer un layer
 layer_f * curcour;
@@ -213,11 +213,13 @@ panneau2.offscreen_flag = 0;
 curbande = new gstrip;
 panneau2.add_strip( curbande );
 
+panneau2.pdf_DPI = 100;	// defaut est 72
+
 // configurer le strip
-curbande->bgcolor.set( 1.0, 0.9, 0.8 );
+curbande->bgcolor.set( 1.0, 0.95, 0.85 );
 curbande->Ylabel = "XY";
 curbande->optX = 1;
-curbande->optretX = 1;
+curbande->subtk = 10;
 
 // creer un layer
 layer_f_param * curcour2;

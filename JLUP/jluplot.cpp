@@ -75,9 +75,6 @@ refresh_proxies();
 double rmin = RdeN( nmin );
 double rmax = RdeN( nmax );
 tdr = autotick( rmax - rmin, qtky );
-// premier multiple de tdr superieur ou egal a vmin
-ftr = ceil( rmin / tdr );
-ftr *= tdr;
 }
 
 // zoom relatif
@@ -167,14 +164,27 @@ else	{
 	cairo_rectangle( cai, 0, 0, parent->ndx, ndy );
 	cairo_fill( cai );
 	}
-// preparer le clip, englobant les graduations Y car il peut leur arriver de deborder
-// mais pas celles de X car on ne veut pas que les courbes debordent dessus
-cairo_rectangle( cai, -parent->mx, 0, parent->fdx, ndy );
-cairo_clip( cai );
-
 // translater l'origine Y en bas de la zone utile des courbes
 // l'origine X est deja au bord gauche de cette zone
 cairo_translate( cai, 0, ndy );
+
+// les textes de l'axe X (fond blanc inclus)
+if	( optX )
+	gradu_X( cai );
+
+// preparer le clip, englobant les graduations Y car il peut leur arriver de deborder
+// mais pas celles de X car on ne veut pas que les courbes debordent dessus
+cairo_rectangle( cai, -parent->mx, -ndy, parent->fdx, ndy );
+cairo_clip( cai );
+
+// le reticule sous les layers
+if	( optretX == 1 )
+	reticule_X( cai );
+// les textes de l'axe Y, soumis au clip (fond blanc inclus)
+gradu_Y( cai );
+// le reticule sous les layers (doit etre apres gradu_Y a cause de son fond blanc)
+if	( optretY == 1 )
+	reticule_Y( cai );
 
 // tracer les courbes
 int i;
@@ -186,20 +196,14 @@ for	( i = ( courbes.size() - 1 ); i >= 0; i-- )
 		courbes.at(i)->draw( cai );
 		}
 	}
-// les textes de l'axe Y
-gradu_Y( cai );
-// tracer les reticules
-cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
-reticule_Y( cai, optretY );
 
 cairo_reset_clip( cai );
 
-// les textes de l'axe X
-if	( optX )
-	gradu_X( cai );
-// tracer les reticules
-cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
-reticule_X( cai, optretX );
+// tracer les reticules sur les layers
+if	( optretX == 2 )
+	reticule_X( cai );
+if	( optretY == 2 )
+	reticule_Y( cai );
 
 cairo_restore( cai );
 
@@ -221,29 +225,40 @@ return 0;
 }
 
 // tracer le reticule x : la grille de barres verticales
-void strip::reticule_X( cairo_t * cai, int full )
+void strip::reticule_X( cairo_t * cai )
 {
-double curq = parent->ftq;
-double curx = parent->XdeM(parent->MdeQ(curq));		// la transformation
-while	( curx < parent->ndx )
+cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
+double curq, curx;
+if	( subtk > 1 )
 	{
-	if	( full )
+	double subtdq = parent->tdq / subtk;
+	// chercher le premier subtick
+	curq = subtdq * ceil( parent->QdeM( parent->MdeX( 0 ) ) / subtdq );
+	cairo_save( cai );
+	cairo_set_line_width( cai, 0.5 * cairo_get_line_width( cai ) );
+	// couleur moyennee avec le fond
+	cairo_set_source_rgb( cai, 0.5*(bgcolor.dR+lncolor.dR), 0.5*(bgcolor.dG+lncolor.dG), 0.5*(bgcolor.dB+lncolor.dB) );
+	while	( ( curx = parent->XdeM(parent->MdeQ(curq)) ) < (double)parent->ndx )
 		{
 		cairo_move_to( cai, curx, -((double)ndy ) );	// top
-		cairo_line_to( cai, curx, (optX)?(3.0):(0.0) ); // bottom
+		cairo_line_to( cai, curx, 0.0 );		// bottom
+		cairo_stroke( cai );
+		curq += subtdq;
 		}
-	else if	( optX )
-		{
-		cairo_move_to( cai, curx, 0.0 );	// top
-		cairo_line_to( cai, curx, 3.0 ); 	// bottom
-		}
+	cairo_restore( cai );
+	}
+// chercher le premier tick
+curq = parent->tdq * ceil( parent->QdeM( parent->MdeX( 0 ) ) / parent->tdq );
+while	( ( curx = parent->XdeM(parent->MdeQ(curq)) ) < parent->ndx )
+	{
+	cairo_move_to( cai, curx, -((double)ndy ) );	// top
+	cairo_line_to( cai, curx, 0.0 );		// bottom
 	cairo_stroke( cai );
 	curq += parent->tdq;
-	curx = parent->XdeM(parent->MdeQ(curq));	// la transformation
 	}
 }
 
-// les textes de l'axe X
+// les textes de l'axe X avec les taquets
 void strip::gradu_X( cairo_t * cai )
 {
 char lbuf[32];
@@ -251,7 +266,7 @@ cairo_set_source_rgb( cai, 1, 1, 1 );
 cairo_rectangle( cai, -parent->mx, 0, parent->fdx, fdy - ndy );
 cairo_fill( cai );
 cairo_set_source_rgb( cai, 0, 0, 0 );
-double curq = parent->ftq;
+double curq = parent->tdq * ceil( parent->QdeM( parent->MdeX( 0 ) ) / parent->tdq );
 double curx = parent->XdeM(parent->MdeQ(curq));		// la transformation
 // preparation format selon premier point
 scientout( lbuf, curq, parent->tdq );
@@ -260,29 +275,49 @@ while	( curx < parent->ndx )
 	scientout( lbuf, curq );
 	cairo_move_to( cai, curx - 20, 15 );
 	cairo_show_text( cai, lbuf );
+	cairo_move_to( cai, curx, 0.0 );	// top
+	cairo_line_to( cai, curx, 3.0 ); 	// bottom
+	cairo_stroke( cai );
 	curq += parent->tdq;
 	curx = parent->XdeM(parent->MdeQ(curq));	// la transformation
 	}
 }
 
 // tracer le reticule y : la grille de barres horizontales
-void strip::reticule_Y( cairo_t * cai, int full )
+void strip::reticule_Y( cairo_t * cai )
 {
-double curr = ftr;
-double cury = -YdeN(NdeR(curr));		// la transformation
-while	( cury > -((double)ndy ) )		// le haut (<0)
+cairo_set_source_rgb( cai, lncolor.dR, lncolor.dG, lncolor.dB );
+double curr, cury;
+if	( subtk > 1 )
 	{
-	cairo_move_to( cai, -6, cury );	// le -6 c'est pour les graduations aupres des textes
-	if	( full )
+	double subtdr = tdr / subtk;
+	// chercher le premier subtick
+	curr = subtdr * ceil( RdeN( NdeY( 0 ) ) / subtdr );
+	cairo_save( cai );
+	cairo_set_line_width( cai, 0.5 * cairo_get_line_width( cai ) );
+	// couleur moyennee avec le fond
+	cairo_set_source_rgb( cai, 0.5*(bgcolor.dR+lncolor.dR), 0.5*(bgcolor.dG+lncolor.dG), 0.5*(bgcolor.dB+lncolor.dB) );
+	while	( ( cury = -YdeN(NdeR(curr)) ) > -((double)ndy ) )		// le haut (<0)
+		{
+		cairo_move_to( cai, 0, cury );
 		cairo_line_to( cai, parent->ndx, cury );
-	else	cairo_line_to( cai, 0, cury );
+		cairo_stroke( cai );
+		curr += subtdr;
+		}
+	cairo_restore( cai );
+	}
+// chercher le premier tick
+curr = tdr * ceil( RdeN( NdeY( 0 ) ) / tdr );
+while	( ( cury = -YdeN(NdeR(curr)) ) > -((double)ndy ) )		// le haut (<0)
+	{
+	cairo_move_to( cai, 0, cury );
+	cairo_line_to( cai, parent->ndx, cury );
 	cairo_stroke( cai );
 	curr += tdr;
-	cury = -YdeN(NdeR(curr));		// la transformation
 	}
 }
 
-// les textes de l'axe Y
+// les textes de l'axe Y avec les taquets
 void strip::gradu_Y( cairo_t * cai )
 {
 char lbuf[32]; int mx;
@@ -291,7 +326,7 @@ cairo_set_source_rgb( cai, 1, 1, 1 );
 cairo_rectangle( cai, -mx, -ndy, mx, ndy );
 cairo_fill( cai );
 cairo_set_source_rgb( cai, 0, 0, 0 );
-double curr = ftr;
+double curr = tdr * ceil( RdeN( NdeY( 0 ) ) / tdr );	// chercher le premier tick
 double cury = -YdeN(NdeR(curr));		// la transformation
 // preparation format selon premier point
 scientout( lbuf, curr, tdr );
@@ -300,6 +335,9 @@ while	( cury > ( -((double)ndy) + 19.0 ) )		// petite marge pour label axe
 	scientout( lbuf, curr );
 	cairo_move_to( cai, -mx + 10.0, cury + 5 );
 	cairo_show_text( cai, lbuf );
+	cairo_move_to( cai, -6, cury );	// le -6 c'est pour les graduations aupres des textes
+	cairo_line_to( cai, 0, cury );
+	cairo_stroke( cai );
 	curr += tdr;
 	cury = -YdeN(NdeR(curr));		// la transformation
 	}
@@ -349,9 +387,6 @@ refresh_proxies();
 double qmin = QdeM( mmin );
 double qmax = QdeM( mmax );
 tdq = autotick( qmax - qmin, qtkx );
-// premier multiple de tdq superieur ou egal a qmin
-ftq = ceil( qmin / tdq );
-ftq *= tdq;
 // quatrieme etape : mise a jour scrollbar si elle existe
 if	( zbarcall )
 	zbarcall( zoombar, ( mmin - fullmmin ) / ( fullmmax - fullmmin ),
@@ -541,10 +576,10 @@ jcolor saved_bgcolor[bandes.size()];
 
 double pdf_w, pdf_h, pdf_margin;
 
-// format A4 landscape, en points
-pdf_w = ( 297.0 / 25.4 ) * 72;
-pdf_h = ( 210.0 / 25.4 ) * 72;
-pdf_margin = 24.0;
+// format A4 landscape, en "dots"
+pdf_w = ( 297.0 / 25.4 ) * pdf_DPI;
+pdf_h = ( 210.0 / 25.4 ) * pdf_DPI;
+pdf_margin = ( 9.0 / 25.4 ) * pdf_DPI;
 
 // save draw context
 saved_fdx = fdx; saved_fdy = fdy;
@@ -570,12 +605,14 @@ resize( (int)pdf_w - ( 2 * pdf_margin ), (int)pdf_h - ( 3 * pdf_margin ) );
 for	( unsigned int iban = 0; iban < bandes.size(); iban++ )
 	{
 	bandes[iban]->optcadre = 1;
-	bandes[iban]->bgcolor.set( 0.0, 0.0, 1.0 );
+	if	( bandes[iban]->subtk > 1 )
+		bandes[iban]->bgcolor.set( 1.0, 1.0, 1.0 );
+	else	bandes[iban]->bgcolor.set( 0.0, 0.0, 0.0 );
 	}
 
 // preparer font (attention aux pb de compatiblite PDF... 'monospace' ==> bug sporadique)
 cairo_select_font_face( lecair, "Courier", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-cairo_set_font_size( lecair, 12.0 );
+cairo_set_font_size( lecair, 12.0 );	// en dots
 cairo_set_line_width( lecair, 0.5 );
 
 // draw the curves

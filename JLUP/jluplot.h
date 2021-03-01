@@ -71,8 +71,8 @@
 
 4) PDF plot
 	- la methode pdfplot( fnam, caption ) modifie le contexte :
-		- pour les elements fixes en pixels : 1 pixel -> 1 pt ( 0.353 mm )
-		- format A4 landscape indep. de la taille de fenetre
+		- pour les elements fixes en pixels : pdf_DPI = 72 ==> 1 pixel -> 1 pt ( 0.353 mm )
+		- format A4 landscape (@ pdf_DPI = 72), indep. de la taille de fenetre
 		- fond transparent (optcadre = 1)
 	  elle restitue le contexte au retour.
 */
@@ -170,9 +170,8 @@ double r0;		// offset vertical graduations, valeur associee a n=0
 double kr;		// coeff vertical graduations --> user
 
 double tdr;		// intervalle ticks Y dans l'espace graduations R
-double ftr;		// le premier tick Y dans l'espace graduations R
-			// = premier multiple de tdr superieur ou egal a n2r(v2n(v0))
 unsigned int qtky;	// nombre de ticks
+unsigned int subtk;	// nombre de subticks par tick
 jcolor bgcolor;		// couleur du fond ou du cadre (selon optcadre)
 jcolor lncolor;		// couleur du reticule
 int force_redraw;	// demande mise a jour du trace vectoriel
@@ -180,14 +179,14 @@ vector < layer_base * > courbes;
 unsigned int fdy;	// full_dy = hauteur totale du strip (pixels)
 unsigned int ndy;	// net_dy  = hauteur occupee par la courbe (pixels) = fdy - hauteur graduations
 int optX;		// option pour l'axe X : 0 <==> ne pas mettre les graduations
-int optretX;		// option pour reticule X : 0 <==> ticks dans la marge, 1 <==> lignes sur toute la hauteur
-int optretY;		// option pour reticule Y : 0 <==> ticks dans la marge, 1 <==> lignes sur toute la largeur
-int optcadre;		// option cadre : 0 <==> fill, 1 <==> traits
+int optretX;		// option pour reticule X : 0 ==> rien, 1 ==> lignes sous le layer, 2 ==> lignes sur le layer  
+int optretY;		// option pour reticule Y : idem
+int optcadre;		// option cadre : 0 ==> fill, 1 ==> fond transparent, cadre au trait
 int visible;
 string Ylabel;
 // constructeur
 strip() : parent(NULL), y0(0.0), ky(1.0), kmfn(0.05), r0(0.0), kr(1.0),
-	  tdr(10.0), ftr(1.0), qtky(11), bgcolor( 1.0 ), lncolor( 0.5 ),
+	  tdr(10.0), qtky(11), subtk(1), bgcolor( 1.0 ), lncolor( 0.5 ),
 	  force_redraw(1), fdy(100), ndy(100), optX(0), optretX(1), optretY(1), optcadre(0), visible(1) {};
 // methodes
 double NdeY( double y ) { return( ( y - y0 ) * ky );  };
@@ -227,10 +226,10 @@ void resize( int rendy );	// met a jour la hauteur puis le zoom
 virtual void draw( cairo_t * cai );
 // event
 int clicY( double y, double * py );
-void reticule_X( cairo_t * cai, int full );	// tracer le reticule x : la grille de barres verticales
-void gradu_X( cairo_t * cai );			// les textes de l'axe X
-void reticule_Y( cairo_t * cai, int full );	// tracer le reticule y : la grille de barres horizontales
-void gradu_Y( cairo_t * cai );			// les textes de l'axe Y
+void reticule_X( cairo_t * cai );	// tracer le reticule x : la grille de barres verticales
+void gradu_X( cairo_t * cai );		// les textes de l'axe X
+void reticule_Y( cairo_t * cai );	// tracer le reticule y : la grille de barres horizontales
+void gradu_Y( cairo_t * cai );		// les textes de l'axe Y
 };
 
 
@@ -249,8 +248,6 @@ double q0;		// offset horizontal graduations, valeur associee a m=0
 double kq;		// coeff horizontal graduations --> user
 
 double tdq;		// intervalle ticks X dans l'espace graduations QR
-double ftq;		// le premier tick X dans l'espace graduations QR
-			// = premier multiple de tdq superieur ou egal a m2q(u2m(u0))
 unsigned int qtkx;	// nombre de ticks
 int full_valid;		// indique que les coeffs de transformations sont dans un etat coherent
 int force_redraw;	// demande mise a jour du trace vectoriel
@@ -265,14 +262,16 @@ unsigned int ndx;	// net_dx  = largeur nette des graphes (pixels) mx deduit
 unsigned int mx;	// marge x pour les textes a gauche (pixels)
 			// sert a translater le repere pour trace des courbes
 unsigned int my;	// marge pour les textes de l'axe X (pixels)
+unsigned int pdf_DPI;	// conversion des pixels t.q. pdf_DPI = 72 <==> 1 pix = 1 point
+
 // zoombar X optionnelle
 void * zoombar;		// pointeur sur l'objet, a passer a la callback
 void(* zbarcall)(void*, double, double); 	// callback de zoom normalise
 
 // constructeur
 panel() : x0(0.0), kx(1.0), q0(0.0), kq(1.0),
-	  tdq(10.0), ftq(1.0), qtkx(11), full_valid(0), force_redraw(1),
-	  fdx(200), fdy(200), mx(60), my(20),
+	  tdq(10.0), qtkx(11), full_valid(0), force_redraw(1),
+	  fdx(200), fdy(200), mx(60), my(20), pdf_DPI(72),
 	  zbarcall(NULL)
 	  { ndx = fdx - mx; };
 // methodes
