@@ -16,7 +16,6 @@ layer_f_param() : layer_base(),
 // methodes propres a cette classe derivee
 
 int goto_U( double U0 );		// chercher le premier point U >= U0
-void goto_first();
 int get_pi( double & rU, double & rV );	// get XY then post increment
 void scan();				// mettre a jour les Min et Max
 

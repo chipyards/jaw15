@@ -368,7 +368,7 @@ if	( force_repaint )
 	// paint the panel
 	if	( offscreen_flag == 0 )
 		{
-		printf("gpanel fallback to panel::draw\n");
+		// printf("gpanel fallback to panel::draw\n");
 		// fill the background (RED just for test)
 		// cairo_set_source_rgb( cair, 1, 0, 0 );
 		// cairo_paint(cair);	// paint the complete clip area

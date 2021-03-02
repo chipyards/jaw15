@@ -4,7 +4,6 @@ using namespace std;
 #include <vector>
 
 #include <gtk/gtk.h>
-// #include <cairo-pdf.h>
 #include <stdlib.h>
 #include <math.h>
 #include "jluplot.h"
@@ -13,7 +12,7 @@ using namespace std;
 // layer_f_param : une courbe parametrique en float (classe derivee de layer_base)
 
 
-// chercher le premier point X >= X0
+// chercher le premier point X >= 0
 int layer_f_param::goto_U( double U0 )
 {
 curi = 0;
@@ -23,11 +22,6 @@ while	( curi < qu )
 		return 0;
 	}
 return -1;
-}
-
-void layer_f_param::goto_first()
-{
-curi = 0;
 }
 
 // get XY then post increment

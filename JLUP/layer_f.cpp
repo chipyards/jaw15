@@ -4,7 +4,6 @@ using namespace std;
 #include <vector>
 
 #include <gtk/gtk.h>
-// #include <cairo-pdf.h>
 #include <stdlib.h>
 #include <math.h>
 #include "jluplot.h"
@@ -17,7 +16,7 @@ using namespace std;
 // 2 : courbe classique en dB
 
 
-// chercher le premier point X >= X0
+// chercher le premier point X >= 0
 int layer_f::goto_U( double U0 )
 {
 curi = (int)ceil(U0);
@@ -26,11 +25,6 @@ if	( curi < 0 )
 if	( curi < qu )
 	return 0;
 else	return -1;
-}
-
-void layer_f::goto_first()
-{
-curi = 0;
 }
 
 // get XY then post increment
