@@ -18,13 +18,13 @@ void jcolor::arc_en_ciel( int i )
 switch( i % 8 )
    {
    case 0 : dR = 0.0; dG = 0.0; dB = 0.0; break;
-   case 1 : dR = 1.0; dG = 0.0; dB = 0.0; break;
-   case 2 : dR = 0.9; dG = 0.4; dB = 0.0; break;
-   case 3 : dR = 0.7; dG = 0.9; dB = 0.0; break;
-   case 4 : dR = 0.0; dG = 0.8; dB = 0.1; break;
-   case 5 : dR = 0.0; dG = 0.0; dB = 1.0; break;
-   case 6 : dR = 0.4; dG = 0.0; dB = 0.7; break;
-   case 7 : dR = 0.7; dG = 0.0; dB = 0.3; break;
+   case 1 : dR = 1.0; dG = 0.0; dB = 0.0; break;	// rouge
+   case 2 : dR = 0.9; dG = 0.4; dB = 0.0; break;	// orange
+   case 3 : dR = 0.6; dG = 0.6; dB = 0.0; break;	// jaune-vert
+   case 4 : dR = 0.0; dG = 0.6; dB = 0.1; break;	// vert
+   case 5 : dR = 0.0; dG = 0.0; dB = 0.8; break;	// bleu
+   case 6 : dR = 0.5; dG = 0.0; dB = 0.5; break;	// violet
+   case 7 : dR = 0.5; dG = 0.5; dB = 0.5; break;	// gris
    }
 }
 
@@ -116,18 +116,24 @@ nmax = -HUGE_VAL;
 for	( unsigned int ic = 0; ic < courbes.size(); ic++ )
 	{
 	la = courbes.at(ic);
-	nn = la->NdeV(la->get_Vmin());
-	if	( nn < nmin )
-		nmin = nn;
-	nn = la->NdeV(la->get_Vmax());
-	if	( nn > nmax )
-		nmax = nn;
+	if	( la->visible )
+		{
+		nn = la->NdeV(la->get_Vmin());
+		if	( nn < nmin )
+			nmin = nn;
+		nn = la->NdeV(la->get_Vmax());
+		if	( nn > nmax )
+			nmax = nn;
+		}
 	}
 // seconde etape : action
-double dn = nmax - nmin;
-dn *= kmfn;	// marges t.q. 5% pour compatibilité visuelle avec jluplot 0
-nmin -= dn; nmax += dn;
-zoomN( nmin, nmax );
+if	( ( nmin != HUGE_VAL ) && ( nmax != -HUGE_VAL ) )
+	{
+	double dn = nmax - nmin;
+	dn *= kmfn;	// marges t.q. 5% pour compatibilité visuelle avec jluplot 0
+	nmin -= dn; nmax += dn;
+	zoomN( nmin, nmax );
+	}
 }
 
 // met a jour la hauteur nette en pixels sans se soucier du zoom
@@ -524,22 +530,31 @@ mmax = -HUGE_VAL;
 for	( unsigned int ib = 0; ib < bandes.size(); ib++ )
 	{
 	b = bandes.at(ib);
-	for	( unsigned int ic = 0; ic < b->courbes.size(); ic++ )
+	if	( b -> visible )
 		{
-		la = b->courbes.at(ic);
-		mm = la->MdeU(la->get_Umin());
-		if	( mm < mmin )
-			mmin = mm;
-		mm = la->MdeU(la->get_Umax());
-		if	( mm > mmax )
-			mmax = mm;
-		// printf("ib=%d, ic=%d, Umax=%g / km=%g -> mm=%g\n", ib, ic, la->get_Umax(), la->km, mm );
+		for	( unsigned int ic = 0; ic < b->courbes.size(); ic++ )
+			{
+			la = b->courbes.at(ic);
+			if	( la -> visible )
+				{
+				mm = la->MdeU(la->get_Umin());
+				if	( mm < mmin )
+					mmin = mm;
+				mm = la->MdeU(la->get_Umax());
+				if	( mm > mmax )
+					mmax = mm;
+				// printf("ib=%d, ic=%d, Umax=%g / km=%g -> mm=%g\n", ib, ic, la->get_Umax(), la->km, mm );
+				}
+			}
 		}
 	}
 // seconde etape : action
-fullmmin = mmin; fullmmax = mmax;
-// printf("in fullM, full is %g to %g\n", fullmmin, fullmmax );
-zoomM( mmin, mmax );
+if	( ( mmin != HUGE_VAL ) && ( mmax != -HUGE_VAL ) )
+	{
+	fullmmin = mmin; fullmmax = mmax;
+	// printf("in fullM, full is %g to %g\n", fullmmin, fullmmax );
+	zoomM( mmin, mmax );
+	}
 }
 
 void panel::fullMN()
