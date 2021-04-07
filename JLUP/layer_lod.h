@@ -239,7 +239,8 @@ if	( tU0 == u0 )
 	}
 
 // l'origine est en bas a gauche de la zone utile, Y+ est vers le bas (because cairo)
-double tU, tV, curx, cury;
+double tU, tV, curx, cury, cury2;
+int cnt;	// limiteur de stroke context
 
 if	( ilod < -1 )
 	find_ilod();
@@ -254,7 +255,7 @@ if	( ilod < 0 )
 	curx =  XdeU( tU );			// les transformations
 	cury = -YdeV( tV );			// signe - ici pour Cairo
 	cairo_move_to( cai, curx, cury );
-	int cnt = 0;
+	cnt = 0;
 	while ( get_pi( tU, tV ) == 0 )
 	   {
 	   curx =  XdeU( tU );		// les transformations
@@ -262,7 +263,7 @@ if	( ilod < 0 )
 	   cairo_line_to( cai, curx, cury );
 	   if ( tU >= tU1 )	// anciennement if ( curx >= maxx )
 	      break;
-	   if	( ++cnt >= 4000 )
+	   if	( ++cnt >= 400 )
 		{
 		cairo_stroke( cai );
 		// printf("courbe %d lines\n", cnt );
@@ -283,21 +284,34 @@ else	{			// affichage enveloppe
 	i1 = (int)floor(tU1) / k;
 	if	( i0 < 0 ) i0 = 0;
 	if	( i1 > ( qc - 1 ) ) i1 = qc - 1;
+	cnt = 0;
 	for	( i = i0; i < i1; ++i )
 		{
-		curx =  XdeU( i * k );		// les transformations
+		curx =  XdeU( i * k );
+		/* version de base : l'enveloppe est remplie de hachures verticales 
 		cury = -YdeV( curlod->min[i] );
 		cairo_move_to( cai, curx, cury );
 		cury = -YdeV( curlod->max[i] );
 		cairo_line_to( cai, curx, cury );
-		// cury2 = -v2y( curlod->min[i] );	// ainsi normalement cury2 > cury
-		// cury  = -v2y( curlod->max[i] );
-		// if	( cury2 < ( cury + linewidth ) ) // epaisseur ligne horizontale
-		//	cury2 = cury + linewidth;	 // coherente avec les verticales
-		// cairo_move_to( cai, curx, cury );
-		// cairo_line_to( cai, curx, cury2 );
+		*/
+		// pb : une ligne horizontale a une enveloppe d'epaisseur nulle...
+		// version améliorée destinée a éviter l'évanescence des traces proches de l'horizontale
+		cury2 = -YdeV( curlod->min[i] );	// ainsi normalement cury2 > cury
+		cury  = -YdeV( curlod->max[i] );
+		if	( cury2 < ( cury + linewidth ) ) // epaisseur ligne horizontale
+			cury2 = cury + linewidth;	 // coherente avec les verticales
+		cairo_move_to( cai, curx, cury );
+		cairo_line_to( cai, curx, cury2 );
+		if	( ++cnt >= 400 )
+			{
+			cairo_stroke( cai );
+			// printf("striken %d lines\n", cnt );
+			cnt = 0;
+			cairo_move_to( cai, curx, cury2 );
+			}
 		}
-	cairo_stroke( cai );
+	if	( cnt )
+		cairo_stroke( cai );
 	// printf("enveloppe %d lines\n", i1 - i0 );
 	}
 // printf("end layer_lod::draw\n");
