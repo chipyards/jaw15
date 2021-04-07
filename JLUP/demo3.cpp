@@ -17,8 +17,7 @@ using namespace std;
 #include "jluplot.h"
 #include "gluplot.h"
 
-#include "layer_f_lod.h"
-#include "layer_s16_lod.h"
+#include "layer_lod.h"
 
 #include "../modpop3.h"
 #include "../cli_parse.h"
@@ -90,8 +89,8 @@ switch	( v )
 		break;
 	case 'i' :
 		int i0, i1;
-		i0 = ((layer_f_lod *)glo->panneau1.bandes[0]->courbes[0])->ilod;
-		i1 = ((layer_s16_lod *)glo->panneau1.bandes[0]->courbes[1])->ilod;
+		i0 = ((layer_lod<float> *)glo->panneau1.bandes[0]->courbes[0])->ilod;
+		i1 = ((layer_lod<short> *)glo->panneau1.bandes[0]->courbes[1])->ilod;
 		printf("ilod: %d %d\n", i0, i1 ); fflush(stdout);
 		break;
 	//
@@ -153,8 +152,8 @@ curbande->optX = 1;
 curbande->subtk = 1;
 
 // creer un layer
-layer_f_lod * curcour;
-curcour = new layer_f_lod;
+layer_lod<float> * curcour;
+curcour = new layer_lod<float>;
 curbande->add_layer( curcour );
 
 // configurer le layer
@@ -174,8 +173,8 @@ if	( retval )
 printf("%d f lods made\n", curcour->lods.size() ); fflush(stdout);
 
 // creer un layer
-layer_s16_lod * curcour2;
-curcour2 = new layer_s16_lod;
+layer_lod<short> * curcour2;
+curcour2 = new layer_lod<short>;
 curbande->add_layer( curcour2 );
 
 // configurer le layer

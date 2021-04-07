@@ -1,24 +1,80 @@
-using namespace std;
-#include <string>
-#include <iostream>
-#include <vector>
-
-#include <gtk/gtk.h>
-// #include <cairo-pdf.h>
-#include <stdlib.h>
-#include <math.h>
-#include "jluplot.h"
-#include "layer_f_lod.h"
-
-// layer_f_lod : une courbe a pas uniforme en float (classe derivee de layer_base)
+// layer_lod : une courbe a pas uniforme (classe derivee de layer_base)
 // supporte multiples LOD (Level Of Detail)
+// donnees allouees a l'exterieur, de type Tsamp parametrable
+// teste avec short et float
 
-void lod_f::allocMM( size_t size )	// allouer buffers min et max
-{
-min = (float *)malloc( 2 * size * sizeof(float) );
-max = min + size;
-//printf("alloc  %08x : %08x, size %d\n", (unsigned int)min, (unsigned int)max, size );
-}
+template <typename Tsamp> class lod {	// un niveau de detail
+public :
+Tsamp * max;
+Tsamp * min;	// des couples min_max
+int qc;		// nombre de couples min_max
+int kdec;	// decimation par rapport a l'audio original
+// constructeur
+lod() : max(NULL), min(NULL), qc(0), kdec(1) {};
+// methodes
+void allocMM( size_t size ) {	// allouer buffers min et max
+	min = (Tsamp *)malloc( 2 * size * sizeof(Tsamp) );
+	max = min + size;
+	//printf("alloc  %08x : %08x, size %d\n", (unsigned int)min, (unsigned int)max, size );
+	};
+};
+
+template <typename Tsamp> class layer_lod : public layer_base {
+public :
+
+Tsamp * V;
+Tsamp Vmin, Vmax;
+int qu;			// nombre de points effectif
+int curi;		// index point courant
+double linewidth;	// 0.5 pour haute resolution, 1.0 pour bon contraste
+double spp_max;		// nombre max de sample par pixel (samples audio ou couple minmax)
+			// s'il est trop petit, on a une variation de contraste au changement de LOD
+			// s'il est trop grand on ralentit l'affichage
+			// bon compromis  : 0.9 / linewidth
+vector <lod<Tsamp> > lods;	// autant le LODs que necessaire
+int ilod;		// indice du LOD courant, -1 pour affichage a pleine resolution
+			// -2 pour inconnu (choix ilod a faire)
+
+// constructeur
+layer_lod() : layer_base(), V(NULL), Vmin(0), Vmax(1),
+		qu(0), curi(0), linewidth(0.7), spp_max(0.9/linewidth),
+		ilod(-2) {};
+
+// methodes propres a cette classe derivee
+int make_lods( unsigned int klod1, unsigned int klod2, unsigned int maxwin );	// allouer et calculer les LODs
+void scan();			// mettre a jour les Min et Max
+				// aussi fait  par make_lods()
+void find_ilod();		// choisir le LOD optimal (ilod) en fonction du zoom
+int goto_U( double U0 );	// chercher le premier point U >= U0
+void goto_first() {
+	curi = 0;
+	};
+int get_pi( double & rU, double & rV ) {	// get XY then post increment
+	if ( curi >= qu ) return -1;
+	rU = (double)curi; rV = (double)V[curi]; ++curi;
+	return 0;
+	};
+void draw( cairo_t * cai, double tU0, double tU1 );	// dessin partiel
+
+// les methodes qui sont virtuelles dans la classe de base
+void refresh_proxy() {
+	ilod = -2;
+	layer_base::refresh_proxy();
+	};
+double get_Umin() { return (double)0; };
+double get_Umax() { return (double)(qu-1); };
+double get_Vmin() { return (double)Vmin; };
+double get_Vmax() { return (double)Vmax; };
+
+void draw( cairo_t * cai ) {				// dessin full strip
+	double u1 = UdeX( (double)(parent->parent->ndx) );
+	draw( cai, u0, u1 );
+	// printf("d lod %d\n", ilod ); fflush(stdout);
+	};
+};
+
+// layer_lod : une courbe a pas uniforme en Tsamp (classe derivee de layer_base)
+// supporte multiples LOD (Level Of Detail)
 
 // allouer et calculer les LODs - un LOD est une fonction enveloppe representable par des barres verticales
 //	klod1 = premiere decimation, utilisee pour passer de l'audio a la premiere enveloppe
@@ -26,20 +82,20 @@ max = min + size;
 //	maxwin = plus grande largeur de fenetre typiquement rencontree
 // on cree des lods de plus en plus petits jusqu'a ce que
 // la taille passe en dessous de klod2 * maxwin, alors c'est fini.
-int layer_f_lod::make_lods( unsigned int klod1, unsigned int klod2, unsigned int maxwin )
+template <typename Tsamp> int layer_lod<Tsamp>::make_lods( unsigned int klod1, unsigned int klod2, unsigned int maxwin )
 {
 unsigned int lodsize;
 unsigned int i;		// indice source
 unsigned int j;		// sous-indice decimation
 unsigned int k;		// indice destination
-float min=0, max=0;
-lod_f * curlod, * prevlod;
+Tsamp min=0, max=0;
+lod<Tsamp> * curlod, * prevlod;
 // lods.reserve(16);
 // ------------------------------ premiere decimation
 lodsize = qu / klod1;
 if	( lodsize <= maxwin )
 	{ scan(); return 0; }	// meme pas besoin de lod dans ce cas
-lods.push_back( lod_f() );
+lods.push_back( lod<Tsamp>() );
 curlod = &lods.back();
 curlod->kdec = klod1;
 curlod->qc = lodsize;
@@ -85,7 +141,7 @@ if	( k < lodsize )
 // ------------------------------ decimations suivantes
 while	( ( lodsize = lodsize / klod2 ) > maxwin )
 	{
-	lods.push_back( lod_f() );
+	lods.push_back( lod<Tsamp>() );
 	// prevlod = curlod;				// marche PO curlod est invalide
 	prevlod = &lods.at( lods.size() - 2 );		// APRES le push_back sinon t'es DEAD
 	curlod = &lods.back();
@@ -126,7 +182,7 @@ while	( ( lodsize = lodsize / klod2 ) > maxwin )
 return 0;
 }
 
-void layer_f_lod::scan()
+template <typename Tsamp> void layer_lod<Tsamp>::scan()
 {
 if	( qu )
 	Vmin = Vmax = V[0];
@@ -138,7 +194,7 @@ for	( int i = 1; i < qu; ++i )
 }
 
 // chercher le premier point X >= X0
-int layer_f_lod::goto_U( double U0 )
+template <typename Tsamp> int layer_lod<Tsamp>::goto_U( double U0 )
 {
 curi = (int)ceil(U0);
 if	( curi < 0 )
@@ -148,38 +204,8 @@ if	( curi < qu )
 else	return -1;
 }
 
-void layer_f_lod::goto_first()
-{
-curi = 0;
-}
-
-// get XY then post increment
-int layer_f_lod::get_pi( double & rU, double & rV )
-{
-if ( curi >= qu )
-   return -1;
-rU = (double)curi; rV = (double)V[curi]; ++curi;
-return 0;
-}
-
-// les methodes qui sont virtuelles dans la classe de base
-void layer_f_lod::refresh_proxy()
-{
-ilod = -2;
-layer_base::refresh_proxy();
-}
-
-double layer_f_lod::get_Umin()
-{ return (double)0; }
-double layer_f_lod::get_Umax()
-{ return (double)(qu-1); }
-double layer_f_lod::get_Vmin()
-{ return (double)Vmin; }
-double layer_f_lod::get_Vmax()
-{ return (double)Vmax; }
-
 // choisir le LOD optimal (ilod) en fonction du zoom horizontal c'est a dire ( u1 - u0 )
-void layer_f_lod::find_ilod()
+template <typename Tsamp> void layer_lod<Tsamp>::find_ilod()
 {
 double u1, maxx, spp=100000.0;
 
@@ -201,9 +227,9 @@ if	( ilod < 0 )
 }
 
 // dessin partiel de tU0 a tU1
-void layer_f_lod::draw( cairo_t * cai, double tU0, double tU1 )
+template <typename Tsamp> void layer_lod<Tsamp>::draw( cairo_t * cai, double tU0, double tU1 )
 {
-// printf("layer_f_lod::begin draw\n");
+// printf("layer_lod::begin draw\n");
 cairo_set_source_rgb( cai, fgcolor.dR, fgcolor.dG, fgcolor.dB );
 cairo_set_line_width( cai, linewidth );
 if	( tU0 == u0 )
@@ -249,7 +275,7 @@ if	( ilod < 0 )
 	// printf("courbe %d lines\n", cnt );
 	}
 else	{			// affichage enveloppe
-	lod_f * curlod = &lods.at(ilod);
+	lod<Tsamp> * curlod = &lods.at(ilod);
 	int qc = curlod->qc;
 	int k = curlod->kdec;
 	int i0, i1, i;		// indices source
@@ -274,13 +300,5 @@ else	{			// affichage enveloppe
 	cairo_stroke( cai );
 	// printf("enveloppe %d lines\n", i1 - i0 );
 	}
-// printf("end layer_f_lod::draw\n");
-}
-
-// dessin (ses dimensions dx et dy sont lues chez les parents)
-void layer_f_lod::draw( cairo_t * cai )
-{
-double u1 = UdeX( (double)(parent->parent->ndx) );
-draw( cai, u0, u1 );
-// printf("d lod %d\n", ilod ); fflush(stdout);
+// printf("end layer_lod::draw\n");
 }
