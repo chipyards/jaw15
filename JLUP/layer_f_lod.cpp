@@ -8,14 +8,14 @@ using namespace std;
 #include <stdlib.h>
 #include <math.h>
 #include "jluplot.h"
-#include "layer_s16_lod.h"
+#include "layer_f_lod.h"
 
-// layer_s16_lod : une courbe a pas uniforme en signed 16 bits (classe derivee de layer_base)
+// layer_f_lod : une courbe a pas uniforme en float (classe derivee de layer_base)
 // supporte multiples LOD (Level Of Detail)
 
-void lod_s16::allocMM( size_t size )	// allouer buffers min et max
+void lod_f::allocMM( size_t size )	// allouer buffers min et max
 {
-min = (short *)malloc( 2 * size * sizeof(short) );
+min = (float *)malloc( 2 * size * sizeof(float) );
 max = min + size;
 //printf("alloc  %08x : %08x, size %d\n", (unsigned int)min, (unsigned int)max, size );
 }
@@ -26,20 +26,20 @@ max = min + size;
 //	maxwin = plus grande largeur de fenetre typiquement rencontree
 // on cree des lods de plus en plus petits jusqu'a ce que
 // la taille passe en dessous de klod2 * maxwin, alors c'est fini.
-int layer_s16_lod::make_lods( unsigned int klod1, unsigned int klod2, unsigned int maxwin )
+int layer_f_lod::make_lods( unsigned int klod1, unsigned int klod2, unsigned int maxwin )
 {
 unsigned int lodsize;
 unsigned int i;		// indice source
 unsigned int j;		// sous-indice decimation
 unsigned int k;		// indice destination
-short min=0, max=0;
-lod_s16 * curlod, * prevlod;
+float min=0, max=0;
+lod_f * curlod, * prevlod;
 // lods.reserve(16);
 // ------------------------------ premiere decimation
 lodsize = qu / klod1;
 if	( lodsize <= maxwin )
 	{ scan(); return 0; }	// meme pas besoin de lod dans ce cas
-lods.push_back( lod_s16() );
+lods.push_back( lod_f() );
 curlod = &lods.back();
 curlod->kdec = klod1;
 curlod->qc = lodsize;
@@ -85,13 +85,13 @@ if	( k < lodsize )
 // ------------------------------ decimations suivantes
 while	( ( lodsize = lodsize / klod2 ) > maxwin )
 	{
-	lods.push_back( lod_s16() );
+	lods.push_back( lod_f() );
 	// prevlod = curlod;				// marche PO curlod est invalide
 	prevlod = &lods.at( lods.size() - 2 );		// APRES le push_back sinon t'es DEAD
 	curlod = &lods.back();
 	curlod->kdec = prevlod->kdec * klod2;
 	curlod->qc = lodsize;
-	// printf("lod %d : k = %6d size = %d\n", lods.size()-1, curlod->kdec, curlod->qc );
+	// printf("lod %d : k = %6d size = %d\n", (int)lods.size()-1, curlod->kdec, curlod->qc );
 	curlod->allocMM( lodsize );
 	if	( ( curlod->min == NULL ) || ( curlod->max == NULL ) )
 		return -1;
@@ -126,7 +126,7 @@ while	( ( lodsize = lodsize / klod2 ) > maxwin )
 return 0;
 }
 
-void layer_s16_lod::scan()
+void layer_f_lod::scan()
 {
 if	( qu )
 	Vmin = Vmax = V[0];
@@ -138,7 +138,7 @@ for	( int i = 1; i < qu; ++i )
 }
 
 // chercher le premier point X >= X0
-int layer_s16_lod::goto_U( double U0 )
+int layer_f_lod::goto_U( double U0 )
 {
 curi = (int)ceil(U0);
 if	( curi < 0 )
@@ -148,13 +148,13 @@ if	( curi < qu )
 else	return -1;
 }
 
-void layer_s16_lod::goto_first()
+void layer_f_lod::goto_first()
 {
 curi = 0;
 }
 
 // get XY then post increment
-int layer_s16_lod::get_pi( double & rU, double & rV )
+int layer_f_lod::get_pi( double & rU, double & rV )
 {
 if ( curi >= qu )
    return -1;
@@ -163,23 +163,23 @@ return 0;
 }
 
 // les methodes qui sont virtuelles dans la classe de base
-void layer_s16_lod::refresh_proxy()
+void layer_f_lod::refresh_proxy()
 {
 ilod = -2;
 layer_base::refresh_proxy();
 }
 
-double layer_s16_lod::get_Umin()
+double layer_f_lod::get_Umin()
 { return (double)0; }
-double layer_s16_lod::get_Umax()
+double layer_f_lod::get_Umax()
 { return (double)(qu-1); }
-double layer_s16_lod::get_Vmin()
+double layer_f_lod::get_Vmin()
 { return (double)Vmin; }
-double layer_s16_lod::get_Vmax()
+double layer_f_lod::get_Vmax()
 { return (double)Vmax; }
 
 // choisir le LOD optimal (ilod) en fonction du zoom horizontal c'est a dire ( u1 - u0 )
-void layer_s16_lod::find_ilod()
+void layer_f_lod::find_ilod()
 {
 double u1, maxx, spp=100000.0;
 
@@ -197,13 +197,13 @@ while	( ilod >= 0 )
 	}
 if	( ilod < 0 )
 	spp = ( u1 - u0 ) / maxx;
-// printf("choix lod %d, kdec = %d, spp = %g\n", ilod, (ilod>=0)?(lods.at(ilod).kdec):(1), spp );
+// printf("choix lod %d, spp = %g\n", ilod, spp );
 }
 
 // dessin partiel de tU0 a tU1
-void layer_s16_lod::draw( cairo_t * cai, double tU0, double tU1 )
+void layer_f_lod::draw( cairo_t * cai, double tU0, double tU1 )
 {
-// printf("layer_s16_lod::begin draw\n");
+// printf("layer_f_lod::begin draw\n");
 cairo_set_source_rgb( cai, fgcolor.dR, fgcolor.dG, fgcolor.dB );
 cairo_set_line_width( cai, linewidth );
 if	( tU0 == u0 )
@@ -249,7 +249,7 @@ if	( ilod < 0 )
 	// printf("courbe %d lines\n", cnt );
 	}
 else	{			// affichage enveloppe
-	lod_s16 * curlod = &lods.at(ilod);
+	lod_f * curlod = &lods.at(ilod);
 	int qc = curlod->qc;
 	int k = curlod->kdec;
 	int i0, i1, i;		// indices source
@@ -264,29 +264,23 @@ else	{			// affichage enveloppe
 		cairo_move_to( cai, curx, cury );
 		cury = -YdeV( curlod->max[i] );
 		cairo_line_to( cai, curx, cury );
+		// cury2 = -v2y( curlod->min[i] );	// ainsi normalement cury2 > cury
+		// cury  = -v2y( curlod->max[i] );
+		// if	( cury2 < ( cury + linewidth ) ) // epaisseur ligne horizontale
+		//	cury2 = cury + linewidth;	 // coherente avec les verticales
+		// cairo_move_to( cai, curx, cury );
+		// cairo_line_to( cai, curx, cury2 );
 		}
 	cairo_stroke( cai );
 	// printf("enveloppe %d lines\n", i1 - i0 );
 	}
-// printf("end layer_s16_lod::draw\n");
+// printf("end layer_f_lod::draw\n");
 }
 
 // dessin (ses dimensions dx et dy sont lues chez les parents)
-void layer_s16_lod::draw( cairo_t * cai )
+void layer_f_lod::draw( cairo_t * cai )
 {
 double u1 = UdeX( (double)(parent->parent->ndx) );
 draw( cai, u0, u1 );
 // printf("d lod %d\n", ilod ); fflush(stdout);
-/*
-double u, du;				// test
-du = 0.1 * ( u1 - u0 );			// test
-u = u0;					// test
-while	( u < u1 )			// test
-	{				// test
-	draw( cai, u, u+du );		// test
-	printf("d %g to %g\n", u, u+du );// test
-	u += du;			// test
-	}				// test
-fflush(stdout);
-*/
 }

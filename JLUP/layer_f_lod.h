@@ -1,36 +1,36 @@
-// layer_s16_lod : une courbe a pas uniforme en signed 16 bits (classe derivee de layer_base)
+// layer_f_lod : une courbe a pas uniforme en float 32 bits (classe derivee de layer_base)
 // supporte multiples LOD (Level Of Detail)
 
-class lod_s16 {	// un niveau de detail
+class lod_f {	// un niveau de detail
 public :
-short * max;
-short * min;	// des couples min_max
+float * max;
+float * min;	// des couples min_max
 int qc;		// nombre de couples min_max
 int kdec;	// decimation par rapport a l'audio original
 // constructeur
-lod_s16() : max(NULL), min(NULL), qc(0), kdec(1) {};
+lod_f() : max(NULL), min(NULL), qc(0), kdec(1) {};
 // methodes
-void allocMM( size_t size );	// allouer buffers min et max
+void allocMM( size_t size );	// ebauche de service d'allocation
 };
 
-class layer_s16_lod : public layer_base {
+class layer_f_lod : public layer_base {
 public :
 
-short * V;
-short Vmin, Vmax;
+float * V;
+float Vmin, Vmax;
 int qu;			// nombre de points effectif
 int curi;		// index point courant
-double linewidth;	// 0.5 pour haute resolution, 1.0 pour dessin plus rapide
+double linewidth;	// 0.5 pour haute resolution, 1.0 pour bon contraste
 double spp_max;		// nombre max de sample par pixel (samples audio ou couple minmax)
 			// s'il est trop petit, on a une variation de contraste au changement de LOD
 			// s'il est trop grand on ralentit l'affichage
 			// bon compromis  : 0.9 / linewidth
-vector <lod_s16> lods;	// autant le LODs que necessaire
+vector <lod_f> lods;	// autant le LODs que necessaire
 int ilod;		// indice du LOD courant, -1 pour affichage a pleine resolution
 			// -2 pour inconnu (choix ilod a faire)
 
 // constructeur
-layer_s16_lod() : layer_base(), V(NULL), Vmin(-32767), Vmax(32767),
+layer_f_lod() : layer_base(), V(NULL), Vmin(-1.0), Vmax(1.0),
 		qu(0), curi(0), linewidth(0.7), spp_max(0.9/linewidth),
 		ilod(-2) {};
 
