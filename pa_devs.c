@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 #include <math.h>
-#include "portaudio.h"
+#include "portaudio_2011.h"
 
 #include "pa_devs.h"
 
@@ -128,7 +128,7 @@ for 	( i=0; i<numDevices; i++ )
 		{
         	long minLatency, maxLatency, preferredLatency, granularity;
 
-		PaAsio_GetAvailableLatencyValues( i, &minLatency, &maxLatency, &preferredLatency, &granularity );
+		PaAsio_GetAvailableBufferSizes( i, &minLatency, &maxLatency, &preferredLatency, &granularity );
 
 		printf( "ASIO minimum buffer size    = %ld\n", minLatency  );
 		printf( "ASIO maximum buffer size    = %ld\n", maxLatency  );

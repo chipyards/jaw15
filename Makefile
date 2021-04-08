@@ -4,15 +4,16 @@
 GTKBASE= /mingw32
 
 # choix de port audio I/O (laisser en blanc pour desactiver)
-#AUDIOPORT = PORTAUDIO
-AUDIOPORT = 
+AUDIOPORT = PORTAUDIO
+# AUDIOPORT = 
 
 
 ifeq ($(AUDIOPORT), PORTAUDIO)
      ADEF = -DUSE_PORTAUDIO -DPA_USE_ASIO
+     # pa_devs est un utilitaire local, une couche sur portaudio
      ADEV = pa_devs.c
      # winmm et ole32 requises par portaudio
-     ALIB  = -lportaudio -lwinmm -lole32
+     ALIB  = -lportaudio_2011 -lwinmm -lole32
      EXE = kawa.exe
 else
      ADEF =
@@ -24,14 +25,14 @@ endif
 # listes
 SOURCESC = wav_head.c modpop3.c $(ADEV)
 SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp \
-    JLUP/layer_rgb.cpp JLUP/layer_s16_lod.cpp JLUP/layer_u16.cpp \
+    JLUP/layer_rgb.cpp JLUP/layer_u16.cpp \
     spectro.cpp process.cpp gui.cpp param.cpp
 HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
-    JLUP/layer_rgb.h JLUP/layer_s16_lod.h JLUP/layer_u16.h \
-    modpop3.h pa_devs.h process.h glostru.h spectro.h wav_head.h param.h
+    JLUP/layer_rgb.h JLUP/layer_lod.h JLUP/layer_u16.h \
+    modpop3.h pa_devs.h process.h glostru.h spectro.h wav_head.h param.h cli_parse.h
 
 OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
-    layer_rgb.o layer_s16_lod.o layer_u16.o \
+    layer_rgb.o layer_u16.o \
     spectro.o process.o gui.o param.o
 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
@@ -86,8 +87,6 @@ jluplot.o : JLUP/jluplot.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/jluplot.cpp
 layer_rgb.o : JLUP/layer_rgb.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/layer_rgb.cpp
-layer_s16_lod.o : JLUP/layer_s16_lod.cpp ${HEADERS}
-	gcc $(INCS) -c JLUP/layer_s16_lod.cpp
 layer_u16.o : JLUP/layer_u16.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/layer_u16.cpp
 

@@ -22,7 +22,7 @@ using namespace std;
 #include "JLUP/jluplot.h"
 #include "JLUP/gluplot.h"
 #ifdef USE_PORTAUDIO
-  #include "portaudio.h"
+  #include "portaudio_2011.h"
   #include "pa_devs.h"
 #endif
 #include "fftw3.h"
@@ -157,7 +157,6 @@ Pa_Terminate();
 /** ============================ GTK call backs ======================= */
 int idle_call( glostru * glo )
 {
-char lbuf[128];
 volatile double newx;
 if	( glo->iplay >= 0 )
 	{			// Playing
@@ -167,6 +166,7 @@ if	( glo->iplay >= 0 )
 	double t = t0 + Pa_GetStreamTime( glo->stream ) - glo->play_start_time;
 	// le temps associe a l'indice courant, ramene au debut du play
 	double pt = (double)glo->iplay / (double)(glo->pro.wavp.freq);
+	char lbuf[128];
 	snprintf( lbuf, sizeof(lbuf), "%7.3f %7.3f  %4.3f", pt, t, t - pt );
 	gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
 #endif
@@ -175,7 +175,7 @@ if	( glo->iplay >= 0 )
 		{
 		newx = glo->panneau.XdeM( glo->iplay );
 		glo->panneau.xcursor = newx;
-		glo->panneau.queue_flag = 1;
+		glo->panneau.paint();		// meme si glo->panneau.force_repaint == 0;
 		}
 	}
 else	{			// Not Playing
@@ -184,26 +184,24 @@ else	{			// Not Playing
 		{
 		glo->panneau.xcursor = newx;
 		glo->panneau.force_repaint = 1;
-		glo->panneau.queue_flag = 1;
 		}
-	// profileur
-	glo->idle_profiler_cnt++;
-	if	( glo->idle_profiler_time != time(NULL) )
-		{
-		glo->idle_profiler_time = time(NULL);
-		snprintf( lbuf, sizeof(lbuf), "%3d i %3d p", glo->idle_profiler_cnt, glo->panneau.paint_cnt );
-		gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
-		glo->idle_profiler_cnt = 0;
-		glo->panneau.paint_cnt = 0;
-		}
+	if	( glo->panneau.force_repaint )
+		glo->panneau.paint();
 	}
-// moderateur de drawing
-if	( ( glo->panneau.queue_flag ) || ( glo->panneau.force_repaint ) )
+
+
+/* profileur
+glo->idle_profiler_cnt++;
+if	( glo->idle_profiler_time != time(NULL) )
 	{
-	// gtk_widget_queue_draw( glo->darea );
-	glo->panneau.queue_flag = 0;
-	glo->panneau.paint();
+	glo->idle_profiler_time = time(NULL);
+	char lbuf[128];
+	snprintf( lbuf, sizeof(lbuf), "%3d i %3d p", glo->idle_profiler_cnt, glo->panneau.paint_cnt );
+	gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
+	glo->idle_profiler_cnt = 0;
+	glo->panneau.paint_cnt = 0;
 	}
+*/	
 
 return( -1 );
 }
@@ -470,14 +468,25 @@ if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
 if	( ( val = lepar->get( 'd' ) ) )	myoutput = atoi( val );
 if	( ( val = lepar->get( 'p' ) ) )	pa_dev_options = atoi( val );
 if	( ( val = lepar->get( 'B' ) ) )	solB = 1;
+if	( ( val = lepar->get( 'h' ) ) )
+	{
+	printf( "options :\n"
+	"-L <val> : latence demandee (defaut : 0.090)\n"
+	"-d <id>  : choix output device (defaut -1 = system default)\n"
+	"-p <opt> : listage devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)\n"
+	"-B	  : variante pour copie drawpad (cf gluplot.cpp) '-B' pour B1, sinon defaut = B2\n" );
+	}
 fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
 
+printf( "output device %d, latency %g, pa_dev option %d\n", myoutput, mylatency, pa_dev_options );
+fflush(stdout);
 
 if	( fnam == NULL )
 	gasp("fournir un nom de fichier WAV");
+
+
 snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), fnam );
 
-printf( "output device %d, latency %g, pa_dev option %d\n", myoutput, mylatency, pa_dev_options );
  
 // traiter choix options B1 vs B2
 if	( solB == 1 )

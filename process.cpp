@@ -15,7 +15,7 @@ using namespace std;
 
 #include "JLUP/jluplot.h"
 #include "JLUP/gluplot.h"
-#include "JLUP/layer_s16_lod.h"
+#include "JLUP/layer_lod.h"
 #include "JLUP/layer_rgb.h"
 #include "JLUP/layer_u16.h"
 
@@ -207,7 +207,7 @@ return 0;
 void process::prep_layout( gpanel * panneau )
 {
 gstrip * curbande;
-layer_s16_lod * curcour;
+layer_lod<short> * curcour;
 
 panneau->offscreen_flag = 1;	// 1 par defaut
 // marge pour les textes
@@ -227,7 +227,7 @@ curbande->optretX = 1;
 gpanel::smenu_set_title( curbande->smenu_y, "SIGNAL AXIS" );
 
 // creer un layer
-curcour = new layer_s16_lod;	// wave a pas uniforme
+curcour = new layer_lod<short>;	// wave a pas uniforme
 curbande->add_layer( curcour );
 
 // configurer le layer pour le canal L ou mono
@@ -246,7 +246,7 @@ if	( wavp.chan > 1 )
 	panneau->bandes[0]->Ylabel = "stereo";
 
 	// creer le layer
-	curcour = new layer_s16_lod;	// wave a pas uniforme
+	curcour = new layer_lod<short>;	// wave a pas uniforme
 	curbande->add_layer( curcour );
 
 	// configurer le layer
@@ -324,24 +324,24 @@ int process::connect_layout( gpanel * panneau )
 {
 int retval;
 // pointeurs locaux sur les 2 ou 3 layers
-layer_s16_lod * layL, * layR = NULL;
+layer_lod<short> * layL, * layR = NULL;
 layer_rgb * laySL, * laySR;
 // connecter les layers de ce layout sur les buffers existants
-layL = (layer_s16_lod *)panneau->bandes[0]->courbes[0];
+layL = (layer_lod<short> *)panneau->bandes[0]->courbes[0];
 layL->V = Lbuf;
 layL->qu = wavp.wavsize;
 if	( wavp.chan > 1 )
 	{
-	layR = (layer_s16_lod *)panneau->bandes[0]->courbes[1];
+	layR = (layer_lod<short> *)panneau->bandes[0]->courbes[1];
 	layR->V = Rbuf;
 	layR->qu = wavp.wavsize;
 	}
-retval = layL->make_lods( 4, 4, 800 );
+retval = layL->make_lods( 4, 4, 2000 );
 if	( retval )
 	{ printf("echec make_lods err %d\n", retval ); return -6;  }
 if	( wavp.chan > 1 )
 	{
-	retval = layR->make_lods( 4, 4, 800 );
+	retval = layR->make_lods( 4, 4, 2000 );
 	if	( retval )
 		{ printf("echec make_lods err %d\n", retval ); return -7;  }
 	}
