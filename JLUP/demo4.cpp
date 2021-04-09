@@ -17,11 +17,12 @@ using namespace std;
 #include "jluplot.h"
 #include "gluplot.h"
 #include "layer_u.h"
-#include "layer_f_param.h"
 
 #include "../modpop3.h"
 #include "../cli_parse.h"
-#include "demo1.h"
+#include "demo4.h"
+
+#include <profileapi.h>		// pour chronometrage
 
 // unique variable globale exportee pour gasp() de modpop3
 GtkWindow * global_main_window = NULL;
@@ -34,11 +35,18 @@ int idle_call( glostru * glo )
 {
 // moderateur de drawing
 if	( glo->panneau1.force_repaint )
+	{
+	LARGE_INTEGER freq, start, stop;
+	QueryPerformanceFrequency(&freq);	// en Hz; t.q. 10000000
+	double fkHz = ((double)freq.QuadPart) / 1000.0;
+	// printf("perf timer freq = %g kHz\n", fkHz ); fflush(stdout);
+	QueryPerformanceCounter(&start);
 	glo->panneau1.paint();
+	QueryPerformanceCounter(&stop);
+	double dur = (double)(start.QuadPart - stop.QuadPart);
+	printf("paint %g ms\n", dur / fkHz ); fflush(stdout);
+	}
 	
-if	( glo->panneau2.force_repaint )
-	glo->panneau2.paint();
-
 return( -1 );
 }
 
@@ -56,21 +64,11 @@ gtk_main_quit();
 // callbacks de widgets
 void run_call( GtkWidget *widget, glostru * glo )
 {
-glo->running = 1;
-glo->panneau2.pdf_modal_layout( glo->wmain );
+glo->panneau1.pdf_modal_layout( glo->wmain );
 }
 
 void pause_call( GtkWidget *widget, glostru * glo )
 {
-glo->running = 0;
-char fnam[32], capt[128];
-snprintf( fnam, sizeof(fnam), "demo1.2.pdf" );
-modpop_entry( "PDF plot", "nom du fichier", fnam, sizeof(fnam), GTK_WINDOW(glo->wmain) );
-if	( ( glo->panneau2.bandes.size() ) && ( glo->panneau2.bandes[0]->courbes.size() ) )
-	snprintf( capt, sizeof(capt), "demo1.2: %s", glo->panneau2.bandes[0]->courbes[0]->label.c_str() );
-else	return;
-modpop_entry( "PDF plot", "description", capt, sizeof(capt), GTK_WINDOW(glo->wmain) );
-glo->panneau2.pdfplot( fnam, capt );
 }
 
 /** ============================ GLUPLOT call backs =============== */
@@ -91,6 +89,8 @@ switch	( v )
 	case '0' : glo->panneau1.toggle_vis( 0, 0 ); break;
 	case GDK_KEY_KP_1 :
 	case '1' : glo->panneau1.toggle_vis( 0, 1 ); break;
+	case GDK_KEY_KP_2 :
+	case '2' : glo->panneau1.toggle_vis( 0, 2 ); break;
 	// l'option offscreen drawpad
 	case 'o' : glo->panneau1.offscreen_flag = 1; break;
 	case 'n' : glo->panneau1.offscreen_flag = 0; break;
@@ -98,33 +98,18 @@ switch	( v )
 	case 'd' :
 		{
 		glo->panneau1.dump();
-		glo->panneau2.dump();
 		fflush(stdout);
-		} break;
-	// demo modpop3
-	case 'k' :
-		{
-		char tbuf[32];
-		snprintf( tbuf, sizeof(tbuf), "%g", glo->k );
-		modpop_entry( "K setting", "rapport des frequences", tbuf, sizeof(tbuf), GTK_WINDOW(glo->wmain) );
-		glo->k = strtod( tbuf, NULL );
-		glo->gen_data();
-		glo->panneau1.force_repaint = 1;
-		glo->panneau1.force_redraw = 1;		// necessaire pour panneau1 a cause de offscreen_flag
-		glo->panneau2.force_repaint = 1;
 		} break;
 	//
 	case 't' :
 		glo->panneau1.qtkx *= 1.5;
-		glo->panneau2.qtkx *= 1.5;
 		glo->panneau1.force_repaint = 1;
 		glo->panneau1.force_redraw = 1;		// necessaire pour panneau1 a cause de offscreen_flag
-		glo->panneau2.force_repaint = 1;
 		break;
 	//
 	case 'P' :
 		char fnam[32], capt[128];
-		snprintf( fnam, sizeof(fnam), "demo1.1.pdf" );
+		snprintf( fnam, sizeof(fnam), "demo4.pdf" );
 		modpop_entry( "PDF plot", "nom du fichier", fnam, sizeof(fnam), GTK_WINDOW(glo->wmain) );
 		snprintf( capt, sizeof(capt), "C'est imposant ma soeur" );
 		modpop_entry( "PDF plot", "description", capt, sizeof(capt), GTK_WINDOW(glo->wmain) );
@@ -137,14 +122,20 @@ switch	( v )
 
 void glostru::gen_data()
 {
+// allocation
+Fbuf = (float *)malloc( qbuf * sizeof(float) );
+Sbuf = (short *)malloc( qbuf * sizeof(short) );
+Ubuf = (unsigned short *)malloc( qbuf * sizeof(unsigned short) );
+if	( ( Fbuf == NULL ) || ( Fbuf == NULL ) || ( Fbuf == NULL ) )
+	gasp("pb malloc data buffers");
+
 // donnees pour les tests
-double omega1 = 2.0 * M_PI / 100.0;
-double omega2 = k * omega1;
-for	( int i = 0; i < QBUF; ++i )
+double omega1 = 2.0 * M_PI / 200.0;
+for	( unsigned int i = 0; i < qbuf; ++i )
 	{
-	// Xbuf[i] = 0.012  * (float)( i % 100 );
-	Xbuf[i] = 0.12 + (float)cos( omega1 * (float)i ); 
-	Ybuf[i] = (float)sin( omega2 * (float)i ); 
+	Fbuf[i] = cos( omega1 * (float)i ); 
+	Sbuf[i] = (short)( Fbuf[i] * 32767.0 );
+	Ubuf[i] = Sbuf[i] + 32767;
 	}
 
 }
@@ -180,66 +171,89 @@ curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
-curcour->label = string("ValX");
+curcour->label = string("float");
 curcour->fgcolor.set( 0.75, 0.0, 0.0 );
+curcour->ecostroke = ecostroke;
 
 // creer un layer
-curcour = new layer_u<float>;
-curbande->add_layer( curcour );
-
-// configurer le layer
-curcour->set_km( 1.0 );
-curcour->set_m0( 0.0 );
-curcour->set_kn( 1.0 );
-curcour->set_n0( 0.0 );
-curcour->label = string("ValY");
-curcour->fgcolor.set( 0.0, 0.0, 0.8 );
-
-// connexion layout - data
-curcour = (layer_u<float> *)panneau1.bandes[0]->courbes[0];
-curcour->V = Xbuf;
-curcour->qu = QBUF;
-curcour->scan();	// alors on peut faire un scan
-
-curcour = (layer_u<float> *)panneau1.bandes[0]->courbes[1];
-curcour->V = Ybuf;
-curcour->qu = QBUF;
-curcour->scan();	// alors on peut faire un scan
-
-// layout jluplot pour panneau2
-panneau2.offscreen_flag = 0;
-
-// creer le strip
-curbande = new gstrip;
-panneau2.add_strip( curbande );
-
-panneau2.pdf_DPI = 100;	// defaut est 72
-
-// configurer le strip
-curbande->bgcolor.set( 1.0, 0.95, 0.85 );
-curbande->Ylabel = "XY";
-curbande->optX = 1;
-curbande->subtk = 10;
-
-// creer un layer
-layer_f_param * curcour2;
-curcour2 = new layer_f_param;
+layer_u<short> * curcour2;
+curcour2 = new layer_u<short>;
 curbande->add_layer( curcour2 );
 
 // configurer le layer
 curcour2->set_km( 1.0 );
 curcour2->set_m0( 0.0 );
-curcour2->set_kn( 1.0 );
+curcour2->set_kn( 32767.0 );
 curcour2->set_n0( 0.0 );
-curcour2->label = string("Lissajoux");
-curcour2->fgcolor.set( 0.75, 0.0, 0.0 );
+curcour2->label = string("s16");
+curcour2->fgcolor.set( 0.0, 0.0, 0.8 );
+curcour2->ecostroke = ecostroke;
+// creer un layer
+layer_u<unsigned short> * curcour3;
+curcour3 = new layer_u<unsigned short>;
+curbande->add_layer( curcour3 );
+
+// configurer le layer
+curcour3->set_km( 1.0 );
+curcour3->set_m0( 0.0 );
+curcour3->set_kn( 32767.0 );
+curcour3->set_n0( 0.0 );
+curcour3->label = string("u16");
+curcour3->fgcolor.set( 0.75, 0.0, 0.0 );
+curcour3->ecostroke = ecostroke;
+curcour3->style = 1;
 
 // connexion layout - data
-curcour2 = (layer_f_param *)panneau2.bandes[0]->courbes[0];
-curcour2->U = Xbuf;
-curcour2->V = Ybuf;
-curcour2->qu = QBUF;
+curcour = (layer_u<float> *)panneau1.bandes[0]->courbes[0];
+curcour->V = Fbuf;
+curcour->qu = qbuf;
+curcour->scan();	// alors on peut faire un scan
+
+curcour2 = (layer_u<short> *)panneau1.bandes[0]->courbes[1];
+curcour2->V = Sbuf;
+curcour2->qu = qbuf;
 curcour2->scan();	// alors on peut faire un scan
+
+curcour3 = (layer_u<unsigned short> *)panneau1.bandes[0]->courbes[2];
+curcour3->V = Ubuf;
+curcour3->qu = qbuf;
+curcour3->scan();	// alors on peut faire un scan
+
+
+// creer le strip
+curbande = new gstrip;
+panneau1.add_strip( curbande );
+
+panneau1.pdf_DPI = 100;	// defaut est 72
+
+// configurer le strip
+curbande->bgcolor.set( 1.0, 0.95, 0.85 );
+curbande->Ylabel = "dB";
+curbande->optX = 0;
+curbande->subtk = 10;
+
+// creer un layer
+// layer_u<unsigned short> * curcour3;
+curcour3 = new layer_u<unsigned short>;
+curbande->add_layer( curcour3 );
+
+// configurer le layer
+curcour3->set_km( 1.0 );
+curcour3->set_m0( 0.0 );
+curcour3->set_kn( 1.0 );
+curcour3->set_n0( 0.0 );
+curcour3->label = string("u16");
+curcour3->fgcolor.set( 0.75, 0.0, 0.0 );
+curcour3->ecostroke = ecostroke;
+curcour3->style = 2;
+curcour3->k0dB = 1.0/32767.0;	// 32767.0 <==> 0dB
+curcour3->Vfloor = 0.003162;	// -50dB
+
+// connexion layout - data
+curcour3 = (layer_u<unsigned short> *)panneau1.bandes[1]->courbes[0];
+curcour3->V = Ubuf;
+curcour3->qu = qbuf;
+curcour3->scan();	// alors on peut faire un scan
 
 }
 
@@ -280,10 +294,6 @@ gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea1, TRUE, TRUE, 0 );
 glo->zarea1 = glo->zbar.layout( 640 );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->zarea1, FALSE, FALSE, 0 );
 
-/* creer une drawing area resizable depuis la fenetre */
-glo->darea2 = glo->panneau2.layout( 800, 360 );
-gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea2, TRUE, TRUE, 0 );
-
 /* creer boite horizontale */
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
 gtk_container_set_border_width( GTK_CONTAINER (curwidg), 5);
@@ -314,14 +324,27 @@ gtk_widget_show_all( glo->wmain );
 glo->panneau1.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau1.key_callback_register( key_call_back, (void *)glo );
 
+cli_parse * clip = new cli_parse( argc, (const char **)argv, "qe" );
+const char * zearg = clip->get('q');
+if	( zearg )
+	glo->qbuf = atoi( zearg );
+if	( glo->qbuf <= 1 )
+	glo->qbuf = 2;
+
+zearg = clip->get('e');
+if	( zearg )
+	glo->ecostroke = atoi( zearg );
+if	( glo->ecostroke < 1 )
+	glo->ecostroke = 1;
+
+printf("qbuf = %u, ecostroke = %u\n", glo->qbuf, glo->ecostroke ); fflush(stdout);
+
 glo->process();
 
 // forcer un full initial pour que tous les coeffs de transformations soient a jour
 glo->panneau1.full_valid = 0;
-glo->panneau2.full_valid = 0;
 // refaire un configure car celui appele par GTK est arrive trop tot
 glo->panneau1.configure();
-glo->panneau2.configure();
 
 g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
 

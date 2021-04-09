@@ -23,7 +23,7 @@
 				<Option object_output="obj/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="F:\DEV\DMM\MEDIA\WAV\banana.wav" />
+				<Option parameters="F:\DEV\JAW\JAW15\WAV\quistereo.wav" />
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-g" />
@@ -50,7 +50,7 @@
 			<Add directory="F:/Appli/msys64/mingw32/include/harfbuzz" />
 		</Compiler>
 		<Linker>
-			<Add library="portaudio" />
+			<Add library="portaudio_2011" />
 			<Add library="winmm" />
 			<Add library="ole32" />
 			<Add library="cairo" />
@@ -67,12 +67,11 @@
 		<Unit filename="../JLUP/gluplot.cpp" />
 		<Unit filename="../JLUP/jluplot.cpp" />
 		<Unit filename="../JLUP/layer_rgb.cpp" />
-		<Unit filename="../JLUP/layer_s16_lod.cpp" />
 		<Unit filename="../JLUP/layer_u16.cpp" />
 		<Unit filename="../JLUP/gluplot.h" />
 		<Unit filename="../JLUP/jluplot.h" />
 		<Unit filename="../JLUP/layer_rgb.h" />
-		<Unit filename="../JLUP/layer_s16_lod.h" />
+		<Unit filename="../JLUP/layer_lod.h" />
 		<Unit filename="../JLUP/layer_u16.h" />
 		<Unit filename="../glostru.h" />
 		<Unit filename="../gui.cpp" />

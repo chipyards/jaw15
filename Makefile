@@ -25,14 +25,14 @@ endif
 # listes
 SOURCESC = wav_head.c modpop3.c $(ADEV)
 SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp \
-    JLUP/layer_rgb.cpp JLUP/layer_u16.cpp \
+    JLUP/layer_rgb.cpp \
     spectro.cpp process.cpp gui.cpp param.cpp
 HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
-    JLUP/layer_rgb.h JLUP/layer_lod.h JLUP/layer_u16.h \
+    JLUP/layer_rgb.h JLUP/layer_lod.h JLUP/layer_u.h \
     modpop3.h pa_devs.h process.h glostru.h spectro.h wav_head.h param.h cli_parse.h
 
 OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
-    layer_rgb.o layer_u16.o \
+    layer_rgb.o \
     spectro.o process.o gui.o param.o
 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
@@ -87,9 +87,6 @@ jluplot.o : JLUP/jluplot.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/jluplot.cpp
 layer_rgb.o : JLUP/layer_rgb.cpp ${HEADERS}
 	gcc $(INCS) -c JLUP/layer_rgb.cpp
-layer_u16.o : JLUP/layer_u16.cpp ${HEADERS}
-	gcc $(INCS) -c JLUP/layer_u16.cpp
-
 spectro.o : spectro.cpp ${HEADERS}
 	gcc $(INCS) -c spectro.cpp
 process.o : process.cpp ${HEADERS}

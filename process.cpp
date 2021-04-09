@@ -17,7 +17,7 @@ using namespace std;
 #include "JLUP/gluplot.h"
 #include "JLUP/layer_lod.h"
 #include "JLUP/layer_rgb.h"
-#include "JLUP/layer_u16.h"
+#include "JLUP/layer_u.h"
 
 #include "wav_head.h"
 #include "fftw3.h"
@@ -378,7 +378,7 @@ return 0;
 void process::prep_layout2( gpanel * panneau )
 {
 gstrip * curbande;
-layer_u16 * curcour;
+layer_u<unsigned short> * curcour;
 
 panneau->offscreen_flag = 0;	// 1 par defaut
 // marge pour les textes
@@ -398,7 +398,7 @@ curbande->optretX = 1;
 // gpanel::smenu_set_title( curbande->smenu_y, "MAG ?" );
 
 // creer un layer
-curcour = new layer_u16;	//
+curcour = new layer_u<unsigned short>;	//
 curbande->add_layer( curcour );
 
 // configurer le layer pour le spectre
@@ -416,9 +416,9 @@ curcour->fgcolor.dB = 0.0;
 int process::connect_layout2( gpanel * panneau, int pos )
 {
 // pointeurs locaux sur les layers
-layer_u16 * layL = NULL;
+layer_u<unsigned short> * layL = NULL;
 // connecter les layers de ce layout sur les buffers existants
-layL = (layer_u16 *)panneau->bandes[0]->courbes[0];
+layL = (layer_u<unsigned short> *)panneau->bandes[0]->courbes[0];
 //layL->V = Lspek.spectre + ???? Lspek.H * pos ???? ; // attentio la wav est plus large que qsamp * Lspek.H * fftstride
 //layL->qu = Lspek.H;
 layL->qu = 0;

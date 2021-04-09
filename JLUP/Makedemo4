@@ -7,16 +7,15 @@ GTKBASE= /mingw32
 SOURCESC = ../modpop3.c $(ADEV)
 SOURCESCPP = gluplot.cpp jluplot.cpp \
     layer_f_param.cpp  \
-    demo1.cpp
+    demo4.cpp
 HEADERS = gluplot.h jluplot.h \
-    layer_u.h layer_f_param.h \
-    ../modpop3.h demo1.h
+    layer_u.h \
+    ../modpop3.h ../cli_parse.h demo4.h
 
 OBJS= modpop3.o gluplot.o jluplot.o \
-    layer_f_param.o \
-    demo1.o
+    demo4.o
 
-EXE = demo1.exe 
+EXE = demo4.exe 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
 
 # LIBS= `pkg-config --libs gtk+-2.0`
@@ -66,8 +65,8 @@ jluplot.o : jluplot.cpp ${HEADERS}
 	gcc $(INCS) -c jluplot.cpp
 layer_f_param.o : layer_f_param.cpp ${HEADERS}
 	gcc $(INCS) -c layer_f_param.cpp
-demo1.o : demo1.cpp ${HEADERS}
-	gcc $(INCS) -c demo1.cpp
+demo4.o : demo4.cpp ${HEADERS}
+	gcc $(INCS) -c demo4.cpp
 
 # dependances
 wav_head.o : ${HEADERS}
