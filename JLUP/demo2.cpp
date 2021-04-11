@@ -240,27 +240,25 @@ curbande->subtk = 1;
 // creer un layer
 layer_f_fifo * curcour;
 curcour = new layer_f_fifo(12);
-curbande->add_layer( curcour );
+curbande->add_layer( curcour, "ValX" );
 
 // configurer le layer
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
-curcour->label = string("ValX");
 curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 curcour->style = 1;
 
 // creer un layer
 curcour = new layer_f_fifo(12);
-curbande->add_layer( curcour );
+curbande->add_layer( curcour, "ValY" );
 
 // configurer le layer
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
-curcour->label = string("ValY");
 curcour->fgcolor.set( 0.0, 0.0, 0.8 );
 
 // connexion layout - data
@@ -284,14 +282,13 @@ curbande->subtk = 10;
 // creer un layer
 layer_f_param * curcour2;
 curcour2 = new layer_f_param;
-curbande->add_layer( curcour2 );
+curbande->add_layer( curcour2, "Lissajoux" );
 
 // configurer le layer
 curcour2->set_km( 1.0 );
 curcour2->set_m0( 0.0 );
 curcour2->set_kn( 1.0 );
 curcour2->set_n0( 0.0 );
-curcour2->label = string("Lissajoux");
 curcour2->fgcolor.set( 0.75, 0.0, 0.0 );
 
 // connexion layout - data

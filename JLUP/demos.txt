@@ -27,3 +27,4 @@ demo4
 		- style 1 n'est pas penalise par les movetos supplementaires
 		- style 2 est tres peu penalise par les calculs de log
 		- ecostroke optimal entre 600 et 1200 (sur cet exemple)
+	global context menu (visibilites layers)

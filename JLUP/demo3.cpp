@@ -154,14 +154,13 @@ curbande->subtk = 1;
 // creer un layer
 layer_lod<float> * curcour;
 curcour = new layer_lod<float>;
-curbande->add_layer( curcour );
+curbande->add_layer( curcour, "f32" );
 
 // configurer le layer
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
-curcour->label = string("f32");
 curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 
 // connexion layout - data
@@ -175,14 +174,13 @@ printf("%d f lods made\n", curcour->lods.size() ); fflush(stdout);
 // creer un layer
 layer_lod<short> * curcour2;
 curcour2 = new layer_lod<short>;
-curbande->add_layer( curcour2 );
+curbande->add_layer( curcour2, "s16" );
 
 // configurer le layer
 curcour2->set_km( 1.0 );
 curcour2->set_m0( 0.0 );
 curcour2->set_kn( 32767.0 );	// amplitude normalisee a +-1
 curcour2->set_n0( 0.0 );
-curcour2->label = string("s16");
 curcour2->fgcolor.set( 0.0, 0.0, 0.75 );
 
 // connexion layout - data

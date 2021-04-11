@@ -197,16 +197,15 @@ void gzoombar_zoom( void * z, double k0, double k1 )
 
 /** ===================== gstrip methods =============================== */
 
-void gstrip::add_layer( layer_base * lacourbe )
+void gstrip::add_layer( layer_base * lacourbe, const char * lelabel )
 {
 int istrip, ilay; char idbuf[8];
 // coordonnees et id du nouveau layer
 istrip = vectindex< strip * >( &this->parent->bandes, this );
 ilay = this->courbes.size();
 snprintf( idbuf, sizeof(idbuf), "%02d_%02d", istrip, ilay );
-// label par defaut si necessaire
-if	( lacourbe->label.length() == 0 )
-	lacourbe->label = string(idbuf);
+// label
+lacourbe->label = string(lelabel);
 // appendre le layer au strip
 strip::add_layer( lacourbe );
 // creer la check box pour visibilite dans le menu contectuel principal

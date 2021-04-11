@@ -228,14 +228,13 @@ gpanel::smenu_set_title( curbande->smenu_y, "SIGNAL AXIS" );
 
 // creer un layer
 curcour = new layer_lod<short>;	// wave a pas uniforme
-curbande->add_layer( curcour );
+curbande->add_layer( curcour, "Left" );
 
 // configurer le layer pour le canal L ou mono
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
 curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
 curcour->set_n0( 0.0 );
-curcour->label = string("Left");
 curcour->fgcolor.dR = 0.75;
 curcour->fgcolor.dG = 0.0;
 curcour->fgcolor.dB = 0.0;
@@ -247,14 +246,13 @@ if	( wavp.chan > 1 )
 
 	// creer le layer
 	curcour = new layer_lod<short>;	// wave a pas uniforme
-	curbande->add_layer( curcour );
+	curbande->add_layer( curcour, "Right" );
 
 	// configurer le layer
 	curcour->set_km( 1.0 );
 	curcour->set_m0( 0.0 );
 	curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
 	curcour->set_n0( 0.0 );
-	curcour->label = string("Right");
 	curcour->fgcolor.dR = 0.0;
 	curcour->fgcolor.dG = 0.75;
 	curcour->fgcolor.dB = 0.0;
@@ -278,7 +276,7 @@ gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
 
 // creer le layer
 curcour2 = new layer_rgb;
-curbande->add_layer( curcour2 );
+curbande->add_layer( curcour2, "RGB left" );
 
 // configurer le layer
 curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
@@ -308,7 +306,7 @@ if	( qspek >= 2 )
 
 	// creer le layer
 	curcour2 = new layer_rgb;
-	curbande->add_layer( curcour2 );
+	curbande->add_layer( curcour2, "RGB right" );
 
 	// configurer le layer
 	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
@@ -399,14 +397,13 @@ curbande->optretX = 1;
 
 // creer un layer
 curcour = new layer_u<unsigned short>;	//
-curbande->add_layer( curcour );
+curbande->add_layer( curcour, "Lin" );
 
 // configurer le layer pour le spectre
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );	// amplitude normalisee a +-1
 curcour->set_n0( 0.0 );
-curcour->label = string("Lin");
 curcour->fgcolor.dR = 0.0;
 curcour->fgcolor.dG = 0.0;
 curcour->fgcolor.dB = 0.0;

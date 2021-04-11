@@ -118,7 +118,7 @@ GtkWidget * smenu_y;    // scale menu : menu contextuel pour les echelles Y
 // constructeur
 gstrip() : smenu_y(NULL) {};
 
-void add_layer( layer_base * lacourbe );
+void add_layer( layer_base * lacourbe, const char * lelabel );
 };
 
 // gpanel derive du panel de jluplot

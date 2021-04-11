@@ -126,6 +126,47 @@ switch	( v )
 	}
 }
 
+/** ============================ context menus ======================= */
+
+// call backs
+static void pdf_export( GtkWidget *widget, glostru * glo )
+{
+glo->panneau1.pdf_modal_layout( glo->wmain );
+}
+
+static void offscreen_opt( GtkWidget *widget, glostru * glo )
+{
+glo->panneau1.offscreen_flag = gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) );
+glo->panneau1.dump(); fflush(stdout);
+}
+
+// enrichissement du menu global du panel
+void enrich_global_menu( glostru * glo )
+{
+GtkWidget * curmenu;
+GtkWidget * curitem;
+
+curmenu = glo->panneau1.gmenu;    // Don't need to show menus
+
+curitem = gtk_separator_menu_item_new();	// separateur indispensable
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_check_menu_item_new_with_label( "offscreen drawing" );
+gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), false );
+g_signal_connect( G_OBJECT( curitem ), "toggled",
+		  G_CALLBACK( offscreen_opt ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("PDF export (file chooser)");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( pdf_export ), (gpointer)glo );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+}
+
 /** ============================ l'application ==================== */
 
 void glostru::gen_data()
@@ -173,8 +214,7 @@ curbande->subtk = 2;
 // creer un layer
 layer_u<float> * curcour;
 curcour = new layer_u<float>;
-curcour->label = string("float");	// label AVANT add_layer
-curbande->add_layer( curcour );
+curbande->add_layer( curcour, "float" );
 
 // configurer le layer
 curcour->set_km( 1.0 );			// sets APRES add_layer
@@ -189,8 +229,7 @@ curcour->ecostroke = ecostroke;
 // creer un layer
 layer_u<short> * curcour2;
 curcour2 = new layer_u<short>;
-curcour2->label = string("s16");	// label AVANT add_layer
-curbande->add_layer( curcour2 );
+curbande->add_layer( curcour2, "s16" );
 
 // configurer le layer
 curcour2->set_km( 1.0 );		// sets APRES add_layer
@@ -203,8 +242,7 @@ curcour2->ecostroke = ecostroke;
 // creer un layer
 layer_u<unsigned short> * curcour3;
 curcour3 = new layer_u<unsigned short>;
-curcour3->label = string("u16");	// label AVANT add_layer
-curbande->add_layer( curcour3 );
+curbande->add_layer( curcour3, "u16" );
 
 // configurer le layer
 curcour3->set_km( 1.0 );		// sets APRES add_layer
@@ -247,8 +285,7 @@ curbande->subtk = 10;
 // creer un layer
 // layer_u<unsigned short> * curcour3;
 curcour3 = new layer_u<unsigned short>;
-curcour3->label = string("u16/dB");	// label AVANT add_layer
-curbande->add_layer( curcour3 );
+curbande->add_layer( curcour3, "u16/dB");
 
 // configurer le layer
 curcour3->set_km( 1.0 );		// sets APRES add_layer
@@ -357,6 +394,9 @@ glo->process();
 glo->panneau1.full_valid = 0;
 // refaire un configure car celui appele par GTK est arrive trop tot
 glo->panneau1.configure();
+
+// enrichissement du menu global du panel
+enrich_global_menu( glo );
 
 g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
 
