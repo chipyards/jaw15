@@ -27,9 +27,9 @@ Implementation :
 	  drawab ( drawab == NULL ==> B2 ) - normalement pas d'impact sur le resultat visuel
 
 Callback :
-	- l'application peut enregistrere 2 callbacks :
+	- l'application peut enregistrer 2 callbacks :
 		- clic_call_back : pour interpreter les clics sur le panel
-		  N.B. sont deja interceptes ppour zoom et pan : wheel, right drag, left drag + spacebar
+		  N.B. sont deja interceptes pour zoom et pan : wheel, right drag, left drag + spacebar
 		- key_call_back : pour les actions clavier
 		  N.B. 'f' est deja interceptee pour full zoom XY
 
@@ -80,6 +80,17 @@ PDF plot :
 
 */
 
+// trouver l'index d'un element dans un vecteur (a condition que les elements supportent l'operateur == )
+// en pratique c'est pour utiliser avec un vecteur de pointeurs
+template <typename vectype> int vectindex( vector<vectype> * v, vectype elem )
+{
+for	( unsigned int i = 0; i < v->size(); ++i )
+	if	( v->at(i) == elem )
+		return i;
+return -1;
+}
+
+
 // ghost_drag : un rectangle fantome dragable pour selection ou zoom relatif
 #define MIN_DRAG 5	// limite entre clic et drag en pixels
 enum ghost_dragmode { nil, select_zone, pan, zoom };
@@ -106,6 +117,8 @@ public :
 GtkWidget * smenu_y;    // scale menu : menu contextuel pour les echelles Y
 // constructeur
 gstrip() : smenu_y(NULL) {};
+
+void add_layer( layer_base * lacourbe );
 };
 
 // gpanel derive du panel de jluplot
@@ -120,6 +133,7 @@ GdkWindow * drawab;	// GDK drawable de la drawing area contenant le panel
 GdkGC * gc;		// GDK drawing context
 // widgets associes
 GtkWidget * smenu_x;    // scale menu : menu contextuel pour les echelles X
+GtkWidget * gmenu;	// global menu : menu contextuel principal
 ghost_drag drag;
 // flags et indicateurs
 int offscreen_flag;	// autorise utilisation du buffer offscreen aka drawpad
@@ -132,7 +146,7 @@ void (*clic_call_back)(double,double,void*);	// pointeur callback pour clic sur 
 void (*key_call_back)(int,void*);		// pointeur callback pour touche clavier
 void * call_back_data;			// pointeur a passer aux callbacks
 
-// constructeur (N.B. l'initialisation est obligatoirmeent completee par la methode layout() )
+// constructeur (N.B. l'initialisation est obligatoirement completee par la methode layout() )
 gpanel() : laregion(NULL), drawpad(NULL), offcai(NULL), drawab(NULL), gc(NULL),
 	   offscreen_flag(1), force_repaint(1), xcursor(-1.0), xdirty(-1.0),
 	   paint_cnt(0), clic_call_back(NULL), key_call_back(NULL) {};
@@ -148,6 +162,7 @@ void add_strip( gstrip * labande ) {
 void configure();
 void expose();
 void toggle_vis( unsigned int ib, int ic );
+void copy_gmenu2visi();		// copie les checkboxes du menu contextuel vers les flags 'visible' 
 void paint();			// copie automatique du drawpad sur la drawing area
 void draw();			// dessin vectoriel automatique sur le drawpad
 void drawpad_resize();		// automatique, alloue ou re-alloue le pad, cree le cairo
@@ -167,8 +182,9 @@ GtkWidget * edesc;
 // pdf service methods
 void pdf_modal_layout( GtkWidget * mainwindow );
 void pdf_ok_call();
-// scale menu service
+// contex menu service
 GtkWidget * mksmenu( const char * title );
+GtkWidget * mkgmenu();
 static void smenu_set_title( GtkWidget * lemenu, const char *titre );
 int selected_strip;	// strip duquel on a appele le menu (flags de marges inclus)
 // bindkey service

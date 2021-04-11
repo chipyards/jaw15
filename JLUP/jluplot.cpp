@@ -567,16 +567,28 @@ full_valid = 1;
 
 void panel::draw( cairo_t * cai )
 {
-unsigned int i;
-
 cairo_save( cai );
 cairo_translate( cai, mx, 0 );
+// fill the background red JUST TO CHECK THAT THEY PAINT EVERYWHERE
+// cairo_set_source_rgb( cai, 1, 0, 0 );
+// cairo_paint(cai);	// paint the complete clip area
+int strip_draw_cnt = 0;
 // on veut la courbe 0 en haut...
-for ( i = 0; i < bandes.size(); i++ )
-    {
-    bandes.at(i)->draw( cai );
-    cairo_translate( cai, 0, bandes.at(i)->fdy );
-    }
+for	( unsigned int ib = 0; ib < bandes.size(); ib++ )
+	{
+	if	( bandes.at(ib)->visible )
+		{
+		bandes.at(ib)->draw( cai );
+		cairo_translate( cai, 0, bandes.at(ib)->fdy );
+		++strip_draw_cnt;
+		}
+	}
+if	( strip_draw_cnt == 0 )	// pas de strip ? fond gris
+	{
+	cairo_set_source_rgb( cai, 0.8, 0.8, 0.8 );
+	cairo_paint(cai);	// paint the complete clip area
+	}
+force_redraw = 0;
 cairo_restore( cai );
 }
 

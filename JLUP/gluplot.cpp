@@ -75,6 +75,8 @@ static void gpanel_pdf_ok_button( GtkWidget *widget, gpanel * p )
 p->pdf_ok_call();
 }
 
+/* Callbacks des  Menus contextuels */
+
 static void smenu_full( GtkWidget *widget, gpanel * p )
 {
 // printf("Full clic %08x\n", p->selected_strip );
@@ -118,6 +120,45 @@ else if ( p->selected_strip & CLIC_MARGE_GAUCHE )
 p->force_repaint = 1;
 }
 
+static void gmenu_full( GtkWidget *widget, gpanel * p )
+{
+p->fullMN(); p->force_repaint = 1;
+}
+
+static void gmenu_all( GtkWidget *widget, gpanel * p )
+{
+int visi_zone = 0;
+GList * momes = gtk_container_get_children( GTK_CONTAINER(p->gmenu) );
+while	( momes )
+	{	// momes est son propre iterateur
+	if	( GTK_IS_CHECK_MENU_ITEM( momes->data ) )
+		{
+		visi_zone = 1;
+		gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(momes->data), true );
+		}
+	else	if	( visi_zone )	// pour ne pas iterer sur des items ajoutes apres les visi check boxes
+			break;
+	momes = momes->next;
+	}
+				// les dimensions de la drawing area ne changent pas
+p->resize( p->fdx, p->fdy );	// mais il faut recalculer la hauteur des bandes si le nombre de bandes change
+p->refresh_proxies();		// cela inclut p->force_redraw = 1;
+p->force_repaint = 1;
+}
+
+// cette callback ne cherche pas a identifier l'item, elle va systematiquement
+// copier toutes les visibilites du menu vers les layers, et mettre a jour celles des strips automatiquement
+static void gmenu_visi( GtkWidget *widget, gpanel * p )
+{
+p->copy_gmenu2visi();
+				// les dimensions de la drawing area ne changent pas
+p->resize( p->fdx, p->fdy );	// mais il faut recalculer la hauteur des bandes si le nombre de bandes change
+p->refresh_proxies();		// cela inclut p->force_redraw = 1;
+p->force_repaint = 1;
+}
+
+/* callbacks de la zoombar */
+
 static gboolean gzoombar_click( GtkWidget * widget, GdkEventButton * event, gzoombar * z )
 {
 z->clic( event );
@@ -152,6 +193,31 @@ return TRUE;	// MAIS POURQUOI ???
 void gzoombar_zoom( void * z, double k0, double k1 )
 {
 ((gzoombar *)z)->zoom( k0, k1 );
+}
+
+/** ===================== gstrip methods =============================== */
+
+void gstrip::add_layer( layer_base * lacourbe )
+{
+int istrip, ilay; char idbuf[8];
+// coordonnees et id du nouveau layer
+istrip = vectindex< strip * >( &this->parent->bandes, this );
+ilay = this->courbes.size();
+snprintf( idbuf, sizeof(idbuf), "%02d_%02d", istrip, ilay );
+// label par defaut si necessaire
+if	( lacourbe->label.length() == 0 )
+	lacourbe->label = string(idbuf);
+// appendre le layer au strip
+strip::add_layer( lacourbe );
+// creer la check box pour visibilite dans le menu contectuel principal
+GtkWidget * curitem = gtk_check_menu_item_new_with_label( lacourbe->label.c_str() );
+gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), true );
+// lui donner un id et le connecter a la callback commune
+gtk_widget_set_name( curitem, idbuf );
+g_signal_connect( G_OBJECT( curitem ), "toggled", G_CALLBACK( gmenu_visi ), (gpointer)parent );
+// l'ajouter au menu
+gtk_menu_shell_append( GTK_MENU_SHELL( ((gpanel *)parent)->gmenu ), curitem );
+gtk_widget_show ( curitem );
 }
 
 /** ===================== gpanel initalization methods =============================== */
@@ -191,6 +257,7 @@ drag.mode = nil;
 selected_key = 0;
 
 smenu_x = mksmenu("X AXIS");
+gmenu = mkgmenu();
 // on desactive ici le double buffer pour le controler plus finement
 // avec gdk_window_begin_paint_region() et gdk_window_end_paint()
 gtk_widget_set_double_buffered( widget, FALSE );
@@ -306,25 +373,15 @@ if	( ( force_redraw ) || ( strip_redraws ) )
 	cairo_set_font_size( offcai, 12.0 );
 	cairo_set_line_width( offcai, 0.5 );
 	// draw the curves
-	cairo_save( offcai );
-	cairo_translate( offcai, mx, 0 );
 	if	( force_redraw )
 		{
-		// fill the background JUST FOR CHECK THAT THEY PAINT EVERYWHERE
-		// cairo_set_source_rgb( offcai, 1, 0, 0 );
-		// cairo_paint(offcai);	// paint the complete clip area
-		for	( ib = 0; ib < bandes.size(); ib++ )
-			{
-			if	( bandes.at(ib)->visible )
-				{
-				bandes.at(ib)->draw( offcai );
-				cairo_translate( offcai, 0, bandes.at(ib)->fdy );
-				}
-			}
-		force_redraw = 0;
 		// printf("panel full draw end\n");
+		panel::draw( offcai );
+		// N.B. panel::force_redraw est RAZ par panel::draw
 		}
 	else	{
+		cairo_save( offcai );
+		cairo_translate( offcai, mx, 0 );
 		for	( ib = 0; ib < bandes.size(); ib++ )
 			{
 			if	( bandes.at(ib)->visible )
@@ -336,8 +393,8 @@ if	( ( force_redraw ) || ( strip_redraws ) )
 				}
 			}
 		// printf("panel selective draw end\n");
+		cairo_restore( offcai );
 		}
-	cairo_restore( offcai );
 	xcursor = -1.0;	// il y a pu avoir zoom ou pan X, eviter de redessiner le curseur au meme X
 	}
 }
@@ -369,9 +426,6 @@ if	( force_repaint )
 	if	( offscreen_flag == 0 )
 		{
 		// printf("gpanel fallback to panel::draw\n");
-		// fill the background (RED just for test)
-		// cairo_set_source_rgb( cair, 1, 0, 0 );
-		// cairo_paint(cair);	// paint the complete clip area
 		// preparer font a l'avance (panel::draw ne le fait pas !)
 		cairo_select_font_face( cair, "Courier", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 		cairo_set_font_size( cair, 12.0 );
@@ -451,12 +505,83 @@ if	( ic < 0 )
 else	{
 	if	( ic >= (int)bandes[ib]->courbes.size() )
 		return;
-	bandes[ib]->courbes[ic]->visible ^= 1;
+	// on ne peut pas actionner directement les flags 'visible', il faut passer
+	// par les check-boxes du menu contextuel...
+	// bandes[ib]->courbes[ic]->visible ^= 1;
+	int istrip, ilayer;
+	int visi_zone = 0;
+	const char * check_box_id;
+	GList * momes = gtk_container_get_children( GTK_CONTAINER(gmenu) );
+	while	( momes )
+		{	// momes est son propre iterateur
+		if	( GTK_IS_CHECK_MENU_ITEM( momes->data ) )
+			{
+			visi_zone = 1;
+			check_box_id = gtk_widget_get_name( GTK_WIDGET(momes->data) );
+			istrip = atoi( check_box_id );		// format ss_ll
+			ilayer = atoi( check_box_id + 3 );
+			if	( ( istrip == (int)ib ) && ( ilayer == ic ) )
+				{
+				GtkCheckMenuItem * litem = GTK_CHECK_MENU_ITEM(momes->data);
+				gtk_check_menu_item_set_active( litem, !gtk_check_menu_item_get_active( litem ) );
+				// printf("visi %s : %d : %d.%d\n", gtk_menu_item_get_label( GTK_MENU_ITEM(momes->data) ),
+				//	gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(momes->data) ), istrip, ilayer );
+				// fflush(stdout);
+				}
+			}
+		else	if	( visi_zone )	// pour ne pas iterer sur des items ajoutes apres les visi check boxes
+				break;
+		momes = momes->next;
+		}
 	}
 				// les dimensions de la drawing area ne changent pas
 this->resize( fdx, fdy );	// mais il faut recalculer la hauteur des bandes
 refresh_proxies();
 force_repaint = 1;
+}
+
+// copie les checkboxes du menu contextuel vers les flags 'visible' des layers
+// et intuite les flags 'visible' des strips
+void gpanel::copy_gmenu2visi()
+{
+unsigned int istrip, ilayer;
+int visi_zone = 0;
+const char * check_box_id;
+GList * momes = gtk_container_get_children( GTK_CONTAINER(gmenu) );
+// visibilite des layers
+while	( momes )
+	{	// momes est son propre iterateur
+	if	( GTK_IS_CHECK_MENU_ITEM( momes->data ) )
+		{
+		visi_zone = 1;
+		check_box_id = gtk_widget_get_name( GTK_WIDGET(momes->data) );
+		istrip = atoi( check_box_id );		// format ss_ll
+		ilayer = atoi( check_box_id + 3 );
+		if	( istrip < bandes.size() )
+			{
+			strip * lestrip = bandes[istrip];
+			if	( ilayer < lestrip->courbes.size() )
+				{
+				lestrip->courbes[ilayer]->visible =
+					(gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(momes->data) )?1:0);
+				}
+			}
+		// printf("visi %s : %d : %d.%d\n", gtk_menu_item_get_label( GTK_MENU_ITEM(momes->data) ),
+		//	gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(momes->data) ), istrip, ilayer );
+		// fflush(stdout);
+		}
+	else	if	( visi_zone )	// pour ne pas iterer sur des items ajoutes apres les visi check boxes
+			break;
+	momes = momes->next;
+	}
+// visibilite des strips (automatique)
+for	( istrip = 0; istrip < bandes.size(); ++istrip )
+	{
+	strip * lestrip = bandes[istrip];
+	lestrip->visible = 0;
+	for	( ilayer = 0; ilayer < lestrip->courbes.size(); ++ilayer )
+		lestrip->visible |= lestrip->courbes[ilayer]->visible;
+	}
 }
 
 /** ===================== gpanel event handling methods =============================== */
@@ -529,11 +654,18 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 			{
 			char utbuf[32];	// buffer pour scientout
 			char vtbuf[32];	// buffer pour scientout
-			if	( istrip < 0 )
-				printf("clic hors graphique (%d)\n", istrip );
-			else	{
-				if	( ( istrip & CLIC_MARGE ) == 0 )
-					{	// clic dans une courbe
+			if	( istrip >= 0 )
+				{
+				if	( istrip & CLIC_MARGE_INF )
+					{
+					scientout( utbuf, M, 0.002 * tdq );
+					printf("clic marge inf M = %s\n", utbuf );
+					}
+				else if	( istrip & CLIC_MARGE_GAUCHE )
+					{
+					printf("clic marge gauche strip %d\n", istrip & ~CLIC_MARGE );
+					}
+				else	{	// clic dans une courbe
 					if	( clic_call_back )
 						clic_call_back( M, N, call_back_data );
 					else	{
@@ -543,16 +675,8 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 						printf("clic strip %d [%s:%s]\n", istrip, utbuf, vtbuf );
 						}
 					}
-				else	{
-					if	( istrip & CLIC_MARGE_GAUCHE )
-						printf("clic marge gauche strip %d\n", istrip & ~CLIC_MARGE );
-					else if	( istrip & CLIC_MARGE_INF )
-						{
-						scientout( utbuf, M, 0.002 * tdq );
-						printf("clic marge inf M = %s\n", utbuf );
-						}
-					}
 				}
+			else	printf("clic hors graphique (%d)\n", istrip );
 			}
 		else if	( event->button == 3 )
 			{
@@ -565,12 +689,19 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 				else if	( istrip & CLIC_MARGE_GAUCHE )
 					{
 					int lestrip = istrip & (~CLIC_MARGE);
-					printf("context menu strip %d\n", lestrip );
 					GtkWidget * lemenu = ((gstrip *)bandes.at(lestrip))->smenu_y;
 					if	( lemenu )
 						gtk_menu_popup( (GtkMenu *)lemenu, NULL, NULL, NULL, NULL,
 								event->button, event->time );
 					}
+				else	{	// clic dans une courbe
+					gtk_menu_popup( (GtkMenu *)gmenu, NULL, NULL, NULL, NULL,
+							event->button, event->time );
+					}
+				}
+			else	{	// aucun strip visible ? 
+				gtk_menu_popup( (GtkMenu *)gmenu, NULL, NULL, NULL, NULL,
+							event->button, event->time );
 				}
 			}
 		drag.mode = nil;
@@ -798,7 +929,7 @@ gtk_main_quit();
 
 /** ===================== context menus =================================== */
 
-// menu de base, commun pour X-Axis et Y-Axis - peut être enrichi par l'application.
+// scale menu, commun pour X-Axis et Y-Axis - peut être enrichi par l'application.
 // chaque callback peut differencier X de Y, et identifier le strip pour Y
 // grace au pointeur sur le panel qui lui est passe, qui lui donne acces a selected_strip
 GtkWidget * gpanel::mksmenu( const char * title )
@@ -847,6 +978,37 @@ if	( momes )
 		gtk_menu_item_set_label( GTK_MENU_ITEM(momes->data), titre );
 	}
 }
+
+// menu global, commun à tous les strips - peut être enrichi par l'application.
+// chaque callback peut identifier la courbe concernee grace au pointeur sur le widget
+// qui est stocke dans chaque strip et chaque courbe
+// et au pointeur sur le panel qui lui est passe
+GtkWidget * gpanel::mkgmenu()
+{
+GtkWidget * curmenu;
+GtkWidget * curitem;
+
+curmenu = gtk_menu_new ();    // Don't need to show menus
+
+curitem = gtk_menu_item_new_with_label("Full Zoom");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( gmenu_full ), (gpointer)this );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_menu_item_new_with_label("All Visible");
+g_signal_connect( G_OBJECT( curitem ), "activate",
+		  G_CALLBACK( gmenu_all ), (gpointer)this );
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+curitem = gtk_separator_menu_item_new();
+gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
+gtk_widget_show ( curitem );
+
+return curmenu;
+}
+
 
 /** ===================== ghost_drag methods ===================================== */
 

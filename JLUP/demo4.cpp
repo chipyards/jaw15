@@ -24,6 +24,8 @@ using namespace std;
 
 #include <profileapi.h>		// pour chronometrage
 
+#define PAINT_PROFILER
+
 // unique variable globale exportee pour gasp() de modpop3
 GtkWindow * global_main_window = NULL;
 
@@ -36,6 +38,7 @@ int idle_call( glostru * glo )
 // moderateur de drawing
 if	( glo->panneau1.force_repaint )
 	{
+	#ifdef PAINT_PROFILER
 	LARGE_INTEGER freq, start, stop;
 	QueryPerformanceFrequency(&freq);	// en Hz; t.q. 10000000
 	double fkHz = ((double)freq.QuadPart) / 1000.0;
@@ -45,6 +48,9 @@ if	( glo->panneau1.force_repaint )
 	QueryPerformanceCounter(&stop);
 	double dur = (double)(start.QuadPart - stop.QuadPart);
 	printf("paint %g ms\n", dur / fkHz ); fflush(stdout);
+	#else
+	glo->panneau1.paint();
+	#endif
 	}
 	
 return( -1 );
@@ -91,6 +97,8 @@ switch	( v )
 	case '1' : glo->panneau1.toggle_vis( 0, 1 ); break;
 	case GDK_KEY_KP_2 :
 	case '2' : glo->panneau1.toggle_vis( 0, 2 ); break;
+	case GDK_KEY_KP_3 :
+	case '3' : glo->panneau1.toggle_vis( 1, 0 ); break;
 	// l'option offscreen drawpad
 	case 'o' : glo->panneau1.offscreen_flag = 1; break;
 	case 'n' : glo->panneau1.offscreen_flag = 0; break;
@@ -144,11 +152,12 @@ void glostru::process()
 {
 gen_data();
 
-// layout jluplot
+// layout panneau1
 
 // marge pour les textes
 // panneau1.mx = 60;
-// panneau1.offscreen_flag = 0;
+
+panneau1.offscreen_flag = 0;
 
 // creer le strip pour les waves
 gstrip * curbande;
@@ -164,41 +173,44 @@ curbande->subtk = 2;
 // creer un layer
 layer_u<float> * curcour;
 curcour = new layer_u<float>;
+curcour->label = string("float");	// label AVANT add_layer
 curbande->add_layer( curcour );
 
 // configurer le layer
-curcour->set_km( 1.0 );
+curcour->set_km( 1.0 );			// sets APRES add_layer
 curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
-curcour->label = string("float");
 curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 curcour->ecostroke = ecostroke;
+
+// curbande->add_layer( curcour );
 
 // creer un layer
 layer_u<short> * curcour2;
 curcour2 = new layer_u<short>;
+curcour2->label = string("s16");	// label AVANT add_layer
 curbande->add_layer( curcour2 );
 
 // configurer le layer
-curcour2->set_km( 1.0 );
+curcour2->set_km( 1.0 );		// sets APRES add_layer
 curcour2->set_m0( 0.0 );
 curcour2->set_kn( 32767.0 );
 curcour2->set_n0( 0.0 );
-curcour2->label = string("s16");
 curcour2->fgcolor.set( 0.0, 0.0, 0.8 );
 curcour2->ecostroke = ecostroke;
+
 // creer un layer
 layer_u<unsigned short> * curcour3;
 curcour3 = new layer_u<unsigned short>;
+curcour3->label = string("u16");	// label AVANT add_layer
 curbande->add_layer( curcour3 );
 
 // configurer le layer
-curcour3->set_km( 1.0 );
+curcour3->set_km( 1.0 );		// sets APRES add_layer
 curcour3->set_m0( 0.0 );
 curcour3->set_kn( 32767.0 );
 curcour3->set_n0( 0.0 );
-curcour3->label = string("u16");
 curcour3->fgcolor.set( 0.75, 0.0, 0.0 );
 curcour3->ecostroke = ecostroke;
 curcour3->style = 1;
@@ -235,14 +247,14 @@ curbande->subtk = 10;
 // creer un layer
 // layer_u<unsigned short> * curcour3;
 curcour3 = new layer_u<unsigned short>;
+curcour3->label = string("u16/dB");	// label AVANT add_layer
 curbande->add_layer( curcour3 );
 
 // configurer le layer
-curcour3->set_km( 1.0 );
+curcour3->set_km( 1.0 );		// sets APRES add_layer
 curcour3->set_m0( 0.0 );
 curcour3->set_kn( 1.0 );
 curcour3->set_n0( 0.0 );
-curcour3->label = string("u16");
 curcour3->fgcolor.set( 0.75, 0.0, 0.0 );
 curcour3->ecostroke = ecostroke;
 curcour3->style = 2;
