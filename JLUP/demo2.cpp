@@ -21,6 +21,7 @@ using namespace std;
 #include "layer_f_param.h"
 
 #include "../modpop3.h"
+#include "../cli_parse.h"
 #include "demo2.h"
 
 // unique variable globale exportee pour gasp() de modpop3
@@ -42,34 +43,44 @@ if	( glo->running )
 		glo->gen_data_point();
 	// cadrages avec exemples de moderations
 	if	( ( ticks % 8 ) == 0 )
-		{		// strip du fifo en scroll continu
-		layer_f_fifo * lelay0 = (layer_f_fifo *)glo->panneau1.bandes[0]->courbes[0];
-		layer_f_fifo * lelay1 = (layer_f_fifo *)glo->panneau1.bandes[0]->courbes[1];
-		// cadrage vertical
-		lelay0->scan();
-		lelay1->scan();
-		glo->panneau1.bandes[0]->fullN();
-		// cadrage horizontal, fenetre de largeur constante Uspan
-		double U0, U1;
-		U1 = (double)lelay0->Ue + 0.05 * glo->Uspan;
-		U0 = U1 - glo->Uspan;
-		glo->panneau1.zoomM( U0, U1 );
-		glo->panneau1.force_repaint = 1;
-		}
+		if	( ( glo->option_tabs == 0 ) || ( gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->nmain) ) == 0 ) )
+			{		// strip du fifo en scroll continu
+			layer_f_fifo * lelay0 = (layer_f_fifo *)glo->panneau1.bandes[0]->courbes[0];
+			layer_f_fifo * lelay1 = (layer_f_fifo *)glo->panneau1.bandes[0]->courbes[1];
+			// cadrage vertical
+			lelay0->scan();
+			lelay1->scan();
+			glo->panneau1.bandes[0]->fullN();
+			// cadrage horizontal, fenetre de largeur constante Uspan
+			double U0, U1;
+			U1 = (double)lelay0->Ue + 0.05 * glo->Uspan;
+			U0 = U1 - glo->Uspan;
+			glo->panneau1.zoomM( U0, U1 );
+			glo->panneau1.force_repaint = 1;
+			}
 	if	( ( ticks % 32 ) == 0 )
-		{		// strip XY
-		layer_f_param * lelay2 = (layer_f_param *)glo->panneau2.bandes[0]->courbes[0];
-		lelay2->scan();
-		glo->panneau2.fullMN(); glo->panneau2.force_repaint = 1;
-		}
+		if	( ( glo->option_tabs == 0 ) || ( gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->nmain) ) == 1 ) )
+			{		// strip XY
+			layer_f_param * lelay2 = (layer_f_param *)glo->panneau2.bandes[0]->courbes[0];
+			lelay2->scan();
+			glo->panneau2.fullMN(); glo->panneau2.force_repaint = 1;
+			}
 	}
 
 // moderateur de drawing
-if	( glo->panneau1.force_repaint )
-	glo->panneau1.paint();
-	
-if	( glo->panneau2.force_repaint )
-	glo->panneau2.paint();
+// N.B. les pages du notebook sont toujours toutes "visibles" au sens de gtk_widget_get_visible()
+// les pages cachees sont non realized au sens de gtk_widget_get_realized() jusqu'a etre affichees
+// une premiere fois. Ceci est detecte par GDK_IS_DRAWABLE(larea->window) dans gluplot.
+// Le test gtk_notebook_get_current_page() est la meilleure maniere de moderer l'activite. 
+if	( 
+	( glo->panneau1.force_repaint ) &&
+	( ( glo->option_tabs == 0 ) || ( gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->nmain) ) == 0 ) )
+	) glo->panneau1.paint();
+
+if	(
+	( glo->panneau2.force_repaint ) &&
+	( ( glo->option_tabs == 0 ) || ( gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->nmain) ) == 1 ) )
+	) glo->panneau2.paint();
 
 return( -1 );
 }
@@ -207,7 +218,7 @@ if	( razflag )
 	}
 else	{
 	Xbuf[i&(QBUF-1)] = X;
-	Ybuf[i&(QBUF-1)] = Y; 
+	Ybuf[i&(QBUF-1)] = Y;
 	i++;
 	if	( i <= QBUF )
 		lelay2->qu = i;
@@ -217,16 +228,11 @@ phi += 0.02;
 amp *= 1.0002;
 }
 
-void glostru::process()
+void glostru::layout1()
 {
-
-// layout jluplot
-
-// marge pour les textes
-// panneau1.mx = 60;
 // panneau1.offscreen_flag = 0;
 
-// creer le strip pour les waves
+// creer le strip
 gstrip * curbande;
 curbande = new gstrip;
 panneau1.add_strip( curbande );
@@ -263,11 +269,15 @@ curcour->fgcolor.set( 0.0, 0.0, 0.8 );
 
 // connexion layout - data
 // sans objet pour layer_f_fifo : il possede les data
+}
 
+void glostru::layout2()
+{
 // layout jluplot pour panneau2
 panneau2.offscreen_flag = 0;
 
 // creer le strip
+gstrip * curbande;
 curbande = new gstrip;
 panneau2.add_strip( curbande );
 
@@ -296,7 +306,6 @@ curcour2 = (layer_f_param *)panneau2.bandes[0]->courbes[0];
 curcour2->U = Xbuf;
 curcour2->V = Ybuf;
 curcour2->qu = 0;
-
 }
 
 
@@ -309,6 +318,10 @@ GtkWidget *curwidg;
 
 gtk_init(&argc,&argv);
 setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
+
+cli_parse * clip = new cli_parse( argc, (const char **)argv, "" );
+if	( clip->get('N') )
+	glo->option_tabs = 1;
 
 curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 
@@ -327,38 +340,50 @@ curwidg = gtk_vbox_new( FALSE, 5 ); /* spacing ENTRE objets */
 gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
-// paire verticale "paned" pour : en haut panel X(t) Y(t) avec zoombar, en bas panel Y(X) 
-curwidg = gtk_vpaned_new ();
-gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
-// gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 5 );	// le tour exterieur
-gtk_widget_set_size_request( curwidg, 800, 700 );
-glo->vpans = curwidg;
-
-// creer boite verticale pour panel et sa zoombar
+// creer boite verticale pour panel X(t) Y(t) et sa zoombar
 curwidg = gtk_vbox_new( FALSE, 0 ); /* spacing ENTRE objets */
-gtk_paned_pack1( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
+// gtk_paned_pack1( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
 glo->vpan1 = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
 curwidg = gtk_drawing_area_new();
 gtk_widget_set_size_request( curwidg, 800, 80 );	// hauteur mini, la hauteur initiale fixee par parent
-glo->panneau1.events_connect( GTK_DRAWING_AREA( curwidg ) );
 gtk_box_pack_start( GTK_BOX( glo->vpan1 ), curwidg, TRUE, TRUE, 0 );
 glo->darea1 = curwidg;
 
-/* creer une drawing area  qui ne sera pas resizee en hauteur par la hbox
-   mais quand meme en largeur (par chance !!!) */
+/* creer une drawing area pour la zoombar */
 curwidg = gtk_drawing_area_new();
 glo->zbar.events_connect( GTK_DRAWING_AREA( curwidg ) );
 gtk_box_pack_start( GTK_BOX( glo->vpan1 ), curwidg, FALSE, FALSE, 0 );
 glo->zarea1 = curwidg;
 
-/* creer une drawing area resizable depuis la fenetre */
+/* creer une drawing area pour panel Y(X) */
 curwidg = gtk_drawing_area_new();
 gtk_widget_set_size_request( curwidg, 800, 80 );	// hauteur mini, la hauteur initiale fixee par parent
-glo->panneau2.events_connect( GTK_DRAWING_AREA( curwidg ) );
-gtk_paned_pack2( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
+// gtk_paned_pack2( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
 glo->darea2 = curwidg;
+
+if	( glo->option_tabs )
+	{		// layout type notebook
+	curwidg = gtk_notebook_new();
+	gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
+	gtk_widget_set_size_request( curwidg, 800, 700 );
+	glo->nmain = curwidg;
+	// premier onglet //
+	gtk_notebook_append_page( GTK_NOTEBOOK( glo->nmain), glo->vpan1, gtk_label_new("courbes X(t), Y(t)") );
+	// second onglet //
+	gtk_notebook_append_page( GTK_NOTEBOOK( glo->nmain), glo->darea2, gtk_label_new("courbe Y(X)") );
+	}
+else	{		// paire verticale "paned" pour : en haut panel X(t) Y(t) avec zoombar, en bas panel Y(X)
+	curwidg = gtk_vpaned_new ();
+	gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
+	// gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 5 );	// le tour exterieur
+	gtk_widget_set_size_request( curwidg, 800, 700 );
+	glo->vpans = curwidg;
+	// y placer les deux panels
+	gtk_paned_pack1( GTK_PANED(glo->vpans), glo->vpan1, TRUE, FALSE ); // resizable, not shrinkable
+	gtk_paned_pack2( GTK_PANED(glo->vpans), glo->darea2, TRUE, FALSE ); // resizable, not shrinkable
+	}
 
 /* creer boite horizontale */
 curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
@@ -384,14 +409,19 @@ glo->braz = curwidg;
 glo->panneau1.zoombar = &glo->zbar;
 glo->panneau1.zbarcall = gzoombar_zoom;
 glo->zbar.panneau = &glo->panneau1;
-
-gtk_widget_show_all( glo->wmain );
-
+// connecter les callbacks events --> appli
 glo->panneau1.clic_callback_register( clic_call_back1, (void *)glo );
 glo->panneau1.key_callback_register( key_call_back1, (void *)glo );
 glo->panneau2.key_callback_register( key_call_back2, (void *)glo );
 
-glo->process();
+glo->panneau1.events_connect( GTK_DRAWING_AREA( glo->darea1 ) );
+glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
+
+glo->layout1();
+
+gtk_widget_show_all( glo->wmain );
+
+glo->layout2();
 
 g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
 

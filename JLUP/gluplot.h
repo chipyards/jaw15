@@ -92,9 +92,10 @@ Cycle de vie du gpanel :
 			  ==> gpanel::paint() appelle automatiquement gpanel::configure() (via init_flags)
 			  (il n'y a pas d'inconvenient a faire des appels redondants de cette fonction)
 			- gpanel_configure() peut etre appele par GTK avant que la fenetre GDK gpanel::larea->window
-			  soit creee (c'est un BUG, mais il faut vivre avec) ==> incident fatal
+			  soit creee (c'est un BUG, mais il faut vivre avec)
+			  ==> gpanel::configure() retourne sans rien faire pour eviter incident fatal
 			- gpanel::paint() peut etre appele par l'appli avant que la fenetre GDK gpanel::larea->window
-			  soit creee ==> incident fatal
+			  soit creee ==> solution similaire evite incident fatal
 	- l'application cree le layout c'est a dire les strips et les layers
 	- la boucle principale va appeler gpanel::paint() chaque fois qu'un event expose a ete vu, ou qu'un event
 	  interne le demande (via force_repaint)
@@ -102,9 +103,19 @@ Cycle de vie du gpanel :
 	- GTK va appeler gpanel_configure() chaque fois que les dimensions de la drawing area changent
 	  ==> appel de panel::resize() pour redimensionner le contenu
 	- des evenements internes peuvent aussi appeler panel::resize()
-Flags d'initialisation
+Flags d'initialisation :
 	- jluplot : full_valid automatise le fullMN() initial necessaire pour que les transformations marchent
 	- gluplot : init_flags automatise l'appel initial de gpanel::configure()
+Contraintes de sequencement :
+	- gpanel::events_connect() doit etre appele AVANT gtk_widget_show_all() :
+		en effet on ne peut pas connecter d'event callback a un widget qui est "realized"
+		(on suppose que "realized" veut dire dont tous les ancetres sont "shown")
+	- depuis qu'on a deplace 'laregion = gdk_drawable_get_clip_region()' de gpanel::configure() vers
+	  gpanel::paint() (ce qui semble redondant), le layout (creation des strips et layers) peut etre fait
+	  AVANT ou APRES gtk_widget_show_all().
+	  Le layout n'a d'interaction avec la region que au travers de son influence sur configure() via bandes.size().
+	- si la drawing area est dans un tab cache d'un GtkNotebook, la fenetre GDK gpanel::larea->window
+	  n'est pas creee, c'est supporte par gpanel_configure() et gpanel::paint().
 */
 
 // trouver l'index d'un element dans un vecteur (a condition que les elements supportent l'operateur == )
@@ -177,6 +188,7 @@ int selected_key;	// touche couramment pressee
 
 // constructeur
 gpanel() : larea(NULL), laregion(NULL), drawpad(NULL), offcai(NULL), drawab(NULL), gc(NULL),
+	smenu_x( NULL ), gmenu(NULL),	
 	init_flags(0), offscreen_flag(1), force_repaint(1), xcursor(-1.0), xdirty(-1.0),
 	clic_call_back(NULL), key_call_back(NULL), selected_strip(0), selected_key(0)	
 	{};

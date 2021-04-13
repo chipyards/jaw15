@@ -215,6 +215,8 @@ gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), true );
 gtk_widget_set_name( curitem, idbuf );
 g_signal_connect( G_OBJECT( curitem ), "toggled", G_CALLBACK( gmenu_visi ), (gpointer)parent );
 // l'ajouter au menu
+if	( ((gpanel *)parent)->gmenu == NULL )
+	((gpanel *)parent)->gmenu = ((gpanel *)parent)->mkgmenu();
 gtk_menu_shell_append( GTK_MENU_SHELL( ((gpanel *)parent)->gmenu ), curitem );
 gtk_widget_show ( curitem );
 }
@@ -254,8 +256,10 @@ gtk_widget_set_events ( larea, gtk_widget_get_events(larea)
 //			| GDK_POINTER_MOTION_HINT_MASK
 		      );
 // on peut preparer les menus maintenant que GTK est demarre
-smenu_x = mksmenu("X AXIS");
-gmenu = mkgmenu();
+if	( smenu_x == NULL )
+	smenu_x = mksmenu("X AXIS");
+if	( gmenu == NULL )
+	gmenu = mkgmenu();
 // on desactive ici le double buffer pour le controler plus finement
 // avec gdk_window_begin_paint_region() et gdk_window_end_paint()
 gtk_widget_set_double_buffered( larea, FALSE );
@@ -351,7 +355,7 @@ else	{	// mode B2
 // typiquement force_redraw est mis en cas de zoom ou pan ou modif data
 void gpanel::draw()
 {
-unsigned int ib, strip_redraws;
+unsigned int ib, strip_redraws = 0;
 // faut-il un redraw partiel ?
 if	( force_redraw == 0 )
 	{
@@ -407,6 +411,12 @@ if	( init_flags == 0 )
 	configure();
 	force_repaint = 1; return;
 	}
+if	( !GDK_IS_DRAWABLE(larea->window) )
+	{
+	printf("gpanel::paint() : area not drawable\n"); fflush(stdout);
+	force_repaint = 1; return;
+	}
+// printf("gpanel::paint() : force = %d, init_flags = %d\n", force_repaint, init_flags ); fflush(stdout);
 
 cairo_t * cair = NULL;
 
@@ -419,6 +429,11 @@ if	( force_repaint )
 	// a ete desactive dans gpanel::events_connect() :
 	//	gtk_widget_set_double_buffered( widget, FALSE );
 	//
+	// mettre a jour la region qui sert pour begin_paint
+	if	( laregion )
+		gdk_region_destroy( laregion );
+	laregion = gdk_drawable_get_clip_region( larea->window );
+	// ouvrir un buffer
 	gdk_window_begin_paint_region( larea->window, laregion );
 	cair = gdk_cairo_create( larea->window );
 	cairo_set_line_width( cair, 0.5 );
@@ -491,15 +506,21 @@ if	( bandes.size() == 0 )		// configure premature (pas de layout)
 	printf("configure premature (pas de layout)\n"); fflush(stdout);
 	init_flags = 0; return;
 	}
+if	( !GDK_IS_DRAWABLE(larea->window) )
+	{
+	printf("gpanel::configure() : area not drawable\n"); fflush(stdout);
+	init_flags = 0; return;
+	}
 
 int ww, wh;
 gdk_drawable_get_size( larea->window, &ww, &wh );
-// printf("gpanel configuzed %d x %d\n", ww, wh ); fflush(stdout);
+// printf("gpanel::configure() : %d x %d, setting init_flags\n", ww, wh ); fflush(stdout);
 resize( ww, wh );
-// mettre a jour la region qui sert pour begin_paint
-if	( laregion )
-	gdk_region_destroy( laregion );
-laregion = gdk_drawable_get_clip_region( larea->window );
+// mettre a jour la region qui sert pour begin_paint ( deplace dans gpanel::paint() )
+// if	( laregion )
+//	gdk_region_destroy( laregion );
+// laregion = gdk_drawable_get_clip_region( larea->window );
+
 init_flags = 1;
 force_repaint = 1;
 }
@@ -707,7 +728,7 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 							event->button, event->time );
 					}
 				}
-			else	{	// aucun strip visible ? 
+			else	{	// aucun strip visible ?
 				gtk_menu_popup( (GtkMenu *)gmenu, NULL, NULL, NULL, NULL,
 							event->button, event->time );
 				}
@@ -843,7 +864,7 @@ fflush(stdout);
 
 /** ===================== pdf service methods =================================== */
 
-// fonction bloquante : GTK file chooser (si on n'aime pas, appeler panel::pdfplot() directement)  
+// fonction bloquante : GTK file chooser (si on n'aime pas, appeler panel::pdfplot() directement)
 void gpanel::pdf_modal_layout( GtkWidget * mainwindow )
 {
 if ( bandes.size() == 0 )

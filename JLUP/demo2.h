@@ -2,6 +2,7 @@ class glostru {
 public:
 GtkWidget * wmain;
 GtkWidget * vmain;
+GtkWidget *   nmain;
 GtkWidget *   vpans;   
 GtkWidget *     vpan1;
 GtkWidget *       darea1;
@@ -10,6 +11,8 @@ GtkWidget *     darea2;
 GtkWidget *   hbut;
 GtkWidget *     brun;
 GtkWidget *     braz;
+
+int option_tabs;
 
 gpanel panneau1;	// panneau1 dans darea1
 gzoombar zbar;		// sa zoombar
@@ -24,12 +27,12 @@ int running;		// scroll continu
 double Uspan;		// etendue fenetre scroll continu
 
 // constructeur
-glostru() : k(2.0), running(1), Uspan(1000.0) {};
+glostru() : option_tabs(0), k(2.0), running(1), Uspan(1000.0) {};
 
 // methodes
 void gen_data_point( int razflag=0 );
-void process();
-
+void layout1();
+void layout2();
 
 };
 

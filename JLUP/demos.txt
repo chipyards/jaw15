@@ -10,7 +10,9 @@ demo2
 	layer_f_fifo	simu acquisition de donnees en temps reel
 			styles 0 et 1
 	layer_f_param
-	paned widget	en haut panel X(t) Y(t) avec zoombar, en bas panel Y(X) 
+	paned widgets	en haut panel X(t) Y(t) avec zoombar, en bas panel Y(X) 
+	ou
+	notebook (tab widgets) (option -N)
 	PDF
 	subticks
 
