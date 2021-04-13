@@ -280,7 +280,7 @@ curbande->add_layer( curcour2, "RGB left" );
 
 // configurer le layer
 curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
-curcour2->set_m0( 0.5 * (double)Lspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
+curcour2->set_m0( 0.5 * (double)(Lspek.fftsize-Lspek.fftstride ) );
 curcour2->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
 							// la midinote correspondant au bas du spectre
 curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
@@ -310,7 +310,7 @@ if	( qspek >= 2 )
 
 	// configurer le layer
 	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
-	curcour2->set_m0( 0.5 * (double)Rspek.fftsize );	// recentrage au milieu de chaque fenetre FFT
+	curcour2->set_m0( 0.5 * (double)(Rspek.fftsize-Rspek.fftstride) );
 	curcour2->set_kn( (double)Rspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
 								// la midinote correspondant au bas du spectre
 	curcour2->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
@@ -413,12 +413,21 @@ curcour->fgcolor.dB = 0.0;
 int process::connect_layout2( gpanel * panneau, int pos )
 {
 // pointeurs locaux sur les layers
-layer_u<unsigned short> * layL = NULL;
+layer_u<unsigned short> * layL;
 // connecter les layers de ce layout sur les buffers existants
 layL = (layer_u<unsigned short> *)panneau->bandes[0]->courbes[0];
-//layL->V = Lspek.spectre + ???? Lspek.H * pos ???? ; // attentio la wav est plus large que qsamp * Lspek.H * fftstride
-//layL->qu = Lspek.H;
-layL->qu = 0;
+
+int m0 = (Lspek.fftsize-Lspek.fftstride )/2;
+int ibin = ( pos - m0 ) / Lspek.fftstride; 	// division entiere (ou floor)
+if	( ibin < 0 ) ibin = 0;
+if	( ibin > (int)( Lspek.W - 1 ) ) ibin = Lspek.W - 1;	// bornage sur [0,W-1]
+
+// layL->V = (short unsigned *)Lbuf;	// provisoire test
+layL->V = Lspek.spectre + ( ibin * Lspek.H ); 
+
+// H est le nombre de "bins" apres passage en echelle log
+layL->qu = Lspek.H;
+layL->scan();
 return 0;
 }
 

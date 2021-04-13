@@ -189,6 +189,13 @@ else	{			// Not Playing
 		glo->panneau.paint();
 	}
 
+// moderateur de repaint pour le panel qui est dans la fenetre parametres
+// 	- glo->para.wmain est invisible au depart de l'appli et chaque fois qu'on la ferme avec bouton [X]
+//	  mais reste visible quand iconifiee ou cachee derriere une autre
+//	- les pages de notebook sont toujours 'visibles', mais la page affichees est identifiable par son index  
+if	( ( gtk_widget_get_visible(glo->para.wmain) ) && ( gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->para.nmain) ) == 1 ) )
+	if	( glo->para.panneau.force_repaint )
+		glo->para.panneau.paint();
 
 /* profileur
 glo->idle_profiler_cnt++;
@@ -255,8 +262,13 @@ void clic_call_back( double M, double N, void * vglo )
 // printf("clic M N %g %g\n", M, N );
 glostru * glo = (glostru *)vglo;
 glo->iplayp = M;
-// normalement idle_call va detecter si le curseur n'est pas au bon endroit
-// et va le retracer
+// normalement idle_call va detecter si le curseur n'est pas au bon endroit et va le retracer
+
+// spectre instantane
+glo->pro.connect_layout2( &glo->para.panneau, glo->iplayp );	// assure le scan
+glo->para.panneau.force_repaint = 1;
+glo->para.panneau.fullMN();
+
 }
 
 void key_call_back( int v, void * vglo )
@@ -299,6 +311,14 @@ switch	( v )
 		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
 	case GDK_KEY_F6 : glo->pro.palettize( glo->pro.Lspek.umax / 6);
 		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	//
+	case 'v' :
+		printf("sarea realized=%d, visible=%d, main visible=%d\n",
+			gtk_widget_get_realized(glo->para.sarea), gtk_widget_get_visible(glo->para.sarea),
+			gtk_widget_get_visible(glo->para.wmain) );
+		printf("notebook page %d\n", gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->para.nmain) ) );
+		fflush(stdout);
+		break;
 	}
 }
 
@@ -515,6 +535,12 @@ fflush(stdout);
 
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );
+
+// preparer le layout de la fenetre non modale 'param'
+glo->para.build();
+// alors glo->para.panneau existe et est connecte a glo->para.sarea
+glo->pro.prep_layout2( &glo->para.panneau );
+glo->pro.connect_layout2( &glo->para.panneau, 0 );
 
 rewind_call( NULL, glo );
 

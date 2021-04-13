@@ -78,15 +78,25 @@ panneau.events_connect( GTK_DRAWING_AREA( curwidg ) );
 gtk_box_pack_start( GTK_BOX( vspe ), curwidg, TRUE, TRUE, 0 );
 sarea = curwidg;
 
-gtk_widget_show_all( wmain );
+// on doit faire un show de tous les widgets sauf la top window
+// solution peu elegante :
+//	gtk_widget_show_all( wmain );
+//	gtk_widget_hide( wmain );
+// solution retenue: faire un show de tous les descendants de la top mais pas elle :
+GList * momes = gtk_container_get_children( GTK_CONTAINER(wmain) );
+while	( momes )
+	{
+	gtk_widget_show_all( GTK_WIDGET(momes->data) );
+	momes = momes->next;
+	}
 }
 
 
 void param_view::show()
 {
-if	( wmain )
-	gtk_window_present( GTK_WINDOW(wmain) );
-else	build();
+if	( !wmain )
+	build();
+gtk_window_present( GTK_WINDOW(wmain) );
 }
 
 void param_view::hide()
