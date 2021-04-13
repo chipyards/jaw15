@@ -13,20 +13,18 @@
  */
 
 
-typedef struct
-{
+class glostru {
+public :
 GtkWidget * wmain;
 GtkWidget * vmain;
-GtkWidget *   farea;
 GtkWidget *   darea;
-GtkWidget *   sarea;
+GtkWidget *   zarea;
 GtkWidget *   hbut;
 GtkWidget *     bpla;
 GtkWidget *     brew;
 GtkWidget *     esta;
 GtkWidget *     bpar;
 GtkWidget *     bqui;
-int darea_queue_flag;
 
 gpanel panneau;		// panneau principal (wav), dans darea
 gzoombar zbar;		// sa zoombar
@@ -48,5 +46,5 @@ int darea_expose_cnt;
 int idle_profiler_cnt;
 int idle_profiler_time;
 
-} glostru;
+};
 

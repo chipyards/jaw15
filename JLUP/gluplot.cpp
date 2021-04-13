@@ -221,28 +221,29 @@ gtk_widget_show ( curitem );
 
 /** ===================== gpanel initalization methods =============================== */
 
-GtkWidget * gpanel::layout( int w, int h )
+void gpanel::events_connect( GtkDrawingArea * aire )
 {
-widget = gtk_drawing_area_new ();
+larea = GTK_WIDGET(aire);
 
-// ajuster la drawing area aux dimensions voulues
-gtk_widget_set_size_request( widget, w, h );
+/* exemple de code pour gui :
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, w, h );
+glo->panneau1.events_connect( GTK_DRAWING_AREA( curwidg ) );
+*/
 
-/* Drawing Area Signals  */
-
-GTK_WIDGET_SET_FLAGS( widget, GTK_CAN_FOCUS );
-g_signal_connect( widget, "expose_event", G_CALLBACK(gpanel_expose), this );
-g_signal_connect( widget, "configure_event", G_CALLBACK(gpanel_configure), this );
-g_signal_connect( widget, "button_press_event",   G_CALLBACK(gpanel_click), this );
-g_signal_connect( widget, "button_release_event", G_CALLBACK(gpanel_click), this );
-g_signal_connect( widget, "motion_notify_event", G_CALLBACK(gpanel_motion), this );
-g_signal_connect( widget, "scroll_event", G_CALLBACK( gpanel_wheel ), this );
-g_signal_connect( widget, "key_press_event", G_CALLBACK( gpanel_key ), this );
-g_signal_connect( widget, "key_release_event", G_CALLBACK( gpanel_key ), this );
-g_signal_connect( widget, "enter_notify_event", G_CALLBACK( gpanel_enter ), this );
+GTK_WIDGET_SET_FLAGS( larea, GTK_CAN_FOCUS );
+g_signal_connect( larea, "expose_event", G_CALLBACK(gpanel_expose), this );
+g_signal_connect( larea, "configure_event", G_CALLBACK(gpanel_configure), this );
+g_signal_connect( larea, "button_press_event",   G_CALLBACK(gpanel_click), this );
+g_signal_connect( larea, "button_release_event", G_CALLBACK(gpanel_click), this );
+g_signal_connect( larea, "motion_notify_event", G_CALLBACK(gpanel_motion), this );
+g_signal_connect( larea, "scroll_event", G_CALLBACK( gpanel_wheel ), this );
+g_signal_connect( larea, "key_press_event", G_CALLBACK( gpanel_key ), this );
+g_signal_connect( larea, "key_release_event", G_CALLBACK( gpanel_key ), this );
+g_signal_connect( larea, "enter_notify_event", G_CALLBACK( gpanel_enter ), this );
 
 // Ask to receive events the drawing area doesn't normally subscribe to
-gtk_widget_set_events ( widget, gtk_widget_get_events(widget)
+gtk_widget_set_events ( larea, gtk_widget_get_events(larea)
 			| GDK_ENTER_NOTIFY_MASK
 			| GDK_KEY_PRESS_MASK
 			| GDK_KEY_RELEASE_MASK
@@ -252,16 +253,12 @@ gtk_widget_set_events ( widget, gtk_widget_get_events(widget)
 			| GDK_POINTER_MOTION_MASK
 //			| GDK_POINTER_MOTION_HINT_MASK
 		      );
-drag.mode = nil;
-selected_key = 0;
-
+// on peut preparer les menus maintenant que GTK est demarre
 smenu_x = mksmenu("X AXIS");
 gmenu = mkgmenu();
 // on desactive ici le double buffer pour le controler plus finement
 // avec gdk_window_begin_paint_region() et gdk_window_end_paint()
-gtk_widget_set_double_buffered( widget, FALSE );
-
-return widget;
+gtk_widget_set_double_buffered( larea, FALSE );
 }
 
 void gpanel::clic_callback_register( void (*fon)(double,double,void*), void * data )
@@ -340,7 +337,7 @@ else	{	// mode B2
 	// copier le drawpad sur la drawing area, methode Cairo
 	// origine Y est (encore) en haut du strip...
 	if	( *cair == NULL )
-		*cair = gdk_cairo_create( widget->window );
+		*cair = gdk_cairo_create( larea->window );
 	gdk_cairo_set_source_pixmap( *cair, drawpad, 0.0, 0.0 );
 	// cairo_set_source_rgb( cai, 0.0, 0.6, 0.6 );
 	cairo_rectangle( *cair, (double)(mx-1)+floor(xdirty), 0.0, 3.0, double(fdy) );
@@ -404,8 +401,13 @@ if	( ( force_redraw ) || ( strip_redraws ) )
 // (detail sur gluplot.h)
 void gpanel::paint()
 {
-// special profileur
-++paint_cnt;
+if	( init_flags == 0 )
+	{
+	printf("gpanel::paint() calls gpanel::configure\n"); fflush(stdout);
+	configure();
+	force_repaint = 1; return;
+	}
+
 cairo_t * cair = NULL;
 
 if	( drag.mode != nil )
@@ -414,11 +416,11 @@ if	( drag.mode != nil )
 if	( force_repaint )
 	{
 	// entrer explicitement en mode double-buffer, car le fonctionnement implicite
-	// a ete desactive dans gpanel::layout() :
+	// a ete desactive dans gpanel::events_connect() :
 	//	gtk_widget_set_double_buffered( widget, FALSE );
 	//
-	gdk_window_begin_paint_region( widget->window, laregion );
-	cair = gdk_cairo_create( widget->window );
+	gdk_window_begin_paint_region( larea->window, laregion );
+	cair = gdk_cairo_create( larea->window );
 	cairo_set_line_width( cair, 0.5 );
 
 	// paint the panel
@@ -454,7 +456,7 @@ if	( xcursor >= 0.0 )
 	{
 	double x = xcursor + (double)mx;
 	if	( cair == NULL )
-		cair = gdk_cairo_create( widget->window );
+		cair = gdk_cairo_create( larea->window );
 	cairo_set_source_rgba( cair, 0.0, 0.0, 0.0, 1.0 );
 	cairo_set_line_width( cair, 0.5 );
 	cairo_move_to( cair, x, 0.0 );
@@ -469,7 +471,7 @@ if	( cair )
 if	( force_repaint )
 	{
 	// on quitte le mode double-buffer
-	gdk_window_end_paint( widget->window );
+	gdk_window_end_paint( larea->window );
 	force_repaint = 0;
 	}
 }
@@ -484,14 +486,21 @@ force_repaint = 1;
 
 void gpanel::configure()
 {
+if	( bandes.size() == 0 )		// configure premature (pas de layout)
+	{
+	printf("configure premature (pas de layout)\n"); fflush(stdout);
+	init_flags = 0; return;
+	}
+
 int ww, wh;
-gdk_drawable_get_size( widget->window, &ww, &wh );
+gdk_drawable_get_size( larea->window, &ww, &wh );
 // printf("gpanel configuzed %d x %d\n", ww, wh ); fflush(stdout);
 resize( ww, wh );
 // mettre a jour la region qui sert pour begin_paint
 if	( laregion )
 	gdk_region_destroy( laregion );
-laregion = gdk_drawable_get_clip_region( widget->window );
+laregion = gdk_drawable_get_clip_region( larea->window );
+init_flags = 1;
 force_repaint = 1;
 }
 
@@ -936,33 +945,33 @@ GtkWidget * gpanel::mksmenu( const char * title )
 GtkWidget * curmenu;
 GtkWidget * curitem;
 
-curmenu = gtk_menu_new ();    // Don't need to show menus
+curmenu = gtk_menu_new();    // Don't need to show menus
 
 curitem = gtk_menu_item_new_with_label(title);
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 curitem = gtk_separator_menu_item_new();
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 curitem = gtk_menu_item_new_with_label("Full");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( smenu_full ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 curitem = gtk_menu_item_new_with_label("Zoom in");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( smenu_zoomin ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL(curmenu), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 curitem = gtk_menu_item_new_with_label("Zoom out");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( smenu_zoomout ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL(curmenu), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 return curmenu;
 }
@@ -987,23 +996,23 @@ GtkWidget * gpanel::mkgmenu()
 GtkWidget * curmenu;
 GtkWidget * curitem;
 
-curmenu = gtk_menu_new ();    // Don't need to show menus
+curmenu = gtk_menu_new();    // Don't need to show menus
 
 curitem = gtk_menu_item_new_with_label("Full Zoom");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( gmenu_full ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 curitem = gtk_menu_item_new_with_label("All Visible");
 g_signal_connect( G_OBJECT( curitem ), "activate",
 		  G_CALLBACK( gmenu_all ), (gpointer)this );
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 curitem = gtk_separator_menu_item_new();
 gtk_menu_shell_append( GTK_MENU_SHELL( curmenu ), curitem );
-gtk_widget_show ( curitem );
+gtk_widget_show( curitem );
 
 return curmenu;
 }
@@ -1053,38 +1062,41 @@ switch	( mode )
 
 /** ===================== gzoombar methods ====================================== */
 
-GtkWidget * gzoombar::layout( int w )
+void gzoombar::events_connect( GtkDrawingArea * aire )
 {
-widget = gtk_drawing_area_new ();
+larea = GTK_WIDGET(aire);
 
-// ajuster la drawing area aux dimensions voulues
-gtk_widget_set_size_request( widget, w, 32 );
+/* exemple de code pour gui :
+curwidg = gtk_drawing_area_new();
+glo->zbar.events_connect( GTK_DRAWING_AREA( curwidg ) );
+*/
+
+// ajuster la drawing area a la hauteur voulue (qui n'est pas configurable pour le moment)
+gtk_widget_set_size_request( larea, -1, 32 );
 
 /* Drawing Area Signals  */
-
-g_signal_connect( widget, "expose_event", G_CALLBACK(gzoombar_expose), this );
-g_signal_connect( widget, "configure_event", G_CALLBACK(gzoombar_configure), this );
-g_signal_connect( widget, "button_press_event",   G_CALLBACK(gzoombar_click), this );
-g_signal_connect( widget, "button_release_event", G_CALLBACK(gzoombar_click), this );
-g_signal_connect( widget, "motion_notify_event", G_CALLBACK(gzoombar_motion), this );
-g_signal_connect( widget, "scroll_event", G_CALLBACK( gzoombar_wheel ), this );
+g_signal_connect( larea, "expose_event", G_CALLBACK(gzoombar_expose), this );
+g_signal_connect( larea, "configure_event", G_CALLBACK(gzoombar_configure), this );
+g_signal_connect( larea, "button_press_event",   G_CALLBACK(gzoombar_click), this );
+g_signal_connect( larea, "button_release_event", G_CALLBACK(gzoombar_click), this );
+g_signal_connect( larea, "motion_notify_event", G_CALLBACK(gzoombar_motion), this );
+g_signal_connect( larea, "scroll_event", G_CALLBACK( gzoombar_wheel ), this );
 
 // Ask to receive events the drawing area doesn't normally subscribe to
-gtk_widget_set_events ( widget, gtk_widget_get_events(widget)
+gtk_widget_set_events ( larea, gtk_widget_get_events(larea)
 			| GDK_BUTTON_PRESS_MASK
 			| GDK_BUTTON_RELEASE_MASK
 			| GDK_SCROLL_MASK
 			| GDK_POINTER_MOTION_MASK
 //			| GDK_POINTER_MOTION_HINT_MASK
 		      );
-return widget;
 }
 
 void gzoombar::expose()
 {
 // printf("expozed\n");
 
-cairo_t * cair = gdk_cairo_create(widget->window);
+cairo_t * cair = gdk_cairo_create(larea->window);
 
 // fill the background
 cairo_set_source_rgb( cair, 0.88, 0.88, 1 );
@@ -1111,7 +1123,7 @@ cairo_destroy(cair);
 void gzoombar::configure()
 {
 int wh;
-gdk_drawable_get_size( widget->window, &ww, &wh );
+gdk_drawable_get_size( larea->window, &ww, &wh );
 ndx = (double)ww - ( 2.0 * xm );
 if	( panneau )
 	{
@@ -1168,7 +1180,7 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 	else	{		// action drag
 		x0 = x0f; x1 = x1f;
 		opcode = 0;
-		gtk_widget_queue_draw( widget );
+		gtk_widget_queue_draw( larea );
 		if	( panneau )
 			{
 			double mmin, mmax, kx2m;
@@ -1192,7 +1204,7 @@ if	( ( state & GDK_BUTTON1_MASK ) || ( state & GDK_BUTTON3_MASK ) )
 	{
 	// printf("drag %6g:%6g\n", event->x, event->y );
 	update( event->x );
-	gtk_widget_queue_draw( widget );
+	gtk_widget_queue_draw( larea );
 	}
 }
 
@@ -1277,5 +1289,5 @@ void gzoombar::zoom( double k0, double k1 )
 // printf("gzoombar::zoom( %g, %g )\n", k0, k1 );
 x0 = xm + ndx * k0;
 x1 = xm + ndx * k1;
-gtk_widget_queue_draw( widget );
+gtk_widget_queue_draw( larea );
 }

@@ -30,7 +30,7 @@ using namespace std;
 #include "wav_head.h"
 #include "process.h"
 #include "param.h"
-#include "glostru.h"
+#include "gui.h"
 #include "modpop3.h"
 #include "cli_parse.h"
 
@@ -388,13 +388,18 @@ gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
-glo->darea = glo->panneau.layout( 800, 600 );
-gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->darea, TRUE, TRUE, 0 );
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, 800, 600 );
+glo->panneau.events_connect( GTK_DRAWING_AREA( curwidg ) );
+gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
+glo->darea = curwidg;
 
 /* creer une drawing area  qui ne sera pas resizee en hauteur par la hbox
    mais quand meme en largeur (par chance !!!) */
-glo->sarea = glo->zbar.layout( 640 );
-gtk_box_pack_start( GTK_BOX( glo->vmain ), glo->sarea, FALSE, FALSE, 0 );
+curwidg = gtk_drawing_area_new();
+glo->zbar.events_connect( GTK_DRAWING_AREA( curwidg ) );
+gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
+glo->zarea = curwidg;
 
 
 /* creer boite horizontale */
@@ -510,13 +515,6 @@ fflush(stdout);
 
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );
-
-
-// forcer un full initial pour que tous les coeffs de transformations soient a jour
-glo->panneau.full_valid = 0;
-// refaire un configure car celui appele par GTK est arrive trop tot
-glo->panneau.configure();
-//glo->panneau.dump();
 
 rewind_call( NULL, glo );
 

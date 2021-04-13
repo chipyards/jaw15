@@ -221,13 +221,16 @@ gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
-curwidg = glo->panneau1.layout( 800, 400 );	// hauteur mini, la hauteur initiale fixee par parent
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, 800, 400 );
+glo->panneau1.events_connect( GTK_DRAWING_AREA( curwidg ) );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
 glo->darea1 = curwidg;
 
 /* creer une drawing area  qui ne sera pas resizee en hauteur par la hbox
    mais quand meme en largeur (par chance !!!) */
-curwidg = glo->zbar.layout( 800 );
+curwidg = gtk_drawing_area_new();
+glo->zbar.events_connect( GTK_DRAWING_AREA( curwidg ) );
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
 glo->zarea1 = curwidg;
 
@@ -271,12 +274,6 @@ if	( glo->k <= 1 )
 printf("coeff de decimation LODs : k = %d\n", glo->k ); fflush(stdout);
 
 glo->process();
-
-// forcer un full initial pour que tous les coeffs de transformations soient a jour
-glo->panneau1.full_valid = 0;
-// refaire un configure car celui appele par GTK est arrive trop tot
-glo->panneau1.configure();
-glo->zbar.configure();
 
 g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
 

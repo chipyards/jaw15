@@ -22,7 +22,7 @@ demo4
 	layer_u		en float, s16, u16, styles 0, 1, 2
 			limiteur de stroke context
 	cli_parse	test limiteur
-	perf timer	test limiteur
+	perf timer	test limiteur = profiler a la microseconde
 	Notes :
 		- style 1 n'est pas penalise par les movetos supplementaires
 		- style 2 est tres peu penalise par les calculs de log

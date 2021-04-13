@@ -72,8 +72,11 @@ gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("I/O por
 vpor = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
-sarea = panneau.layout( 640, 320 );
-gtk_box_pack_start( GTK_BOX( vspe ), sarea, TRUE, TRUE, 0 );
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, 640, 320 );
+panneau.events_connect( GTK_DRAWING_AREA( curwidg ) );
+gtk_box_pack_start( GTK_BOX( vspe ), curwidg, TRUE, TRUE, 0 );
+sarea = curwidg;
 
 gtk_widget_show_all( wmain );
 }

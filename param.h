@@ -11,7 +11,7 @@ GtkWidget * nmain;	// notebook principal
   GtkWidget * vpor;	// I/O ports
 
 
-gpanel panneau;		// panneau pour spectre local, dans sare
+gpanel panneau;		// panneau pour spectre local, dans sarea
 
 // constructeur
 param_view() : wmain(NULL) {};
