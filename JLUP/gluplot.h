@@ -201,6 +201,7 @@ void add_strip( gstrip * labande ) {
 	}
 void configure();
 void expose();
+void set_layer_vis( unsigned int ib, unsigned int ic, int visi );
 void toggle_vis( unsigned int ib, int ic );
 void copy_gmenu2visi();		// copie les checkboxes du menu contextuel vers les flags 'visible' 
 void paint();			// copie automatique du drawpad sur la drawing area

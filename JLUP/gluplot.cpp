@@ -525,6 +525,49 @@ init_flags = 1;
 force_repaint = 1;
 }
 
+// determiner la visibilite d'un layer
+// si tous ses layers sont invisibles, le strip devient automatiquement invisible
+void gpanel::set_layer_vis( unsigned int ib, unsigned int ic, int visi )
+{
+if	( ib >= bandes.size() )
+	return;
+if	( ic >= bandes[ib]->courbes.size() )
+	return;
+// on ne peut pas actionner directement les flags 'visible', il faut iterer
+// surr les check-boxes du menu contextuel...
+// bandes[ib]->courbes[ic]->visible = visi;  <-- NON
+int istrip, ilayer;
+int visi_zone = 0;
+const char * check_box_id;
+GList * momes = gtk_container_get_children( GTK_CONTAINER(gmenu) );
+while	( momes )
+	{	// momes est son propre iterateur
+	if	( GTK_IS_CHECK_MENU_ITEM( momes->data ) )
+		{
+		visi_zone = 1;
+		check_box_id = gtk_widget_get_name( GTK_WIDGET(momes->data) );
+		istrip = atoi( check_box_id );		// format ss_ll
+		ilayer = atoi( check_box_id + 3 );
+		if	( ( istrip == (int)ib ) && ( ilayer == (int)ic ) )
+			{
+			GtkCheckMenuItem * litem = GTK_CHECK_MENU_ITEM(momes->data);
+			gtk_check_menu_item_set_active( litem, visi );
+			// printf("visi %s : %d : %d.%d\n", gtk_menu_item_get_label( GTK_MENU_ITEM(momes->data) ),
+			//	gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(momes->data) ), istrip, ilayer );
+			// fflush(stdout);
+			break;
+			}
+		}
+	else	if	( visi_zone )	// pour ne pas iterer sur des items ajoutes apres les visi check boxes
+			break;
+	momes = momes->next;
+	}			// les dimensions de la drawing area ne changent pas
+this->resize( fdx, fdy );	// mais il faut recalculer la hauteur des bandes
+refresh_proxies();
+force_repaint = 1;
+}
+
+// changer la visibilite d'un strip (avec ic < 0, deprecated) ou d'un layer
 void gpanel::toggle_vis( unsigned int ib, int ic )
 {
 if	( ib >= bandes.size() )
@@ -534,39 +577,8 @@ if	( ic < 0 )
 else	{
 	if	( ic >= (int)bandes[ib]->courbes.size() )
 		return;
-	// on ne peut pas actionner directement les flags 'visible', il faut passer
-	// par les check-boxes du menu contextuel...
-	// bandes[ib]->courbes[ic]->visible ^= 1;
-	int istrip, ilayer;
-	int visi_zone = 0;
-	const char * check_box_id;
-	GList * momes = gtk_container_get_children( GTK_CONTAINER(gmenu) );
-	while	( momes )
-		{	// momes est son propre iterateur
-		if	( GTK_IS_CHECK_MENU_ITEM( momes->data ) )
-			{
-			visi_zone = 1;
-			check_box_id = gtk_widget_get_name( GTK_WIDGET(momes->data) );
-			istrip = atoi( check_box_id );		// format ss_ll
-			ilayer = atoi( check_box_id + 3 );
-			if	( ( istrip == (int)ib ) && ( ilayer == ic ) )
-				{
-				GtkCheckMenuItem * litem = GTK_CHECK_MENU_ITEM(momes->data);
-				gtk_check_menu_item_set_active( litem, !gtk_check_menu_item_get_active( litem ) );
-				// printf("visi %s : %d : %d.%d\n", gtk_menu_item_get_label( GTK_MENU_ITEM(momes->data) ),
-				//	gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(momes->data) ), istrip, ilayer );
-				// fflush(stdout);
-				}
-			}
-		else	if	( visi_zone )	// pour ne pas iterer sur des items ajoutes apres les visi check boxes
-				break;
-		momes = momes->next;
-		}
+	set_layer_vis( ib, ic, bandes[ib]->courbes[ic]->visible ^ 1 );
 	}
-				// les dimensions de la drawing area ne changent pas
-this->resize( fdx, fdy );	// mais il faut recalculer la hauteur des bandes
-refresh_proxies();
-force_repaint = 1;
 }
 
 // copie les checkboxes du menu contextuel vers les flags 'visible' des layers

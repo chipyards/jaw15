@@ -281,9 +281,9 @@ switch	( v )
 	case GDK_KEY_KP_1 :
 	case '1' : glo->panneau.toggle_vis( 0, 1 ); break;
 	case GDK_KEY_KP_2 :
-	case '2' : glo->panneau.toggle_vis( 1, -1 ); break;
+	case '2' : glo->panneau.toggle_vis( 1, 0 ); break;
 	case GDK_KEY_KP_3 :
-	case '3' : glo->panneau.toggle_vis( 2, -1 ); break;
+	case '3' : glo->panneau.toggle_vis( 2, 0 ); break;
 	case ' ' :
 		play_pause_call( NULL, glo );
 		break;
