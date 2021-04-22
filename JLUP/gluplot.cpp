@@ -534,7 +534,7 @@ if	( ib >= bandes.size() )
 if	( ic >= bandes[ib]->courbes.size() )
 	return;
 // on ne peut pas actionner directement les flags 'visible', il faut iterer
-// surr les check-boxes du menu contextuel...
+// sur les check-boxes du menu contextuel...
 // bandes[ib]->courbes[ic]->visible = visi;  <-- NON
 int istrip, ilayer;
 int visi_zone = 0;

@@ -40,6 +40,8 @@ PaStream *stream;	// WAV player : portaudio stream
 double play_start_time;
 #endif
 
+int option_monospec;
+
 process pro;		// le process : lecture wav calcul spectro, preparation layout
 
 };

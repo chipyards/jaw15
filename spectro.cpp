@@ -215,13 +215,12 @@ unsigned short u;
 umax = 0;
 // facteur d'echelle en vue conversion en u16
 // un signal sinus d'amplitude max sur une frequence multiple de fsamp/fftsize atteint le plafond
-// un signal carre peut depasser - c'est un cas theorique
-k = (2.0/(float)fftsize);	// correction DFT classique, selon JLN
+// un signal carre peut depasser - c'est un cas theorique (alors on observe un visuel de "solarise")
+// N.B. il n'est pas necessaire de normaliser les WAV, il suffit de renseigner wav_peak
+k = (2.0/(float)fftsize);	// correction DFT classique, selon JLN, pour signal sinus
 k /= window_avg;		// correction fenetre
-k *= 65536.0;	// vu qu'ici on traite de l'audio normalise "a la wav32" [-1.0, 1.0]
-	// N.B. on aurait pu economiser la normalisation "a la wav32" pour la prendre en compte ici
-	// et aussi acquerir une valeur crete lors du chargement WAV pour auto-norm
-	// en attendant on stocke une valeur umax en u16 pour normalisation ulterieure au niveau palette
+k /= wav_peak;		// 1.0 si wav en float normalisee, 32767.0 si audio 16 bits, ou adapte 
+k *= 65535.0;
 for	( unsigned int icol = 0; icol < W; ++icol )
 	{
 	// fenetrage sur fftinbuf
@@ -268,7 +267,7 @@ for	( unsigned int icol = 0; icol < W; ++icol )
 		spectre[a++] = u;
 		}
 	}
-printf("max binxel u16 val %u\n", umax );
+printf("max binxel umax %u/65535\n", umax );
 }
 
 // conversion en style GDK pixbuf

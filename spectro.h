@@ -79,6 +79,7 @@ unsigned char * pal;		// la palette 16 bits --> RGB, contient PALSIZE byte
 unsigned int bpst = 10;		// binxel-per-semi-tone : resolution spectro log
 unsigned int octaves;		// hauteur du spectre a partir de midi0
 int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
+double wav_peak;		// pour facteur d'echelle avant conversion du spectre en u16
 private:
 float window[FFTSIZEMAX];	// fenetre pre-calculee
 float * fftinbuf;		// buffer pour entree fft reelle
@@ -89,7 +90,7 @@ double relog_opp;			// echelle spectre re-echantillonne en OPP (Octave Per Point
 double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
 public:
 // constructeur
-spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), pal(NULL), fftinbuf(NULL), fftoutbuf(NULL) {};
+spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), pal(NULL), wav_peak(32767.0), fftinbuf(NULL), fftoutbuf(NULL) {};
 // methodes
 
 

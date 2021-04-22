@@ -275,7 +275,7 @@ glo->para.panneau.fullMN();
 
 void key_call_back( int v, void * vglo )
 {
-glostru * glo = (glostru *)vglo;
+glostru * glo = (glostru *)vglo; int k = 1;
 switch	( v )
 	{
 	case GDK_KEY_KP_0 :
@@ -301,18 +301,29 @@ switch	( v )
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		fflush(stdout);
 		} break;
-	case GDK_KEY_F1 : glo->pro.palettize( glo->pro.Lspek.umax );
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F2 : glo->pro.palettize( glo->pro.Lspek.umax / 2 );
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F3 : glo->pro.palettize( glo->pro.Lspek.umax / 3);
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F4 : glo->pro.palettize( glo->pro.Lspek.umax / 4);
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F5 : glo->pro.palettize( glo->pro.Lspek.umax / 5);
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
-	case GDK_KEY_F6 : glo->pro.palettize( glo->pro.Lspek.umax / 6);
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1; break;
+	case GDK_KEY_F6 : k += 2;
+	case GDK_KEY_F5 : k += 2;
+	case GDK_KEY_F4 : k += 1;
+	case GDK_KEY_F3 : k += 1;
+	case GDK_KEY_F2 : k += 1;
+	case GDK_KEY_F1 :
+		if	( glo->pro.qspek == 0 )
+			{
+			int retval;
+			retval = glo->pro.spectrum_compute( glo->option_monospec );
+			if	( retval )
+				gasp("echec spectrum, erreur %d", retval );
+			fflush(stdout);
+			glo->pro.prep_layout_S( &glo->panneau );
+			retval = glo->pro.connect_layout_S( &glo->panneau );
+			if	( retval )
+				gasp("echec connect layout, erreur %d", retval );
+			fflush(stdout);
+			glo->panneau.full_valid = 0; glo->panneau.init_flags = 0;
+			}
+		glo->pro.palettize( glo->pro.Lspek.umax / k );
+		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+		break;
 	//
 	case 'v' :
 		printf("sarea realized=%d, visible=%d, main visible=%d\n",
@@ -486,6 +497,7 @@ int myoutput = -1;		// -d // -1 = choose system default device
 int pa_dev_options = -1;	// -p // listage audio devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)
 int solB = 0;			// -B // variante pour copie drawpad (cf gluplot.cpp) "-B" pour B1, sinon defaut = B2 
 int option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
+glo->option_monospec = 0;	// -m // spectrogrammes 2D sur L+R si stereo
 const char * fnam = NULL;
 
 // 	parsage CLI
@@ -497,6 +509,7 @@ if	( ( val = lepar->get( 'd' ) ) )	myoutput = atoi( val );
 if	( ( val = lepar->get( 'p' ) ) )	pa_dev_options = atoi( val );
 if	( ( val = lepar->get( 'B' ) ) )	solB = 1;
 if	( ( val = lepar->get( 'S' ) ) )	option_spectrogramme = 1;
+if	( ( val = lepar->get( 'm' ) ) )	glo->option_monospec = 1;
 if	( ( val = lepar->get( 'h' ) ) )
 	{
 	printf( "options :\n"
@@ -536,20 +549,26 @@ if	( retval )
 	gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
 fflush(stdout);
 
-if	( option_spectrogramme )
-	{
-	retval = glo->pro.spectrum_compute();
-	if	( retval )
-		gasp("echec spectrum, erreur %d", retval );
-	fflush(stdout);
-	}
-
-// preparer le layout pour wav L (et R si stereo) et spectro
-glo->pro.prep_layout( &glo->panneau );
-retval = glo->pro.connect_layout( &glo->panneau );
+// preparer le layout pour wav L (et R si stereo)
+glo->pro.prep_layout_W( &glo->panneau );
+retval = glo->pro.connect_layout_W( &glo->panneau );
 if	( retval )
 	gasp("echec connect layout, erreur %d", retval );
 fflush(stdout);
+
+if	( option_spectrogramme )
+	{
+	retval = glo->pro.spectrum_compute( glo->option_monospec );
+	if	( retval )
+		gasp("echec spectrum, erreur %d", retval );
+	fflush(stdout);
+	// preparer le layout pour spectrogramme mono ou stereo
+	glo->pro.prep_layout_S( &glo->panneau );
+	retval = glo->pro.connect_layout_S( &glo->panneau );
+	if	( retval )
+		gasp("echec connect layout, erreur %d", retval );
+	fflush(stdout);
+	}
 
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );

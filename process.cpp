@@ -226,13 +226,14 @@ return 0;
 }
 
 // calculs spectrogramme dans l'objet process
-int process::spectrum_compute()
+int process::spectrum_compute( int force_mono )
 {
 int retval;
 
 // creation spectrographe
-// qspek = 1;
-qspek = wavp.chan;
+if	( force_mono )
+	qspek = 1;
+else	qspek = wavp.chan;
 
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 
@@ -274,7 +275,7 @@ else	gasp("no spek to init");
 
 // calcul spectre : hum, il faut les data en float mais on a lu la wav en s16
 // provisoirement on va convertir en float l'audio qu'on a deja en RAM
-{
+
 printf("start calcul spectre\n"); fflush(stdout);
 float * raw32 = (float *) malloc( wavp.wavsize * sizeof(float) );
 if	( raw32 == NULL )
@@ -284,8 +285,8 @@ unsigned int i;
 if	( wavp.chan == 1 )
 	{
 	for	( i = 0; i < wavp.wavsize; ++i )
-		raw32[i] = (1.0/32768.0) * (float)Lbuf[i];	// normalisation a la WAV32
-		// raw32[i] = 2.0 * (float)wL->V[i];		// coeff de JAW04b
+		raw32[i] = (float)Lbuf[i];
+	Lspek.wav_peak = 32767.0;
 	Lspek.compute( raw32 );
 	}
 else if	( wavp.chan == 2 )
@@ -293,50 +294,43 @@ else if	( wavp.chan == 2 )
 	if	( qspek == 1 )	// spectre mono sur WAV stereo
 		{
 		for	( i = 0; i < wavp.wavsize; ++i)
-			raw32[i] = (0.5/32768.0) * ((float)Lbuf[i] + (float)Rbuf[i]);	// normalisation a la WAV32
+			raw32[i] = (float)Lbuf[i] + (float)Rbuf[i];
+		Lspek.wav_peak = 65534.0;
 		Lspek.compute( raw32 );
 		}
 	else if	( qspek == 2 )
 		{
 		for	( i = 0; i < wavp.wavsize; ++i)
-			raw32[i] = (1.0/32768.0) * (float)Lbuf[i];	// normalisation a la WAV32
+			raw32[i] = (float)Lbuf[i];
+		Lspek.wav_peak = 32767.0;
 		Lspek.compute( raw32 );
 		for	( i = 0; i < wavp.wavsize; ++i)
-			raw32[i] = (1.0/32768.0) * (float)Rbuf[i];	// normalisation a la WAV32
+			raw32[i] = (float)Rbuf[i];
+		Rspek.wav_peak = 32767.0;
 		Rspek.compute( raw32 );
 		}
 	else	gasp("pas de spek pour fft");
 	}
 else	gasp("pas de channel pour fft");
 
-double rawmax = 0;
-for	( i = 0; i < wavp.wavsize; ++i)
-	if	( fabs(raw32[i]) > rawmax )
-		rawmax = fabs(raw32[i]);
-printf("rawmax : %g\n", rawmax );
-
 free(raw32);
 // a ce point on a 1 ou 2 spectres de la wav entiere dans 1 ou 2 tableaux unsigned int Xspek->spectre
 // de dimensions Xspek->H x Xspek->W
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
-}
 
-printf("start colorisation spectrogrammes\n"); fflush(stdout);
-// creer chaque pixbuf, pour le spectre entier
-Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
-// ici il faudrait peut etre tester que c'est Ok...
-if	( qspek >= 2 )
-	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
+
+// printf("start colorisation spectrogrammes\n"); fflush(stdout);
 // adapter la palette a la limite umax et l'applique a tous les spectres
+// (umax a ete  calcule par spectro::compute)
 palettize( (Lspek.umax>Rspek.umax)?(Lspek.umax):(Rspek.umax) );
-printf("end colorisation spectrogrammes\n" ); fflush(stdout);
+// printf("end colorisation spectrogrammes\n" ); fflush(stdout);
 return 0;
 }
 
 // la partie du process en relation avec jluplot
 
-// layout pour le domaine temporel - doit etre fait apres lecture wav data et calcul spectres
-void process::prep_layout( gpanel * panneau )
+// layout pour pour wav data (depend de wavp.chan)
+void process::prep_layout_W( gpanel * panneau )
 {
 gstrip * curbande;
 layer_lod<short> * curcour;
@@ -389,7 +383,12 @@ if	( wavp.chan > 1 )
 	curcour->fgcolor.dG = 0.75;
 	curcour->fgcolor.dB = 0.0;
 	}
+}
 
+// layout pour pour spectrograms (depend de qspek)
+void process::prep_layout_S( gpanel * panneau )
+{
+gstrip * curbande;
 if	( qspek >= 1 )
 	{
 	layer_rgb * curcour2;
@@ -401,7 +400,9 @@ if	( qspek >= 1 )
 	curbande->bgcolor.dG = 1.0;
 	curbande->bgcolor.dB = 1.0;
 	curbande->Ylabel = "midi";
-	curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
+	curbande->optX = 1;
+	if	( panneau->bandes.size() > 1 )
+		panneau->bandes[0]->optX = 0;
 	curbande->optretX = 0;
 	curbande->optretY = 0;
 	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
@@ -451,13 +452,12 @@ if	( qspek >= 2 )
 	}
 }
 
-// connexion du layout aux data
-int process::connect_layout( gpanel * panneau )
+// connexion du layout aux data type wave
+int process::connect_layout_W( gpanel * panneau )
 {
 int retval;
-// pointeurs locaux sur les 2 ou 3 layers
+// pointeurs locaux sur les layers
 layer_lod<short> * layL, * layR = NULL;
-layer_rgb * laySL, * laySR;
 // connecter les layers de ce layout sur les buffers existants
 layL = (layer_lod<short> *)panneau->bandes[0]->courbes[0];
 layL->V = Lbuf;
@@ -478,20 +478,22 @@ if	( wavp.chan > 1 )
 		{ printf("echec make_lods err %d\n", retval ); return -7;  }
 	}
 panneau->kq = (double)(wavp.freq);	// pour avoir une echelle en secondes au lieu de samples
+printf("end layout W, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
+return 0;
+}
 
+// connexion du layout aux data type spek
+int process::connect_layout_S( gpanel * panneau )
+{
 unsigned int ib = 1;
+layer_rgb * laySL, * laySR;
 
 if	( qspek >= 1 )
 	{
 	if	( ib >= panneau->bandes.size() )
 		gasp("erreur sur layout");
 	laySL = (layer_rgb *)panneau->bandes[ib]->courbes[0];
-	laySL->spectropix = Lpix;
-	// a ce point on a dans layS->spectropix un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
-	// petite verification
-	unsigned int verif = gdk_pixbuf_get_width(  ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-		    verif *= gdk_pixbuf_get_height( ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-	printf("verif connexion spectrogramme %u pixels\n", verif );
+	laySL->spectropix = Lpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
 	}
 if	( qspek >= 2 )
 	{
@@ -499,17 +501,14 @@ if	( qspek >= 2 )
 	if	( ib >= panneau->bandes.size() )
 		gasp("erreur sur layout");
 	laySR = (layer_rgb *)panneau->bandes[ib]->courbes[0];
-	laySR->spectropix = Rpix;
-	unsigned int verif = gdk_pixbuf_get_width(  ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-		    verif *= gdk_pixbuf_get_height( ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-	printf("verif connexion spectrogramme %u pixels\n", verif );
+	laySR->spectropix = Rpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
 	}
 
-printf("end layout, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
+printf("end layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 return 0;
 }
 
-// layout pour le domaine frequentiel
+// layout pour le domaine frequentiel (spectre ponctuel)
 void process::prep_layout2( gpanel * panneau )
 {
 gstrip * curbande;
@@ -592,7 +591,8 @@ memset( palB + iend, val, 65536 - iend );
 
 // colorisation d'un pixbuf sur le spectre precalcule, utilisant la palette referencee dans spek
 // i.e. remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
-void colorize( spectro * spek, GdkPixbuf * lepix )
+// c'est un wrapper sur spectro::spectre2rgb
+void spectre2rgb( spectro * spek, GdkPixbuf * lepix )
 {
 int rowstride = gdk_pixbuf_get_rowstride( lepix );
 unsigned char * RGBdata = gdk_pixbuf_get_pixels( lepix );
@@ -605,8 +605,16 @@ void process::palettize( unsigned int iend )
 {
 // mettre a jour palette
 fill_palette_simple( mutpal, iend );
-// coloriser les spectre (qui referencent deja cette palette)
-colorize( &Lspek, Lpix );
+// creer les pixbufs si necessaire, chacun pour le spectre entier
+if	( Lpix == NULL )
+	Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
 if	( qspek >= 2 )
-	colorize( &Rspek, Rpix );
+	{
+	if	( Rpix == NULL )
+	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
+	}
+// coloriser les spectre (qui sont supposes deja referencer cette palette)
+spectre2rgb( &Lspek, Lpix );
+if	( qspek >= 2 )
+	spectre2rgb( &Rspek, Rpix );
 }
