@@ -51,6 +51,7 @@
 		</Compiler>
 		<Linker>
 			<Add library="portaudio_2011" />
+			<Add library="mpg123" />
 			<Add library="winmm" />
 			<Add library="ole32" />
 			<Add library="cairo" />
@@ -88,6 +89,8 @@
 		<Unit filename="../process.h" />
 		<Unit filename="../spectro.cpp" />
 		<Unit filename="../spectro.h" />
+		<Unit filename="../mp3in.cpp" />
+		<Unit filename="../mp3in.h" />
 		<Unit filename="../wav_head.c">
 			<Option compilerVar="CC" />
 		</Unit>

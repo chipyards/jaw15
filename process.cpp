@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <math.h>
+#include <mpg123.h>
 
 using namespace std;
 #include <string>
@@ -20,6 +21,7 @@ using namespace std;
 #include "JLUP/layer_u.h"
 
 #include "wav_head.h"
+#include "mp3in.h"
 #include "fftw3.h"
 #include "spectro.h"
 #include "process.h"
@@ -29,12 +31,9 @@ using namespace std;
 
 // allocation memoire et lecture WAV 16 bits entier en memoire
 // donnees stockées dans l'objet process
-// puis calculs spectrogramme dans l'objet process
-int process::wave_process_full()
+int process::wave_process()
 {
-int retval;
-
-printf("ouverture %s en lecture\n", wnam );
+printf("ouverture WAV %s en lecture\n", wnam ); fflush(stdout);
 wavp.hand = open( wnam, O_RDONLY | O_BINARY );
 if	( wavp.hand == -1 )
 	{ printf("file not found %s\n", wnam ); return -1;  }
@@ -50,13 +49,15 @@ printf("freq = %u, block = %u, bpsec = %u, size = %u\n",
 fflush(stdout);
 
 // allouer memoire pour lire WAV
-Lbuf = (short *)malloc( wavp.wavsize * sizeof(short) );	// pour 1 canal
+Lallocated = wavp.wavsize * sizeof(short);
+Lbuf = (short *)malloc( Lallocated );	// pour 1 canal
 if	( Lbuf == NULL )
 	gasp("echec malloc Lbuf %d samples", (int)wavp.wavsize );
 
 if	( wavp.chan > 1 )
 	{
-	Rbuf = (short *)malloc( wavp.wavsize * sizeof(short) );	// pour 1 canal
+	Rallocated = wavp.wavsize * sizeof(short);
+	Rbuf = (short *)malloc( Rallocated );	// pour 1 canal
 	if	( Rbuf == NULL )
 		gasp("echec malloc Rbuf %d samples", (int)wavp.wavsize );
 	}
@@ -97,6 +98,137 @@ if	( totalsamples1c != wavp.wavsize )	// cela ne peut pas arriver, cette verif s
 	{ printf("WAV size error %u vs %d", totalsamples1c , (int)wavp.wavsize ); close(wavp.hand); return -5;  }
 close( wavp.hand );
 printf("lu %d samples Ok\n", totalsamples1c ); fflush(stdout);
+return 0;
+}
+
+// allocation memoire et lecture MP3 16 bits entier en memoire
+// donnees stockées dans l'objet process
+int process::mp3_process()
+{
+int retval;
+
+printf("ouverture MP3 %s en lecture\n", wnam ); fflush(stdout);
+
+// 1ere etape : lire un premiere bloc pour avoir les parametres
+retval = m3.read_head( wnam );
+if	( retval )
+	{
+	printf("error read_head: %s : %s\n", m3.errfunc, mpg123_plain_strerror(retval) );
+	return -1;
+	}
+printf("got %d channels @ %d Hz, monosamplesize %d\n",
+	m3.qchan, m3.fsamp, m3.monosamplesize );
+printf("recommended buffer %d bytes\n", (int)m3.outblock );
+printf("estimated length : %u samples\n", (unsigned int)m3.estqsamp );
+fflush(stdout);
+if	(
+	( ( m3.qchan != 1 ) && ( m3.qchan != 2 ) ) ||
+	( m3.monosamplesize != 2 )
+	)
+	{
+	printf("programme seulement pour fichiers 16 bits mono ou stereo\n");
+	mpg123_close(m3.mhand); mpg123_delete(m3.mhand); mpg123_exit();
+	return -2;
+	}
+fflush(stdout);
+
+// 2eme etape : allouer de la memoire pour les buffers
+
+// un petit buffer pour l'audio entrelace
+short * pcmbuf;
+size_t qpcmbuf;	// en BYTES
+
+qpcmbuf = m3.outblock;	// outblock = 1152 * monosamplesize * qchan <==> 1 bloc mpeg
+
+pcmbuf = (short *)malloc( qpcmbuf );
+if	( pcmbuf == NULL )
+	gasp("echec malloc pcmbuf %d samples", (int)qpcmbuf );
+
+// un ou 2 buffers pour servir l'audio entier a jluplot
+Lallocated = m3.estqsamp * sizeof(short);
+Lbuf = (short *)malloc( Lallocated );	// pour 1 canal
+if	( Lbuf == NULL )
+	gasp("echec malloc Lbuf %d samples", (int)m3.estqsamp );
+
+if	( m3.qchan > 1 )
+	{
+	Rallocated = m3.estqsamp * sizeof(short);
+	Rbuf = (short *)malloc( Rallocated );	// pour 1 canal
+	if	( Rbuf == NULL )
+		gasp("echec malloc Rbuf %d samples", (int)m3.estqsamp );
+	}
+
+// 3eme etape : boucler sur le buffer
+unsigned int i, j, rdsamples;
+j = 0;
+
+if	( m3.qchan == 2 )
+	{			// boucle stereo
+	do	{
+		retval = m3.read_data( (void *)pcmbuf, qpcmbuf );
+		if	( retval > 0 )
+			{
+			rdsamples = retval / m3.monosamplesize;
+			for	( i = 0; i < rdsamples; i += 2 )
+				{
+				if	( j >= Lallocated )
+					{
+					printf("mp3 audio truncated!\n"); fflush(stdout);
+					break;
+					}
+				Lbuf[j]   = pcmbuf[i];
+				Rbuf[j++] = pcmbuf[i+1];
+				}
+			}
+		} while ( retval == (int)qpcmbuf );
+	}
+
+else if	( m3.qchan == 1 )
+	{			// boucle mono
+	do	{
+		retval = m3.read_data( (void *)pcmbuf, qpcmbuf );
+		if	( retval > 0 )
+			{
+			rdsamples = retval / m3.monosamplesize;
+			for	( i = 0; i < rdsamples; i++ )
+				{
+				if	( j >= Lallocated )
+					{
+					printf("mp3 audio truncated!\n"); fflush(stdout);
+					break;
+					}
+				Lbuf[j++]  = pcmbuf[i];
+				}
+			}
+		} while ( retval == (int)qpcmbuf );
+	}
+		
+m3.realqsamp = j;
+
+if	( retval < 0 )
+	{
+	printf("error read_data: %s\n", m3.errfunc );
+	}
+
+printf("decoded samples %u vs %u estimated\n", (unsigned int)m3.realqsamp, (unsigned int)m3.estqsamp );
+
+mpg123_close(m3.mhand); mpg123_delete(m3.mhand); mpg123_exit();
+
+fflush(stdout); fflush(stderr);
+
+// Attention : l'appli JAW attend des donnees WAV, il faut recopier les params indispensables
+// dans l'objet wavpars
+wavp.chan = m3.qchan;
+wavp.resol = 8 * m3.monosamplesize;
+wavp.freq = m3.fsamp;
+wavp.wavsize = m3.realqsamp;
+return 0;
+}
+
+// calculs spectrogramme dans l'objet process
+int process::spectrum_compute()
+{
+int retval;
 
 // creation spectrographe
 // qspek = 1;
@@ -258,40 +390,42 @@ if	( wavp.chan > 1 )
 	curcour->fgcolor.dB = 0.0;
 	}
 
-layer_rgb * curcour2;
-/* creer le strip pour le spectro */
-curbande = new gstrip;
-panneau->add_strip( curbande );
-// configurer le strip
-curbande->bgcolor.dR = 1.0;
-curbande->bgcolor.dG = 1.0;
-curbande->bgcolor.dB = 1.0;
-curbande->Ylabel = "midi";
-curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
-curbande->optretX = 0;
-curbande->optretY = 0;
-curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
-gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
-// curbande->optcadre = 1;	// pour economiser le fill du fond
+if	( qspek >= 1 )
+	{
+	layer_rgb * curcour2;
+	/* creer le strip pour le spectro */
+	curbande = new gstrip;
+	panneau->add_strip( curbande );
+	// configurer le strip
+	curbande->bgcolor.dR = 1.0;
+	curbande->bgcolor.dG = 1.0;
+	curbande->bgcolor.dB = 1.0;
+	curbande->Ylabel = "midi";
+	curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
+	curbande->optretX = 0;
+	curbande->optretY = 0;
+	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
+	gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
+	// curbande->optcadre = 1;	// pour economiser le fill du fond
 
-// creer le layer
-curcour2 = new layer_rgb;
-curbande->add_layer( curcour2, "RGB left" );
+	// creer le layer
+	curcour2 = new layer_rgb;
+	curbande->add_layer( curcour2, "RGB left" );
 
-// configurer le layer
-curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
-curcour2->set_m0( 0.5 * (double)(Lspek.fftsize-Lspek.fftstride ) );
-curcour2->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
-							// la midinote correspondant au bas du spectre
-curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
-
+	// configurer le layer
+	curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
+	curcour2->set_m0( 0.5 * (double)(Lspek.fftsize-Lspek.fftstride ) );
+	curcour2->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
+								// la midinote correspondant au bas du spectre
+	curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
+	}
 if	( qspek >= 2 )
 	{
 	panneau->bandes.back()->Ylabel = "midi L";
-
+	layer_rgb * curcour2;
 	/* creer le strip pour le spectro */
 	curbande = new gstrip;
-    panneau->add_strip( curbande );
+	panneau->add_strip( curbande );
 	// configurer le strip
 	curbande->bgcolor.dR = 1.0;
 	curbande->bgcolor.dG = 1.0;
@@ -345,17 +479,20 @@ if	( wavp.chan > 1 )
 	}
 panneau->kq = (double)(wavp.freq);	// pour avoir une echelle en secondes au lieu de samples
 
-unsigned int ib = 1;	//
-if	( ib >= panneau->bandes.size() )
-	gasp("erreur sur layout");
-laySL = (layer_rgb *)panneau->bandes[ib]->courbes[0];
-laySL->spectropix = Lpix;
-// a ce point on a dans layS->spectropix un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
-// petite verification
-unsigned int verif = gdk_pixbuf_get_width(  ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-	    verif *= gdk_pixbuf_get_height( ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
-printf("verif connexion spectrogramme %u pixels\n", verif );
+unsigned int ib = 1;
 
+if	( qspek >= 1 )
+	{
+	if	( ib >= panneau->bandes.size() )
+		gasp("erreur sur layout");
+	laySL = (layer_rgb *)panneau->bandes[ib]->courbes[0];
+	laySL->spectropix = Lpix;
+	// a ce point on a dans layS->spectropix un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
+	// petite verification
+	unsigned int verif = gdk_pixbuf_get_width(  ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
+		    verif *= gdk_pixbuf_get_height( ((layer_rgb *)panneau->bandes[ib]->courbes[0])->spectropix );
+	printf("verif connexion spectrogramme %u pixels\n", verif );
+	}
 if	( qspek >= 2 )
 	{
 	ib++;

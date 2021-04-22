@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <math.h>
+#include <mpg123.h>
 
 using namespace std;
 #include <string>
@@ -28,6 +29,7 @@ using namespace std;
 #include "fftw3.h"
 #include "spectro.h"
 #include "wav_head.h"
+#include "mp3in.h"
 #include "process.h"
 #include "param.h"
 #include "gui.h"
@@ -483,6 +485,7 @@ double mylatency = 0.090;	// -L // 90 ms c'est conservateur
 int myoutput = -1;		// -d // -1 = choose system default device
 int pa_dev_options = -1;	// -p // listage audio devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)
 int solB = 0;			// -B // variante pour copie drawpad (cf gluplot.cpp) "-B" pour B1, sinon defaut = B2 
+int option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
 const char * fnam = NULL;
 
 // 	parsage CLI
@@ -493,6 +496,7 @@ if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
 if	( ( val = lepar->get( 'd' ) ) )	myoutput = atoi( val );
 if	( ( val = lepar->get( 'p' ) ) )	pa_dev_options = atoi( val );
 if	( ( val = lepar->get( 'B' ) ) )	solB = 1;
+if	( ( val = lepar->get( 'S' ) ) )	option_spectrogramme = 1;
 if	( ( val = lepar->get( 'h' ) ) )
 	{
 	printf( "options :\n"
@@ -510,7 +514,7 @@ if	( fnam == NULL )
 	gasp("fournir un nom de fichier WAV");
 
 
-snprintf( glo->pro.wnam, sizeof( glo->pro.wnam), fnam );
+snprintf( glo->pro.wnam, sizeof( glo->pro.wnam ), fnam );
 
  
 // traiter choix options B1 vs B2
@@ -521,11 +525,25 @@ if	( solB == 1 )
 	}
 else	printf("Sol. B2\n");
 
+// traitement donnees audio, wav ou mp3
+int retval;
 
-int retval = glo->pro.wave_process_full();
+retval = strlen( glo->pro.wnam );
+if	( glo->pro.wnam[retval-1] == '3' )
+	retval = glo->pro.mp3_process();
+else	retval = glo->pro.wave_process();
 if	( retval )
 	gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
 fflush(stdout);
+
+if	( option_spectrogramme )
+	{
+	retval = glo->pro.spectrum_compute();
+	if	( retval )
+		gasp("echec spectrum, erreur %d", retval );
+	fflush(stdout);
+	}
+
 // preparer le layout pour wav L (et R si stereo) et spectro
 glo->pro.prep_layout( &glo->panneau );
 retval = glo->pro.connect_layout( &glo->panneau );

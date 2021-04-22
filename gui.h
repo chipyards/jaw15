@@ -42,9 +42,5 @@ double play_start_time;
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
 
-int darea_expose_cnt;
-int idle_profiler_cnt;
-int idle_profiler_time;
-
 };
 

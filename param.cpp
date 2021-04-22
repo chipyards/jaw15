@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <mpg123.h>
 
 using namespace std;
 #include <string>
@@ -10,6 +11,7 @@ using namespace std;
 #include "fftw3.h"
 #include "spectro.h"
 #include "wav_head.h"
+#include "mp3in.h"
 #include "process.h"
 
 #include "param.h"

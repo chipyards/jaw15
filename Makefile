@@ -26,14 +26,14 @@ endif
 SOURCESC = wav_head.c modpop3.c $(ADEV)
 SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp \
     JLUP/layer_rgb.cpp \
-    spectro.cpp process.cpp gui.cpp param.cpp
+    spectro.cpp process.cpp gui.cpp param.cpp mp3in.cpp
 HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
     JLUP/layer_rgb.h JLUP/layer_lod.h JLUP/layer_u.h \
-    modpop3.h pa_devs.h process.h gui.h spectro.h wav_head.h param.h cli_parse.h
+    modpop3.h pa_devs.h process.h gui.h spectro.h wav_head.h param.h mp3in.h cli_parse.h
 
 OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
     layer_rgb.o \
-    spectro.o process.o gui.o param.o
+    spectro.o process.o gui.o param.o mp3in.o
 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
 
@@ -50,6 +50,7 @@ LIBS= -L$(GTKBASE)/lib \
 -lpango-1.0 \
 -lpangocairo-1.0 \
 -lpangowin32-1.0 \
+-lmpg123 \
 -L. -lfftw3f-3 \
 $(ALIB)
 
@@ -95,6 +96,8 @@ gui.o : gui.cpp ${HEADERS}
 	gcc $(INCS) -c gui.cpp
 param.o : param.cpp ${HEADERS}
 	gcc $(INCS) -c param.cpp
+mp3in.o : mp3in.cpp ${HEADERS}
+	gcc $(INCS) -c mp3in.cpp
 
 # dependances
 wav_head.o : ${HEADERS}
