@@ -19,9 +19,9 @@
  "fmt "    4     le chuck fmt coute  au moins 24 bytes en tout
  chucksize 4 _   == 16 bytes utile
  type      2  |				1 pour sl 16		3 pour float
- chan      2  |
- freq      4  } == 16 bytes		(par exemple 44100 = 0xAC44)
- bpsec     4  |		bytes/s		block * freq
+ qchan     2  |
+ fsamp     4  } == 16 bytes		(par exemple 44100 = 0xAC44)
+ bpsec     4  |		bytes/s		block * fsamp
  block     2  |		bytes/frame	4			8
  resol     2 _|		bits/sample	16			32
  "data"    4
@@ -62,10 +62,10 @@ return(s);
 
 void WAVreadHeader( wavpars *s )
 {
-unsigned char buf[QBUF]; unsigned int filesize, chucksize, factsize;
+unsigned char buf[QBUF]; unsigned int chucksize, factsize, resol;
 read( s->hand, buf, 4 );
 if ( strncmp( (char *)buf, "RIFF", 4 ) != 0 ) gasp("manque en-tete RIFF");
-read( s->hand, buf, 4 ); filesize = readlong( buf );
+read( s->hand, buf, 4 ); // filesize = readlong( buf );
 read( s->hand, buf, 4 );
 if ( strncmp( (char *)buf, "WAVE", 4 ) != 0 ) gasp("manque en-tete WAVE");
 s->type = 0x10000;
@@ -86,23 +86,24 @@ while	( read( s->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
 		s->type = readshort( buf );
 		if	( ( s->type == 1 ) || ( s->type == 3 ) || ( s->type == 0xFFFE ) )
 			{
-			s->chan = readshort( buf + 2 );
-			s->freq = readlong( buf + 4 );
+			s->qchan = readshort( buf + 2 );
+			s->fsamp = readlong( buf + 4 );
 			s->bpsec = readlong( buf + 8 );
 			s->block = readshort( buf + 12 );
-			s->resol = readshort( buf + 14 );
-			s->wavsize = 0;
+			resol = readshort( buf + 14 );
+			s->monosamplesize = resol / 8;
+			s->estpfr = 0;
 			if	( s->type == 0xFFFE )		// WAVE_FORMAT_EXTENSIBLE
 				{
 				printf("WAVE_FORMAT_EXTENSIBLE\n");
-				if	( s->chan > 2 )
+				if	( s->qchan > 2 )
 					gasp("plus que 2 canaux : non supporte\n");
 				int extsize = readshort( buf + 16 );
 				if	( extsize == 22 )
 					{
 					int validbits = readshort( buf + 18 );
-					if	( validbits != s->resol )
-						gasp("validbits = %d vs %d\n", validbits, s->resol );
+					if	( validbits != resol )
+						gasp("validbits = %d vs %d\n", validbits, resol );
 					int ext_type = readshort( buf + 20 );
 					if	( ( ext_type != 1 ) && ( ext_type != 3 ) )
 						gasp("ext format %d non supporte", ext_type );
@@ -123,23 +124,24 @@ while	( read( s->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
 if	( s->type == 0x10000 ) gasp("pas de chuck fmt");
 if	( strncmp( (char *)buf, "data", 4 ) != 0 ) gasp("pas de chuck data");
 					// on est bien arrive dans les data !
-s->wavsize = chucksize / ( s->chan * ((s->resol)>>3) );
+s->estpfr = chucksize / ( s->qchan * s->monosamplesize );
 
-printf("%u canaux, %u Hz, %u bytes/s, %u bits\n",
-       s->chan, s->freq, s->bpsec, s->resol );
-printf("%u echantillons selon data chuck\n", s->wavsize );
+// printf("%u canaux, %u Hz, %u bytes/s, %u bytes/monosample\n",
+//       s->qchan, s->fsamp, s->bpsec, s->monosamplesize );
+// printf("%u echantillons selon data chuck\n", s->estpfr );
 if	( factsize != 0 )
 	{
 	// printf("%u echantillons selon fact chuck\n", factsize );
-	if ( s->wavsize != factsize ) gasp("longueurs incoherentes");
+	if ( s->estpfr != factsize ) gasp("longueurs incoherentes");
 	}
 // printf("fichier %u bytes, chuck data %u bytes\n", filesize, chucksize );
-	{
+/*	{
 	double durs, dmn, ds; int mn;
-	durs = s->wavsize;  durs /= s->freq;
+	durs = s->estpfr;  durs /= s->fsamp;
 	dmn = durs / 60.0;  mn = (int)dmn; ds = durs - 60.0 * mn;
 	printf("duree %.3f s soit %d mn %.3f s\n", durs, mn, ds );
 	}
+*/
 }
 
 void writelong( unsigned char *buf, unsigned int l )
@@ -162,9 +164,9 @@ void WAVwriteHeader( wavpars *d )
 {
 unsigned char buf[16]; long filesize, chucksize;
 
-d->block = d->chan * ((d->resol)>>3);
-d->bpsec = d->freq * d->block;
-chucksize = d->wavsize * d->block;
+d->block = d->qchan * d->monosamplesize;
+d->bpsec = d->fsamp * d->block;
+chucksize = d->estpfr * d->block;
 filesize = chucksize + 36;
 
 if ( write( d->hand, "RIFF", 4 ) != 4 ) gulp();
@@ -177,11 +179,11 @@ writelong( buf, 16 );
 if ( write( d->hand, buf, 4 ) != 4 ) gulp();
 
 writeshort( buf,      d->type  );
-writeshort( buf + 2,  d->chan  );
-writelong(  buf + 4,  d->freq  );
+writeshort( buf + 2,  d->qchan  );
+writelong(  buf + 4,  d->fsamp  );
 writelong(  buf + 8,  d->bpsec );
 writeshort( buf + 12, d->block );
-writeshort( buf + 14, d->resol );
+writeshort( buf + 14, d->monosamplesize * 8 );
 if ( write( d->hand, buf, 16 ) != 16 ) gulp();
 
 if ( write( d->hand, "data", 4 ) != 4 ) gulp();

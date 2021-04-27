@@ -29,7 +29,7 @@ SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp \
     spectro.cpp process.cpp gui.cpp param.cpp mp3in.cpp
 HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
     JLUP/layer_rgb.h JLUP/layer_lod.h JLUP/layer_u.h \
-    modpop3.h pa_devs.h process.h gui.h spectro.h wav_head.h param.h mp3in.h cli_parse.h
+    modpop3.h pa_devs.h process.h gui.h spectro.h autobuf.h wav_head.h param.h mp3in.h cli_parse.h
 
 OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
     layer_rgb.o \

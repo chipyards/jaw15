@@ -10,6 +10,7 @@ using namespace std;
 #include "JLUP/gluplot.h"
 #include "fftw3.h"
 #include "spectro.h"
+#include "autobuf.h"
 #include "wav_head.h"
 #include "mp3in.h"
 #include "process.h"

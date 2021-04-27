@@ -89,6 +89,7 @@
 		<Unit filename="../process.h" />
 		<Unit filename="../spectro.cpp" />
 		<Unit filename="../spectro.h" />
+		<Unit filename="../autobuf.h" />
 		<Unit filename="../mp3in.cpp" />
 		<Unit filename="../mp3in.h" />
 		<Unit filename="../wav_head.c">

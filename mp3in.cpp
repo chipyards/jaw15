@@ -53,16 +53,16 @@ monosamplesize = mpg123_encsize(encoding);
 
 outblock = mpg123_outblock( mhand );
 
-estqsamp = mpg123_length( mhand );
-if	( estqsamp < 0 )		
-	{ errfunc = "length"; return estqsamp; }
+estpfr = mpg123_length( mhand );
+if	( estpfr < 0 )		
+	{ errfunc = "length"; return estpfr; }
 
 return 0;
 }
 
 // The buffer size qpcmbuf, in BYTES, should be a multiple of the PCM frame size (qchan * 2)
-// retourne le nombre de BYTES lus ou -1 si erreur
-int mp3in::read_data( void * pcmbuf, size_t qpcmbuf )
+// retourne le nombre de BYTES lus ( 0 si fini ) ou -1 si erreur
+int mp3in::read_data_b( void * pcmbuf, size_t qpcmbuf )
 {
 size_t cnt;
 int retval;
@@ -73,6 +73,26 @@ if	( ( retval != MPG123_OK ) && ( retval != MPG123_DONE ) )
 	errfunc = mpg123_plain_strerror(retval);
 	return -1;
 	}
+realpfr += ( cnt * monosamplesize * qchan );
+return (int)cnt;
+}
+
+// The buffer size qpfr is in PCM frame
+// retourne le nombre de pcm frames lus ( 0 si fini ) ou -1 si erreur
+int mp3in::read_data_p( void * pcmbuf, size_t qpfr )
+{
+size_t cnt;
+int retval;
+
+qpfr *= ( monosamplesize * qchan );
+retval = mpg123_read( mhand, pcmbuf, qpfr, &cnt );
+if	( ( retval != MPG123_OK ) && ( retval != MPG123_DONE ) )
+	{
+	errfunc = mpg123_plain_strerror(retval);
+	return -1;
+	}
+cnt /= ( monosamplesize * qchan );
+realpfr += cnt; 
 return (int)cnt;
 }
 

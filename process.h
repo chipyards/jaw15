@@ -3,10 +3,8 @@ public:
 char wnam[256];		// fichiers WAV
 wavpars wavp;		// structure pour wav_head.c
 mp3in m3;		// objet pour lecture mp3
-short * Lbuf;		// audio brut sl16
-size_t Lallocated;	// espace alloue, en samples
-short * Rbuf;		// audio brut sl16
-size_t Rallocated;	// espace alloue
+autobuf <short> Lbuf;	// audio brut sl16
+autobuf <short> Rbuf;
 int qspek;		// nombre de spectres ( 1 ou 2 )
 GdkPixbuf * Lpix;	// spectre sous forme de pixbuf
 GdkPixbuf * Rpix;	// spectre sous forme de pixbuf
@@ -15,7 +13,7 @@ spectro Rspek;		// un spectrographe
 unsigned char mutpal[PALSIZE];	// la palette 16 bits --> RGB
 
 // constucteur
-process() : Lallocated(0), Rallocated(0), qspek(0), Lpix(NULL), Rpix(NULL) {};
+process() : qspek(0), Lpix(NULL), Rpix(NULL) {};
 
 // methodes
 // la partie du process qui traite en memoire les wavs et le spectre

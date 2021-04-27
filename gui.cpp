@@ -28,6 +28,7 @@ using namespace std;
 #endif
 #include "fftw3.h"
 #include "spectro.h"
+#include "autobuf.h"
 #include "wav_head.h"
 #include "mp3in.h"
 #include "process.h"
@@ -65,9 +66,9 @@ short * wL, *wR;
 short valL, valR;
 
 iend = framesPerBuffer * CODEC_QCHAN;
-wL = glo->pro.Lbuf;
-if	( glo->pro.wavp.chan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
-	wR = glo->pro.Rbuf;
+wL = glo->pro.Lbuf.data;
+if	( glo->pro.wavp.qchan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
+	wR = glo->pro.Rbuf.data;
 else	wR = wL;
 
 for	( i = 0; i < iend; i+= CODEC_QCHAN )
@@ -75,7 +76,7 @@ for	( i = 0; i < iend; i+= CODEC_QCHAN )
 	if	( glo->iplay < 0 )
 		valL = valR = 0;
 	else	{
-		if	( ( glo->iplay >= (int)glo->pro.wavp.wavsize ) || ( glo->iplay >= glo->iplay1 ) )
+		if	( ( glo->iplay >= (int)glo->pro.Lbuf.size ) || ( glo->iplay >= glo->iplay1 ) )
 			{
 			glo->iplay = -1;
 			valL = valR = 0;
@@ -163,11 +164,11 @@ volatile double newx;
 if	( glo->iplay >= 0 )
 	{			// Playing
 #ifdef USE_PORTAUDIO
-	double t0 = (double)glo->iplay0 / (double)(glo->pro.wavp.freq);
+	double t0 = (double)glo->iplay0 / (double)(glo->pro.wavp.fsamp);
 	// le temps present selon le timer portaudio, ramene au debut du play
 	double t = t0 + Pa_GetStreamTime( glo->stream ) - glo->play_start_time;
 	// le temps associe a l'indice courant, ramene au debut du play
-	double pt = (double)glo->iplay / (double)(glo->pro.wavp.freq);
+	double pt = (double)glo->iplay / (double)(glo->pro.wavp.fsamp);
 	char lbuf[128];
 	snprintf( lbuf, sizeof(lbuf), "%7.3f %7.3f  %4.3f", pt, t, t - pt );
 	gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
@@ -345,7 +346,7 @@ if	( gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) ) )
 	double m0, m1;
 	m0 = glo->panneau.MdeX( 0.0 );
 	m1 = glo->panneau.MdeX( (double)glo->panneau.ndx );
-	glo->panneau.kq = (double)(glo->pro.wavp.freq);
+	glo->panneau.kq = (double)(glo->pro.wavp.fsamp);
 	glo->panneau.zoomM( m0, m1 );
 	glo->panneau.force_repaint = 1;
 	}
