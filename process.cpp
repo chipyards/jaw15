@@ -21,7 +21,7 @@ using namespace std;
 #include "JLUP/layer_u.h"
 
 #include "autobuf.h"
-#include "wav_head.h"
+#include "wavio.h"
 #include "mp3in.h"
 #include "fftw3.h"
 #include "spectro.h"
@@ -39,7 +39,7 @@ wavp.hand = open( wnam, O_RDONLY | O_BINARY );
 if	( wavp.hand == -1 )
 	{ printf("file not found %s\n", wnam ); return -1;  }
 
-WAVreadHeader( &wavp );
+wavp.WAVreadHeader();
 if	(
 	( ( wavp.qchan != 1 ) && ( wavp.qchan != 2 ) ) ||
 	( wavp.monosamplesize != 2 )

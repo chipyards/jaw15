@@ -11,7 +11,7 @@ using namespace std;
 #include "fftw3.h"
 #include "spectro.h"
 #include "autobuf.h"
-#include "wav_head.h"
+#include "wavio.h"
 #include "mp3in.h"
 #include "process.h"
 

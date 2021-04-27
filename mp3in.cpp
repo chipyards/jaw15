@@ -44,7 +44,7 @@ retval = mpg123_open( mhand, fnam );
 if	( retval != MPG123_OK )
 	{ errfunc = "open"; return retval; }
 
-retval = mpg123_getformat( mhand, (long *)&fsamp, &qchan, &encoding );
+retval = mpg123_getformat( mhand, (long *)&fsamp, (int *)&qchan, &encoding );
 if	( retval != MPG123_OK )
 	{ errfunc = "getformat"; return retval; }
 

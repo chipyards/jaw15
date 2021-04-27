@@ -8,15 +8,17 @@
 // N.B. "pcm frame" c'est 1 sample en mono, une paire en stereo
 // ne pas confondre : 1 mp3 frame = 1152 pcm frames
 //
-class mp3in {
-public:
+#include "audiofile.h"
 
-int monosamplesize;	// 2 for 16-bit audio
-int qchan;		// 1 ou 2
-int fsamp;		// sample rate
+class mp3in : public audiofile {
+public:
+/* attributs de la classe de base
+unsigned int monosamplesize;	// 2 for 16-bit audio
+unsigned int qchan;		// 1 ou 2
+unsigned int fsamp;		// sample rate
 unsigned int estpfr;	// taille estimee  (PCM frames)
 unsigned int realpfr;	// taille apres lecture
-
+*/
 mpg123_handle *mhand;
 int verbose;	// valeurs utiles 2, 3, 4
 const char * errfunc;	// (une idee de JLN)
@@ -24,7 +26,7 @@ const char * errfunc;	// (une idee de JLN)
 size_t outblock;	// taille de buffer recommandee (bytes)
 
 // constructeur
-mp3in() : realpfr(0), mhand(NULL), verbose(3), errfunc("")   {};
+mp3in() : audiofile(), mhand(NULL), verbose(3), errfunc("") {};
 
 // methodes
 int read_head( const char * fnam );	// renseigne les parametres

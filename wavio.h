@@ -1,22 +1,27 @@
-// plus d'explications dans wav_head.c
-typedef struct {
+// plus d'explications dans wavio.cpp
+#include "audiofile.h"
 
+class wavio : public audiofile {
+public:
+/* attributs de la classe de base
 unsigned int monosamplesize;	// 2 for 16-bit audio
 unsigned int qchan;		// 1 ou 2
 unsigned int fsamp;		// sample rate
 unsigned int estpfr;	// taille estimee  (PCM frames)
 unsigned int realpfr;	// taille apres lecture
-
+*/
 int hand;		// file handle	
 unsigned int type;	// 1 = signed short int, 3 = float
-//unsigned int chan;
-//unsigned int freq;	// frequence d'echantillonnage
 unsigned int bpsec;	// bytes par seconde
 unsigned int block;	// bytes par frame
-//unsigned int resol;	// bits par sample
-//unsigned int wavsize;	// longueur en echantillons (par canal)
-			// = nombre de frames
-} wavpars;
+
+// constructeur
+wavio() : audiofile() {};
+
+// methodes
+void WAVreadHeader();
+void WAVwriteHeader();
+};
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -25,10 +30,6 @@ unsigned int block;	// bytes par frame
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-void WAVreadHeader( wavpars *s );
-
-void WAVwriteHeader( wavpars *d );
 
 void gasp( const char *fmt, ... );  /* traitement erreur fatale */
 

@@ -90,12 +90,11 @@
 		<Unit filename="../spectro.cpp" />
 		<Unit filename="../spectro.h" />
 		<Unit filename="../autobuf.h" />
+		<Unit filename="../audiofile.h" />
 		<Unit filename="../mp3in.cpp" />
 		<Unit filename="../mp3in.h" />
-		<Unit filename="../wav_head.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="../wav_head.h" />
+		<Unit filename="../wavio.cpp" />
+		<Unit filename="../wavio.h" />
 		<Extensions />
 	</Project>
 </CodeBlocks_project_file>

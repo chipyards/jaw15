@@ -1,4 +1,3 @@
-// extrait du code de reference WAV2WAVc.zip
 /* WAV est un cas de fichier RIFF.
  * le fichier RIFF commence par "RIFF" (4 caracteres) suivi de la longueur
  * du reste du fichier en long (4 bytes ordre Intel)
@@ -39,10 +38,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "wav_head.h"
+#include "wavio.h"
 
-
-unsigned int readlong( unsigned char *buf )
+static unsigned int readlong( unsigned char *buf )
 {
 unsigned int l;
 l  = (unsigned int)buf[3] << 24 ;
@@ -51,7 +49,8 @@ l += (unsigned int)buf[1] << 8 ;
 l += buf[0];
 return(l);
 }
-unsigned int readshort( unsigned char *buf )
+
+static unsigned int readshort( unsigned char *buf )
 {
 unsigned int s;
 s = buf[0] + ( buf[1] << 8 );
@@ -60,18 +59,18 @@ return(s);
 
 #define QBUF 4096
 
-void WAVreadHeader( wavpars *s )
+void wavio::WAVreadHeader()
 {
 unsigned char buf[QBUF]; unsigned int chucksize, factsize, resol;
-read( s->hand, buf, 4 );
+read( this->hand, buf, 4 );
 if ( strncmp( (char *)buf, "RIFF", 4 ) != 0 ) gasp("manque en-tete RIFF");
-read( s->hand, buf, 4 ); // filesize = readlong( buf );
-read( s->hand, buf, 4 );
+read( this->hand, buf, 4 ); // filesize = readlong( buf );
+read( this->hand, buf, 4 );
 if ( strncmp( (char *)buf, "WAVE", 4 ) != 0 ) gasp("manque en-tete WAVE");
-s->type = 0x10000;
+this->type = 0x10000;
 factsize = 0;
 chucksize = 0;
-while	( read( s->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
+while	( read( this->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
 	{
 	chucksize = readlong( buf + 4 );
 	if	( strncmp( (char *)buf, "data", 4 ) == 0 )
@@ -82,113 +81,114 @@ while	( read( s->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
 	if	( strncmp( (char *)buf, "fmt ", 4 ) == 0 )		// chuck fmt
 		{
 		if ( chucksize > QBUF ) gasp("chuck fmt trop gros");
-		read( s->hand, buf, (int)chucksize );
-		s->type = readshort( buf );
-		if	( ( s->type == 1 ) || ( s->type == 3 ) || ( s->type == 0xFFFE ) )
+		read( this->hand, buf, (int)chucksize );
+		this->type = readshort( buf );
+		if	( ( this->type == 1 ) || ( this->type == 3 ) || ( this->type == 0xFFFE ) )
 			{
-			s->qchan = readshort( buf + 2 );
-			s->fsamp = readlong( buf + 4 );
-			s->bpsec = readlong( buf + 8 );
-			s->block = readshort( buf + 12 );
+			this->qchan = readshort( buf + 2 );
+			this->fsamp = readlong( buf + 4 );
+			this->bpsec = readlong( buf + 8 );
+			this->block = readshort( buf + 12 );
 			resol = readshort( buf + 14 );
-			s->monosamplesize = resol / 8;
-			s->estpfr = 0;
-			if	( s->type == 0xFFFE )		// WAVE_FORMAT_EXTENSIBLE
+			this->monosamplesize = resol / 8;
+			this->estpfr = 0;
+			if	( this->type == 0xFFFE )		// WAVE_FORMAT_EXTENSIBLE
 				{
 				printf("WAVE_FORMAT_EXTENSIBLE\n");
-				if	( s->qchan > 2 )
+				if	( this->qchan > 2 )
 					gasp("plus que 2 canaux : non supporte\n");
 				int extsize = readshort( buf + 16 );
 				if	( extsize == 22 )
 					{
-					int validbits = readshort( buf + 18 );
+					unsigned int validbits = readshort( buf + 18 );
 					if	( validbits != resol )
 						gasp("validbits = %d vs %d\n", validbits, resol );
 					int ext_type = readshort( buf + 20 );
 					if	( ( ext_type != 1 ) && ( ext_type != 3 ) )
 						gasp("ext format %d non supporte", ext_type );
-					s->type = ext_type;
+					this->type = ext_type;
 					}
 				else	gasp("fmt extension toot short %d\n", extsize );
 				}
 			}
-		else	gasp("format %d inconnu", s->type );
+		else	gasp("format %d inconnu", this->type );
 		}
 	else if	( strncmp( (char *)buf, "fact", 4 ) == 0 )		// chuck fact
 		{
-		read( s->hand, buf, chucksize );
+		read( this->hand, buf, chucksize );
 		factsize = readlong( buf );
 		}
-	else	read( s->hand, buf, chucksize );				// autre chuck
+	else	read( this->hand, buf, chucksize );				// autre chuck
 	}
-if	( s->type == 0x10000 ) gasp("pas de chuck fmt");
+if	( this->type == 0x10000 ) gasp("pas de chuck fmt");
 if	( strncmp( (char *)buf, "data", 4 ) != 0 ) gasp("pas de chuck data");
 					// on est bien arrive dans les data !
-s->estpfr = chucksize / ( s->qchan * s->monosamplesize );
+this->estpfr = chucksize / ( this->qchan * this->monosamplesize );
 
 // printf("%u canaux, %u Hz, %u bytes/s, %u bytes/monosample\n",
-//       s->qchan, s->fsamp, s->bpsec, s->monosamplesize );
-// printf("%u echantillons selon data chuck\n", s->estpfr );
+//       this->qchan, this->fsamp, this->bpsec, this->monosamplesize );
+// printf("%u echantillons selon data chuck\n", this->estpfr );
 if	( factsize != 0 )
 	{
 	// printf("%u echantillons selon fact chuck\n", factsize );
-	if ( s->estpfr != factsize ) gasp("longueurs incoherentes");
+	if ( this->estpfr != factsize ) gasp("longueurs incoherentes");
 	}
 // printf("fichier %u bytes, chuck data %u bytes\n", filesize, chucksize );
 /*	{
 	double durs, dmn, ds; int mn;
-	durs = s->estpfr;  durs /= s->fsamp;
+	durs = this->estpfr;  durs /= this->fsamp;
 	dmn = durs / 60.0;  mn = (int)dmn; ds = durs - 60.0 * mn;
 	printf("duree %.3f s soit %d mn %.3f s\n", durs, mn, ds );
 	}
 */
 }
 
-void writelong( unsigned char *buf, unsigned int l )
+static void writelong( unsigned char *buf, unsigned int l )
 {
 buf[0] = (unsigned char)l; l >>= 8;
 buf[1] = (unsigned char)l; l >>= 8;
 buf[2] = (unsigned char)l; l >>= 8;
 buf[3] = (unsigned char)l;
 }
-void writeshort( unsigned char *buf, unsigned int s )
+static void writeshort( unsigned char *buf, unsigned int s )
 {
 buf[0] = (unsigned char)s; s >>= 8;
 buf[1] = (unsigned char)s;
 }
-void gulp()
+
+static void gulp()
 { gasp("erreur ecriture fichier");
 }
 
-void WAVwriteHeader( wavpars *d )
+void wavio::WAVwriteHeader()
 {
 unsigned char buf[16]; long filesize, chucksize;
 
-d->block = d->qchan * d->monosamplesize;
-d->bpsec = d->fsamp * d->block;
-chucksize = d->estpfr * d->block;
+this->block = this->qchan * this->monosamplesize;
+this->bpsec = this->fsamp * this->block;
+chucksize = this->estpfr * this->block;
 filesize = chucksize + 36;
 
-if ( write( d->hand, "RIFF", 4 ) != 4 ) gulp();
+if ( write( this->hand, "RIFF", 4 ) != 4 ) gulp();
 writelong( buf, filesize );
-if ( write( d->hand, buf, 4 ) != 4 ) gulp();
+if ( write( this->hand, buf, 4 ) != 4 ) gulp();
 
-if ( write( d->hand, "WAVE", 4 ) != 4 ) gulp();
-if ( write( d->hand, "fmt ", 4 ) != 4 ) gulp();
+if ( write( this->hand, "WAVE", 4 ) != 4 ) gulp();
+if ( write( this->hand, "fmt ", 4 ) != 4 ) gulp();
 writelong( buf, 16 );
-if ( write( d->hand, buf, 4 ) != 4 ) gulp();
+if ( write( this->hand, buf, 4 ) != 4 ) gulp();
 
-writeshort( buf,      d->type  );
-writeshort( buf + 2,  d->qchan  );
-writelong(  buf + 4,  d->fsamp  );
-writelong(  buf + 8,  d->bpsec );
-writeshort( buf + 12, d->block );
-writeshort( buf + 14, d->monosamplesize * 8 );
-if ( write( d->hand, buf, 16 ) != 16 ) gulp();
+writeshort( buf,      this->type  );
+writeshort( buf + 2,  this->qchan  );
+writelong(  buf + 4,  this->fsamp  );
+writelong(  buf + 8,  this->bpsec );
+writeshort( buf + 12, this->block );
+writeshort( buf + 14, this->monosamplesize * 8 );
+if ( write( this->hand, buf, 16 ) != 16 ) gulp();
 
-if ( write( d->hand, "data", 4 ) != 4 ) gulp();
+if ( write( this->hand, "data", 4 ) != 4 ) gulp();
 writelong( buf, chucksize );
-if ( write( d->hand, buf, 4 ) != 4 ) gulp();
+if ( write( this->hand, buf, 4 ) != 4 ) gulp();
 }
 
 /* --------------------------------------- traitement erreur fatale */

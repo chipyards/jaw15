@@ -1,7 +1,7 @@
 class process {
 public:
-char wnam[256];		// fichiers WAV
-wavpars wavp;		// structure pour wav_head.c
+char wnam[256];		// fichiers audio
+wavio wavp;		// objet pour lecture wav
 mp3in m3;		// objet pour lecture mp3
 autobuf <short> Lbuf;	// audio brut sl16
 autobuf <short> Rbuf;
