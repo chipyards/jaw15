@@ -67,7 +67,7 @@ short valL, valR;
 
 iend = framesPerBuffer * CODEC_QCHAN;
 wL = glo->pro.Lbuf.data;
-if	( glo->pro.wavp.qchan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
+if	( glo->pro.af->qchan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
 	wR = glo->pro.Rbuf.data;
 else	wR = wL;
 
@@ -164,11 +164,11 @@ volatile double newx;
 if	( glo->iplay >= 0 )
 	{			// Playing
 #ifdef USE_PORTAUDIO
-	double t0 = (double)glo->iplay0 / (double)(glo->pro.wavp.fsamp);
+	double t0 = (double)glo->iplay0 / (double)(glo->pro.af->fsamp);
 	// le temps present selon le timer portaudio, ramene au debut du play
 	double t = t0 + Pa_GetStreamTime( glo->stream ) - glo->play_start_time;
 	// le temps associe a l'indice courant, ramene au debut du play
-	double pt = (double)glo->iplay / (double)(glo->pro.wavp.fsamp);
+	double pt = (double)glo->iplay / (double)(glo->pro.af->fsamp);
 	char lbuf[128];
 	snprintf( lbuf, sizeof(lbuf), "%7.3f %7.3f  %4.3f", pt, t, t - pt );
 	gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
@@ -346,7 +346,7 @@ if	( gtk_check_menu_item_get_active( GTK_CHECK_MENU_ITEM(widget) ) )
 	double m0, m1;
 	m0 = glo->panneau.MdeX( 0.0 );
 	m1 = glo->panneau.MdeX( (double)glo->panneau.ndx );
-	glo->panneau.kq = (double)(glo->pro.wavp.fsamp);
+	glo->panneau.kq = (double)(glo->pro.af->fsamp);
 	glo->panneau.zoomM( m0, m1 );
 	glo->panneau.force_repaint = 1;
 	}
@@ -541,11 +541,7 @@ else	printf("Sol. B2\n");
 
 // traitement donnees audio, wav ou mp3
 int retval;
-
-retval = strlen( glo->pro.wnam );
-if	( glo->pro.wnam[retval-1] == '3' )
-	retval = glo->pro.mp3_process();
-else	retval = glo->pro.wave_process();
+retval = glo->pro.audiofile_process();
 if	( retval )
 	gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
 fflush(stdout);

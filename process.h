@@ -3,6 +3,7 @@ public:
 char wnam[256];		// fichiers audio
 wavio wavp;		// objet pour lecture wav
 mp3in m3;		// objet pour lecture mp3
+audiofile * af;		// pointeur sur wavp ou m3
 autobuf <short> Lbuf;	// audio brut sl16
 autobuf <short> Rbuf;
 int qspek;		// nombre de spectres ( 1 ou 2 )
@@ -17,8 +18,11 @@ process() : qspek(0), Lpix(NULL), Rpix(NULL) {};
 
 // methodes
 // la partie du process qui traite en memoire les wavs et le spectre
-int wave_process();
-int mp3_process();
+
+int audiofile_process();
+//int wave_process();
+//int mp3_process();
+
 int spectrum_compute( int force_mono );
 
 // la partie du process en relation avec jluplot

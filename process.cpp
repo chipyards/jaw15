@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <math.h>
 #include <mpg123.h>
 
@@ -29,110 +28,53 @@ using namespace std;
 
 /** ============================ AUDIO data processing =============== */
 
+#define QMORE	(1<<21)	// quantum pour reallocation ( 1 page = 4M = (1<<21)shorts )
 
-// allocation memoire et lecture WAV 16 bits entier en memoire
-// donnees stockées dans l'objet process
-int process::wave_process()
-{
-printf("ouverture WAV %s en lecture\n", wnam ); fflush(stdout);
-wavp.hand = open( wnam, O_RDONLY | O_BINARY );
-if	( wavp.hand == -1 )
-	{ printf("file not found %s\n", wnam ); return -1;  }
-
-wavp.WAVreadHeader();
-if	(
-	( ( wavp.qchan != 1 ) && ( wavp.qchan != 2 ) ) ||
-	( wavp.monosamplesize != 2 )
-	)
-	{ printf("programme seulement pour fichiers 16 bits mono ou stereo\n"); close(wavp.hand); return -2;  }
-printf("freq = %u, size = %u PCM frames\n",
-	wavp.fsamp, wavp.estpfr );
-fflush(stdout);
-
-// allouer memoire pour lire WAV
-
-Lbuf.more( wavp.estpfr );
-if	( Lbuf.capa == 0 )
-	gasp("echec malloc Lbuf %d samples", (int)wavp.estpfr );
-
-if	( wavp.qchan > 1 )
-	{
-	Rbuf.more( wavp.estpfr );
-	if	( Rbuf.capa == 0 )
-		gasp("echec malloc Rbuf %d samples", (int)wavp.estpfr );
-	}
-
-// lecture bufferisee
-unsigned int rdbytes, remsamples, rdsamples, rdsamples1c, totalsamples1c = 0;	// "1c" veut dire "pour 1 canal"
-#define QRAW 4096
-#define Qs16 sizeof(short int)
-short int rawsamples16[QRAW];	// buffer pour read()
-unsigned int i, j;
-j = 0;
-while	( totalsamples1c < wavp.estpfr )
-	{
-	remsamples = ( wavp.estpfr - totalsamples1c ) * wavp.qchan;
-	if	( remsamples > QRAW )
-		remsamples = QRAW;
-	rdbytes = read( wavp.hand, rawsamples16, remsamples*Qs16 );
-	rdsamples = rdbytes / Qs16;
-	if	( rdsamples != remsamples )
-		{ printf("truncated WAV data"); close(wavp.hand); return -4;  }
-	rdsamples1c = rdsamples / wavp.qchan;
-	totalsamples1c += rdsamples1c;
-	if	( wavp.qchan == 2 )
-		{
-		for	( i = 0; i < rdsamples; i += 2)
-			{
-			Lbuf.data[j]   = rawsamples16[i];
-			Rbuf.data[j++] = rawsamples16[i+1];
-			}
-		}
-	else if	( wavp.qchan == 1 )
-		{
-		for	( i = 0; i < rdsamples; ++i )
-			Lbuf.data[j++] = rawsamples16[i];
-		}
-	}
-if	( totalsamples1c != wavp.estpfr )	// cela ne peut pas arriver, cette verif serait parano
-	{ printf("WAV size error %u vs %d", totalsamples1c , (int)wavp.estpfr ); close(wavp.hand); return -5;  }
-wavp.realpfr = totalsamples1c;
-Lbuf.size = wavp.realpfr;
-if	( wavp.qchan == 2 )
-	Rbuf.size = wavp.realpfr;
-
-close( wavp.hand );
-printf("lu %d samples Ok\n", totalsamples1c ); fflush(stdout);
-return 0;
-}
-
-// allocation memoire et lecture MP3 16 bits entier en memoire
-// donnees stockées dans l'objet process
-int process::mp3_process()
+// allocation memoire et lecture WAV ou MP3 16 bits entier en memoire
+// donnees stockées dans les buffers de l'objet process
+int process::audiofile_process()
 {
 int retval;
+int mp3flag = 0;
 
-printf("ouverture MP3 %s en lecture\n", wnam ); fflush(stdout);
+retval = strlen( wnam );
+mp3flag = ( wnam[retval-1] == '3' );
+
+printf("ouverture %s %s en lecture\n", (mp3flag?"MP3":"WAV"), wnam ); fflush(stdout);
 
 // 1ere etape : lire un premiere bloc pour avoir les parametres
-retval = m3.read_head( wnam );
-if	( retval )
+if	( mp3flag )
 	{
-	printf("error read_head: %s : %s\n", m3.errfunc, mpg123_plain_strerror(retval) );
-	return -1;
+	af = (audiofile *)&m3;
+	retval = m3.read_head( wnam );
+	if	( retval )
+		{
+		printf("error read_head: %s : %s\n", m3.errfunc, mpg123_plain_strerror(retval) );
+		fflush(stdout); return -1;
+		}
+	printf("recommended buffer %d bytes\n", (int)m3.outblock );
 	}
+else	{
+	af = (audiofile *)&wavp;
+	retval = wavp.read_head( wnam );
+	if	( retval )
+		{
+		printf("file not found %s\n", wnam );
+		fflush(stdout); return -1;
+		}
+	}
+
 printf("got %d channels @ %d Hz, monosamplesize %d\n",
-	m3.qchan, m3.fsamp, m3.monosamplesize );
-printf("recommended buffer %d bytes\n", (int)m3.outblock );
-printf("estimated length : %u PCM frames\n", (unsigned int)m3.estpfr );
+	af->qchan, af->fsamp, af->monosamplesize );
+printf("estimated length : %u PCM frames\n", (unsigned int)af->estpfr );
 fflush(stdout);
 if	(
-	( ( m3.qchan != 1 ) && ( m3.qchan != 2 ) ) ||
-	( m3.monosamplesize != 2 )
+	( ( af->qchan != 1 ) && ( af->qchan != 2 ) ) ||
+	( af->monosamplesize != 2 )
 	)
 	{
 	printf("programme seulement pour fichiers 16 bits mono ou stereo\n");
-	mpg123_close(m3.mhand); mpg123_delete(m3.mhand); mpg123_exit();
+	af->afclose();
 	return -2;
 	}
 fflush(stdout);
@@ -140,42 +82,41 @@ fflush(stdout);
 // 2eme etape : allouer de la memoire pour les buffers
 
 // un petit buffer pour l'audio entrelace
-#define QPFR 1152	// en PCM frames
-short pcmbuf[QPFR*2];	// supporte stereo
+#define QPFR 1152	// optimal pour mp3, en PCM frames
+#define QRAW 2048	// optimal pour WAV, en PCM frames
 
-#define QMORE	(1<<21)	// quantum pour reallocation ( 1 page = 4M = (1<<21)shorts )
+short pcmbuf[QRAW*2];	// supporte stereo, supporte mp3 si QRAW > QPFR
 
-// qpcmbuf = m3.outblock;	// outblock = 1152 * monosamplesize * qchan <==> 1 bloc mpeg
 
 /* pre-allocation (facultative) des buffers pour l'audio entier a servir a jluplot */
-if	( Lbuf.more( m3.estpfr ) )
-	gasp("echec malloc Lbuf %d samples", (int)m3.estpfr );
+if	( Lbuf.more( af->estpfr ) )
+	gasp("echec malloc Lbuf %d samples", (int)af->estpfr );
 
-if	( m3.qchan > 1 )
+if	( af->qchan > 1 )
 	{
-	if	( Rbuf.more( m3.estpfr ) )
-		gasp("echec malloc Rbuf %d samples", (int)m3.estpfr );
+	if	( Rbuf.more( af->estpfr ) )
+		gasp("echec malloc Rbuf %d samples", (int)af->estpfr );
 	}
 //*/
 
 // 3eme etape : boucler sur le buffer
 int i;
 unsigned int j = 0;
-
-if	( m3.qchan == 2 )
+unsigned int qpfr = (mp3flag?QPFR:QRAW);
+if	( af->qchan == 2 )
 	{			// boucle stereo
 	do	{
-		retval = m3.read_data_p( (void *)pcmbuf, QPFR );
+		retval = af->read_data_p( (void *)pcmbuf, qpfr );	// dynamic binding!
 		if	( retval > 0 )
 			{
 			// printf("%u vs %u\n", m3.realpfr, Lbuf.capa ); fflush(stdout);
-			if	( m3.realpfr > Lbuf.capa )
+			if	( af->realpfr > Lbuf.capa )
 				{
 				if	( Lbuf.more( QMORE ) )
 					gasp("echec autobuf::more()");
 				printf("realloc Lbuf\n"); fflush(stdout);
 				}
-			if	( m3.realpfr > Rbuf.capa )
+			if	( af->realpfr > Rbuf.capa )
 				{
 				if	( Rbuf.more( QMORE ) )
 					gasp("echec autobuf::more()");
@@ -186,17 +127,15 @@ if	( m3.qchan == 2 )
 				Rbuf.data[j++] = pcmbuf[i+1];
 				}
 			}
-		} while ( retval == QPFR );
-	Lbuf.size = Rbuf.size = m3.realpfr;
+		} while ( retval == (int)qpfr );
+	Lbuf.size = Rbuf.size = af->realpfr;
 	}
-
-else if	( m3.qchan == 1 )
 	{			// boucle mono
 	do	{
-		retval = m3.read_data_p( (void *)pcmbuf, QPFR );
+		retval = af->read_data_p( (void *)pcmbuf, qpfr );
 		if	( retval > 0 )
 			{
-			if	( m3.realpfr > Lbuf.capa )
+			if	( af->realpfr > Lbuf.capa )
 				{
 				if	( Lbuf.more( QMORE ) )
 					gasp("echec autobuf::more()");
@@ -207,29 +146,23 @@ else if	( m3.qchan == 1 )
 				Lbuf.data[j++]  = pcmbuf[i];
 				}
 			}
-		} while ( retval == QPFR );
-	Lbuf.size = m3.realpfr;
+		} while ( retval == (int)qpfr );
+	Lbuf.size = af->realpfr;
 	}
-if	( j != m3.realpfr )
+if	( j != af->realpfr )	// cela ne peut pas arriver, cette verif est parano
 	gasp("erreur JAW #213978");
 
-if	( retval < 0 )
+if	( ( mp3flag ) && ( retval < 0 ) )
 	{
-	printf("error read_data: %s\n", m3.errfunc );
+	printf("error mp3 read_data: %s\n", m3.errfunc );
 	}
 
-printf("decoded PCM frames %u vs %u estimated\n", (unsigned int)m3.realpfr, (unsigned int)m3.estpfr );
+printf("decoded PCM frames %u vs %u estimated\n", (unsigned int)af->realpfr, (unsigned int)af->estpfr );
 
-mpg123_close(m3.mhand); mpg123_delete(m3.mhand); mpg123_exit();
+af->afclose();
 
 fflush(stdout); fflush(stderr);
 
-// Attention : l'appli JAW attend des donnees WAV, il faut recopier les params indispensables
-// dans l'objet wavpars
-wavp.qchan = m3.qchan;
-wavp.monosamplesize = m3.monosamplesize;
-wavp.fsamp = m3.fsamp;
-wavp.realpfr = m3.realpfr;
 return 0;
 }
 
@@ -241,7 +174,7 @@ int retval;
 // creation spectrographe
 if	( force_mono )
 	qspek = 1;
-else	qspek = wavp.qchan;
+else	qspek = af->qchan;
 
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 
@@ -267,13 +200,13 @@ if	( qspek >= 2 )
 // allocations pour spectro
 if	( qspek >= 1 )
 	{
-	retval = Lspek.init( wavp.fsamp, wavp.realpfr );
+	retval = Lspek.init( af->fsamp, Lbuf.size );
 	if	( retval )
 		gasp("erreur init L spectro %d", retval );
 	printf("end init L spectro, window type %d, avg %g\n\n", Lspek.window_type, Lspek.window_avg ); fflush(stdout);
 	if	( qspek >= 2 )
 		{
-		retval = Rspek.init( wavp.fsamp, wavp.realpfr );
+		retval = Rspek.init( af->fsamp, Rbuf.size );
 		if	( retval )
 			gasp("erreur init R spectro %d", retval );
 		printf("end init R spectro, window type %d, avg %g\n\n", Rspek.window_type, Rspek.window_avg ); fflush(stdout);
@@ -285,34 +218,34 @@ else	gasp("no spek to init");
 // provisoirement on va convertir en float l'audio qu'on a deja en RAM
 
 printf("start calcul spectre\n"); fflush(stdout);
-float * raw32 = (float *) malloc( wavp.realpfr * sizeof(float) );
+float * raw32 = (float *) malloc( Lbuf.size * sizeof(float) );
 if	( raw32 == NULL )
-	gasp("echec alloc %d floats pour source fft", wavp.realpfr );
-printf("Ok alloc %d floats pour source fft\n", wavp.realpfr );
+	gasp("echec alloc %d floats pour source fft", Lbuf.size );
+printf("Ok alloc %d floats pour source fft\n", Lbuf.size );
 unsigned int i;
-if	( wavp.qchan == 1 )
+if	( af->qchan == 1 )
 	{
-	for	( i = 0; i < wavp.realpfr; ++i )
+	for	( i = 0; i < Lbuf.size; ++i )
 		raw32[i] = (float)Lbuf.data[i];
 	Lspek.wav_peak = 32767.0;
 	Lspek.compute( raw32 );
 	}
-else if	( wavp.qchan == 2 )
+else if	( af->qchan == 2 )
 	{
 	if	( qspek == 1 )	// spectre mono sur WAV stereo
 		{
-		for	( i = 0; i < wavp.realpfr; ++i)
+		for	( i = 0; i < Lbuf.size; ++i)
 			raw32[i] = (float)Lbuf.data[i] + (float)Rbuf.data[i];
 		Lspek.wav_peak = 65534.0;
 		Lspek.compute( raw32 );
 		}
 	else if	( qspek == 2 )
 		{
-		for	( i = 0; i < wavp.realpfr; ++i)
+		for	( i = 0; i < Lbuf.size; ++i)
 			raw32[i] = (float)Lbuf.data[i];
 		Lspek.wav_peak = 32767.0;
 		Lspek.compute( raw32 );
-		for	( i = 0; i < wavp.realpfr; ++i)
+		for	( i = 0; i < Rbuf.size; ++i)
 			raw32[i] = (float)Rbuf.data[i];
 		Rspek.wav_peak = 32767.0;
 		Rspek.compute( raw32 );
@@ -337,7 +270,7 @@ return 0;
 
 // la partie du process en relation avec jluplot
 
-// layout pour pour wav data (depend de wavp.qchan)
+// layout pour pour wav data (depend de af->qchan)
 void process::prep_layout_W( gpanel * panneau )
 {
 gstrip * curbande;
@@ -374,7 +307,7 @@ curcour->fgcolor.dG = 0.0;
 curcour->fgcolor.dB = 0.0;
 
 // creer le layer pour le canal R si stereo
-if	( wavp.qchan > 1 )
+if	( af->qchan > 1 )
 	{
 	panneau->bandes[0]->Ylabel = "stereo";
 
@@ -470,7 +403,7 @@ layer_lod<short> * layL, * layR = NULL;
 layL = (layer_lod<short> *)panneau->bandes[0]->courbes[0];
 layL->V = Lbuf.data;
 layL->qu = Lbuf.size;
-if	( wavp.qchan > 1 )
+if	( af->qchan > 1 )
 	{
 	layR = (layer_lod<short> *)panneau->bandes[0]->courbes[1];
 	layR->V = Rbuf.data;
@@ -479,13 +412,13 @@ if	( wavp.qchan > 1 )
 retval = layL->make_lods( 4, 4, 2000 );
 if	( retval )
 	{ printf("echec make_lods err %d\n", retval ); return -6;  }
-if	( wavp.qchan > 1 )
+if	( af->qchan > 1 )
 	{
 	retval = layR->make_lods( 4, 4, 2000 );
 	if	( retval )
 		{ printf("echec make_lods err %d\n", retval ); return -7;  }
 	}
-panneau->kq = (double)(wavp.fsamp);	// pour avoir une echelle en secondes au lieu de samples
+panneau->kq = (double)(af->fsamp);	// pour avoir une echelle en secondes au lieu de samples
 printf("end layout W, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 return 0;
 }

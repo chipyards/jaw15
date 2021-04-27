@@ -60,7 +60,7 @@ if	( estpfr < 0 )
 return 0;
 }
 
-// The buffer size qpcmbuf, in BYTES, should be a multiple of the PCM frame size (qchan * 2)
+/* The buffer size qpcmbuf, in BYTES, should be a multiple of the PCM frame size (qchan * 2)
 // retourne le nombre de BYTES lus ( 0 si fini ) ou -1 si erreur
 int mp3in::read_data_b( void * pcmbuf, size_t qpcmbuf )
 {
@@ -75,11 +75,11 @@ if	( ( retval != MPG123_OK ) && ( retval != MPG123_DONE ) )
 	}
 realpfr += ( cnt * monosamplesize * qchan );
 return (int)cnt;
-}
+} */
 
 // The buffer size qpfr is in PCM frame
 // retourne le nombre de pcm frames lus ( 0 si fini ) ou -1 si erreur
-int mp3in::read_data_p( void * pcmbuf, size_t qpfr )
+int mp3in::read_data_p( void * pcmbuf, unsigned int qpfr )
 {
 size_t cnt;
 int retval;
@@ -134,7 +134,7 @@ if	( pcmbuf == NULL )
 // 3eme etape : boucler sur le buffer
 totbytes = 0;
 do	{
-	retval = m3.read_data( pcmbuf, qpcmbuf );
+	retval = m3.read_data_b( pcmbuf, qpcmbuf );
 	if	( retval > 0 )
 		totbytes += retval;
 	} while ( retval == (int)qpcmbuf );

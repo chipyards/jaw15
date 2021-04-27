@@ -37,6 +37,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "wavio.h"
 
@@ -142,6 +143,30 @@ if	( factsize != 0 )
 	}
 */
 }
+
+int wavio::read_head( const char * fnam )
+{
+hand = open( fnam, O_RDONLY | O_BINARY );
+if	( hand == -1 )
+	return -1;
+WAVreadHeader();
+return 0;
+}
+
+// The buffer size qpfr is in PCM frame
+// retourne le nombre de pcm frames lus ( 0 si fini )
+int wavio::read_data_p( void * pcmbuf, size_t qpfr )
+{
+int retval;
+qpfr *= ( monosamplesize * qchan );
+retval = read( hand, pcmbuf, qpfr );
+retval /= ( monosamplesize * qchan );
+realpfr += retval; 
+return retval;
+}
+
+void wavio::afclose()
+{ if ( hand >= 0 ) close( hand ); };
 
 static void writelong( unsigned char *buf, unsigned int l )
 {

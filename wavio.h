@@ -1,4 +1,4 @@
-// plus d'explications dans wavio.cpp
+// plus d'explications dans audiofile.h et wavio.cpp 
 #include "audiofile.h"
 
 class wavio : public audiofile {
@@ -16,11 +16,16 @@ unsigned int bpsec;	// bytes par seconde
 unsigned int block;	// bytes par frame
 
 // constructeur
-wavio() : audiofile() {};
+wavio() : audiofile(), hand(-1) {};
 
-// methodes
+// methodes bas niveau (legacy)
 void WAVreadHeader();
 void WAVwriteHeader();
+
+// methodes d'interface heritee d'audiofile
+int read_head( const char * fnam );
+int read_data_p( void * pcmbuf, unsigned int qpfr );
+void afclose();
 };
 
 #ifndef O_BINARY

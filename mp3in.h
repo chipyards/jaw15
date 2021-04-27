@@ -30,7 +30,7 @@ mp3in() : audiofile(), mhand(NULL), verbose(3), errfunc("") {};
 
 // methodes
 int read_head( const char * fnam );	// renseigne les parametres
-
-int read_data_b( void * pcmbuf, size_t qpcmbuf ); // remplit 1 buffer
-int read_data_p( void * pcmbuf, size_t qpfr ); // remplit 1 buffer
+int read_data_p( void * pcmbuf, unsigned int qpfr ); // remplit 1 buffer
+void afclose() { if ( mhand ) { mpg123_close(mhand); mpg123_delete(mhand); mpg123_exit();} };
+// int read_data_b( void * pcmbuf, size_t qpcmbuf ); // remplit 1 buffer
 };
