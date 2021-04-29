@@ -1,3 +1,6 @@
+
+class glostru;
+
 // classe pour fenetre auxiliaire non-modale
 class param_view {
 public :
@@ -12,9 +15,10 @@ GtkWidget * nmain;	// notebook principal
 
 
 gpanel panneau;		// panneau pour spectre local, dans sarea
+glostru * glo;
 
 // constructeur
-param_view() : wmain(NULL) {};
+param_view( glostru * laglo ) : wmain(NULL), glo(laglo) {};
 
 // methodes
 void build();

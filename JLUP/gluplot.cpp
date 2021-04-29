@@ -407,7 +407,7 @@ void gpanel::paint()
 {
 if	( init_flags == 0 )
 	{
-	printf("gpanel::paint() calls gpanel::configure\n"); fflush(stdout);
+	// printf("gpanel::paint() calls gpanel::configure\n"); fflush(stdout);
 	configure();
 	force_repaint = 1; return;
 	}
@@ -503,7 +503,7 @@ void gpanel::configure()
 {
 if	( bandes.size() == 0 )		// configure premature (pas de layout)
 	{
-	printf("configure premature (pas de layout)\n"); fflush(stdout);
+	// printf("configure premature (pas de layout)\n"); fflush(stdout);
 	init_flags = 0; return;
 	}
 if	( !GDK_IS_DRAWABLE(larea->window) )

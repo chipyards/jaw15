@@ -8,6 +8,11 @@ using namespace std;
 
 #include "JLUP/jluplot.h"
 #include "JLUP/gluplot.h"
+#ifdef USE_PORTAUDIO
+  #include "portaudio_2011.h"
+  #include "pa_devs.h"
+#endif
+
 #include "fftw3.h"
 #include "spectro.h"
 #include "autobuf.h"
@@ -16,7 +21,7 @@ using namespace std;
 #include "process.h"
 
 #include "param.h"
-
+#include "gui.h"
 
 /** GTK callbacks ------------------------------------ */
 
@@ -27,6 +32,27 @@ gtk_widget_hide( widget );
 return (TRUE);
 }
 
+void load_call( GtkWidget *widget, glostru * glo )
+{
+GtkWidget *dialog;
+dialog = gtk_file_chooser_dialog_new ("Ouvrir WAV ou MP3", GTK_WINDOW(glo->wmain),
+	GTK_FILE_CHOOSER_ACTION_OPEN,
+	GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+	GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL );
+gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER (dialog), "." );
+if	( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+	{
+	char * fnam;
+	fnam = gtk_file_chooser_get_filename( GTK_FILE_CHOOSER (dialog) );
+	printf("chosen: %s\n", fnam ); fflush(stdout);
+	glo->wavisualize( fnam );
+	if	( glo->option_spectrogramme )
+		glo->spectrographize();
+	g_free( fnam );
+	}
+else	gasp("audio already loaded");
+gtk_widget_destroy (dialog);
+}
 
 /** main methods --------------------------------------*/
 
@@ -68,6 +94,12 @@ vspe = curwidg;
 curwidg = gtk_vbox_new( FALSE, 10 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Files") );
 vfil = curwidg;
+
+/* simple bouton */
+curwidg = gtk_button_new_with_label ("Load File");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( load_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( vfil ), curwidg, FALSE, FALSE, 0 );
 
 // container pour les I/O (audio et midi)
 curwidg = gtk_vbox_new( FALSE, 10 );

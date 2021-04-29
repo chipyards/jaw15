@@ -308,20 +308,8 @@ switch	( v )
 	case GDK_KEY_F3 : k += 1;
 	case GDK_KEY_F2 : k += 1;
 	case GDK_KEY_F1 :
-		if	( glo->pro.qspek == 0 )
-			{
-			int retval;
-			retval = glo->pro.spectrum_compute( glo->option_monospec );
-			if	( retval )
-				gasp("echec spectrum, erreur %d", retval );
-			fflush(stdout);
-			glo->pro.prep_layout_S( &glo->panneau );
-			retval = glo->pro.connect_layout_S( &glo->panneau );
-			if	( retval )
-				gasp("echec connect layout, erreur %d", retval );
-			fflush(stdout);
-			glo->panneau.full_valid = 0; glo->panneau.init_flags = 0;
-			}
+		printf("F key hit\n"); fflush(stdout);
+		glo->spectrographize();
 		glo->pro.palettize( glo->pro.Lspek.umax / k );
 		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
 		break;
@@ -333,8 +321,71 @@ switch	( v )
 		printf("notebook page %d\n", gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->para.nmain) ) );
 		fflush(stdout);
 		break;
+	//
+	case 'F' :
+		GtkWidget *dialog;
+		dialog = gtk_file_chooser_dialog_new ("Ouvrir WAV ou MP3", GTK_WINDOW(glo->wmain),
+			GTK_FILE_CHOOSER_ACTION_OPEN,
+			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL );
+		gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER (dialog), "." );
+		if	( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+			{
+			char * fnam;
+			fnam = gtk_file_chooser_get_filename( GTK_FILE_CHOOSER (dialog) );
+			printf("chosen: %s\n", fnam ); fflush(stdout);
+			glo->wavisualize( fnam );
+			if	( glo->option_spectrogramme )
+				glo->spectrographize();
+			g_free( fnam );
+			}
+		else	gasp("audio already loaded");
+		gtk_widget_destroy (dialog);
+		break;
 	}
 }
+
+/** ============================ methodes ======================= */
+
+void glostru::wavisualize( const char * fnam )	// chargement et layout d'un fichier audio
+{
+snprintf( this->pro.wnam, sizeof( this->pro.wnam ), fnam );
+if	( this->pro.Lbuf.size == 0 )
+	{
+	int retval;
+	retval = this->pro.audiofile_process();
+	if	( retval )
+		gasp("echec lecture %s, erreur %d", this->pro.wnam, retval );
+	fflush(stdout);
+	// preparer le layout pour wav L (et R si stereo)
+	this->pro.prep_layout_W( &this->panneau );
+	retval = this->pro.connect_layout_W( &this->panneau );
+	if	( retval )
+		gasp("echec connect layout, erreur %d", retval );
+	fflush(stdout);
+	}
+}
+
+
+void glostru::spectrographize()	// creation et layout du spectrogramme
+{
+if	( ( this->pro.qspek == 0 ) && ( this->pro.Lbuf.size ) )
+	{
+	int retval;
+	retval = this->pro.spectrum_compute( this->option_monospec );
+	if	( retval )
+		gasp("echec spectrum, erreur %d", retval );
+	fflush(stdout);
+	this->pro.prep_layout_S( &this->panneau );
+	retval = this->pro.connect_layout_S( &this->panneau );
+	if	( retval )
+		gasp("echec connect layout, erreur %d", retval );
+	fflush(stdout);
+	this->panneau.full_valid = 0; this->panneau.init_flags = 0;
+	}
+this->panneau.force_repaint = 1; this->panneau.force_redraw = 1;
+}
+
 
 /** ============================ context menus ======================= */
 
@@ -497,7 +548,7 @@ double mylatency = 0.090;	// -L // 90 ms c'est conservateur
 int myoutput = -1;		// -d // -1 = choose system default device
 int pa_dev_options = -1;	// -p // listage audio devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)
 int solB = 0;			// -B // variante pour copie drawpad (cf gluplot.cpp) "-B" pour B1, sinon defaut = B2 
-int option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
+glo->option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
 glo->option_monospec = 0;	// -m // spectrogrammes 2D sur L+R si stereo
 glo->option_noaudio = 0;	// -N // no audio output (for debug)
 const char * fnam = NULL;
@@ -510,7 +561,7 @@ if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
 if	( ( val = lepar->get( 'd' ) ) )	myoutput = atoi( val );
 if	( ( val = lepar->get( 'p' ) ) )	pa_dev_options = atoi( val );
 if	( ( val = lepar->get( 'B' ) ) )	solB = 1;
-if	( ( val = lepar->get( 'S' ) ) )	option_spectrogramme = 1;
+if	( ( val = lepar->get( 'S' ) ) )	glo->option_spectrogramme = 1;
 if	( ( val = lepar->get( 'm' ) ) )	glo->option_monospec = 1;
 if	( ( val = lepar->get( 'N' ) ) )	glo->option_noaudio = 1;
 if	( ( val = lepar->get( 'h' ) ) )
@@ -539,37 +590,12 @@ if	( solB == 1 )
 else	printf("Sol. B2\n");
 
 // traitement fichier donnees audio, wav ou mp3
-int retval;
 if	( fnam )
 	{
-	snprintf( glo->pro.wnam, sizeof( glo->pro.wnam ), fnam );
-	retval = glo->pro.audiofile_process();
-	if	( retval )
-		gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
-	fflush(stdout);
-	// preparer le layout pour wav L (et R si stereo)
-	glo->pro.prep_layout_W( &glo->panneau );
-	retval = glo->pro.connect_layout_W( &glo->panneau );
-	if	( retval )
-		gasp("echec connect layout, erreur %d", retval );
-	fflush(stdout);
+	glo->wavisualize( fnam );
+	if	( glo->option_spectrogramme )
+		glo->spectrographize();
 	}
-// else	gasp("fournir un nom de fichier WAV");
-
-if	( ( option_spectrogramme ) && ( glo->pro.Lbuf.size ) )
-	{
-	retval = glo->pro.spectrum_compute( glo->option_monospec );
-	if	( retval )
-		gasp("echec spectrum, erreur %d", retval );
-	fflush(stdout);
-	// preparer le layout pour spectrogramme mono ou stereo
-	glo->pro.prep_layout_S( &glo->panneau );
-	retval = glo->pro.connect_layout_S( &glo->panneau );
-	if	( retval )
-		gasp("echec connect layout, erreur %d", retval );
-	fflush(stdout);
-	}
-
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );
 

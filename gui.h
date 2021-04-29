@@ -40,13 +40,19 @@ PaStream *stream;	// portaudio stream
 // double play_start_time;
 #endif
 
+int option_spectrogramme;
 int option_monospec;
 int option_noaudio;
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
 
 // constructeur
-glostru() : iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000), option_monospec(0), option_noaudio(0) {};
+glostru() : para(this), iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000),
+	option_spectrogramme(0), option_monospec(0), option_noaudio(0) {};
+
+// methodes
+void wavisualize( const char * fnam );	// chargement et layout d'un fichier audio
+void spectrographize();			// creation et layout du spectrogramme
 
 };
 
