@@ -20,7 +20,8 @@ unsigned int estpfr;	// taille estimee  (PCM frames)
 unsigned int realpfr;	// taille apres lecture
 
 // constructeur
-audiofile() : realpfr(0) {};
+audiofile() :
+monosamplesize(2), qchan(1), fsamp(44100), estpfr(0), realpfr(0) {};
 
 // methodes
 virtual int read_head( const char * fnam ) = 0;

@@ -45,12 +45,9 @@ GtkWindow * global_main_window = NULL;
 
 #define CODEC_FREQ		44100
 #define CODEC_QCHAN		2
-#define FRAMES_PER_BUFFER	256	// 256 <==> 5.8 ms i.e. 172.265625 buffers/s
+#define FRAMES_PER_BUFFER	128	// 256 <==> 5.8 ms i.e. 172.265625 buffers/s
 
 #ifdef USE_PORTAUDIO
-
-// pilotage PLAY :	0 <= glo->iplay < glo->iplay1
-
 // ---- portaudio callback vers codec stereo --------
 // It may called at interrupt level on some machines so don't do anything
 // that could mess up the system like calling malloc() or free().
@@ -61,33 +58,40 @@ static int portaudio_call( const void *inbuf, void *outbuf,
 			// void *userData
 			glostru * glo )
 {
-unsigned int i, iend;
+unsigned int i, samplesPerBuffer;
 short * wL, *wR;
-short valL, valR;
 
-iend = framesPerBuffer * CODEC_QCHAN;
-wL = glo->pro.Lbuf.data;
-if	( glo->pro.af->qchan > 1 )	// test nombre de canaux (1 ou 2, pas plus !)
-	wR = glo->pro.Rbuf.data;
-else	wR = wL;
+samplesPerBuffer = framesPerBuffer * CODEC_QCHAN;
 
-for	( i = 0; i < iend; i+= CODEC_QCHAN )
+// do we have enough samples to play ?
+if	( glo->iplay >= 0 )
 	{
-	if	( glo->iplay < 0 )
-		valL = valR = 0;
-	else	{
-		if	( ( glo->iplay >= (int)glo->pro.Lbuf.size ) || ( glo->iplay >= glo->iplay1 ) )
-			{
-			glo->iplay = -1;
-			valL = valR = 0;
-			}
-		else	{
-			valL = wL[glo->iplay];
-			valR = wR[glo->iplay++];
-			}
+	if	(
+		( ( glo->iplay + (int)framesPerBuffer ) > (int)glo->pro.Lbuf.size ) ||
+		( ( glo->iplay + (int)framesPerBuffer ) > glo->iplay1 )
+		)
+		glo->iplay = -1;
+	}
+
+if	( glo->iplay >= 0 )
+	{			// yes we have at least samplesPerBuffer samples to play
+	wL = glo->pro.Lbuf.data;
+	if	( glo->pro.af->qchan > 1 )
+		wR = glo->pro.Rbuf.data;	// stereo
+	else	wR = wL;			// mono
+	for	( i = 0; i < samplesPerBuffer; i+= CODEC_QCHAN )
+		{
+		((short *)outbuf)[i]   = wL[glo->iplay];
+		((short *)outbuf)[i+1] = wR[glo->iplay++];
 		}
-	((short *)outbuf)[i]   = valL;
-	((short *)outbuf)[i+1] = valR;
+	}
+else	{			// play silence
+	for	( i = 0; i < samplesPerBuffer; i++ )
+		{
+		((short *)outbuf)[i]   = 0;
+		}
+	// petite experience de debug pour verifier que c'est bien notre FRAMES_PER_BUFFER
+	glo->iplay = -framesPerBuffer;
 	}
 return 0;
 }
@@ -163,7 +167,8 @@ int idle_call( glostru * glo )
 volatile double newx;
 if	( glo->iplay >= 0 )
 	{			// Playing
-#ifdef USE_PORTAUDIO
+	/* experience incomprehensible a clarifier *
+	#ifdef USE_PORTAUDIO
 	double t0 = (double)glo->iplay0 / (double)(glo->pro.af->fsamp);
 	// le temps present selon le timer portaudio, ramene au debut du play
 	double t = t0 + Pa_GetStreamTime( glo->stream ) - glo->play_start_time;
@@ -172,7 +177,8 @@ if	( glo->iplay >= 0 )
 	char lbuf[128];
 	snprintf( lbuf, sizeof(lbuf), "%7.3f %7.3f  %4.3f", pt, t, t - pt );
 	gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
-#endif
+	#endif
+	//*/
 	// gestion curseur temporel (reference = premier strip)
 	if	( ( glo->iplay >= glo->iplay0 ) && ( glo->iplay < glo->iplay1 ) )
 		{
@@ -200,19 +206,6 @@ if	( ( gtk_widget_get_visible(glo->para.wmain) ) && ( gtk_notebook_get_current_p
 	if	( glo->para.panneau.force_repaint )
 		glo->para.panneau.paint();
 
-/* profileur
-glo->idle_profiler_cnt++;
-if	( glo->idle_profiler_time != time(NULL) )
-	{
-	glo->idle_profiler_time = time(NULL);
-	char lbuf[128];
-	snprintf( lbuf, sizeof(lbuf), "%3d i %3d p", glo->idle_profiler_cnt, glo->panneau.paint_cnt );
-	gtk_entry_set_text( GTK_ENTRY(glo->esta), lbuf );
-	glo->idle_profiler_cnt = 0;
-	glo->panneau.paint_cnt = 0;
-	}
-*/	
-
 return( -1 );
 }
 
@@ -232,25 +225,32 @@ void play_pause_call( GtkWidget *widget, glostru * glo )
 if	( glo->iplay < 0 )
 	{
 	#ifdef USE_PORTAUDIO
-	// demarrer le son
-	glo->play_start_time = Pa_GetStreamTime( glo->stream );
-	glo->iplay = glo->iplayp;
+	if	( glo->option_noaudio == 0 )
+		{
+		// demarrer le son
+		// glo->play_start_time = Pa_GetStreamTime( glo->stream );
+		glo->iplay = glo->iplayp;
+		}
 	#endif
 	}
 else	{
 	glo->iplayp = glo->iplay;	// retenir la position
 	glo->iplay = -1;		// stop
 	}
+printf("play/pause: iplay=%d, iplayp=%d, iplay0=%d, iplay1=%d\n", glo->iplay, glo->iplayp, glo->iplay0, glo->iplay1 ); fflush(stdout);
 }
 
+// cette fonction restreint le play a la fenetre courante, et met le curseur au debut
 void rewind_call( GtkWidget *widget, glostru * glo )
 {
 // prendre les limites de la fenetre
 glo->iplay0 = (int)glo->panneau.MdeX(0.0);
-glo->iplayp = glo->iplay0;
-glo->iplay1 = (int)glo->panneau.MdeX((double)glo->panneau.ndx);
-// normalement idle_call va detecter si le curseur n'est pas au bon endroit
-// et va le retracer
+if	( glo->iplay0 < 0 )
+	glo->iplay0 = 0;
+glo->iplayp = glo->iplay0; // normalement idle_call va detecter si le curseur n'est pas au bon endroit et va le retracer
+glo->iplay1 = (int)glo->panneau.MdeX((double)glo->panneau.ndx);	// iplay1 trop grand est supporte par portaudio_call
+
+printf("rewind: iplay=%d, iplayp=%d, iplay0=%d, iplay1=%d\n", glo->iplay, glo->iplayp, glo->iplay0, glo->iplay1 ); fflush(stdout);
 }
 
 void param_call( GtkWidget *widget, glostru * glo )
@@ -450,7 +450,7 @@ gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->bpla = curwidg;
 
 /* simple bouton */
-curwidg = gtk_button_new_with_label (" Rewind ");
+curwidg = gtk_button_new_with_label ("Restrict Play");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( rewind_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
@@ -499,6 +499,7 @@ int pa_dev_options = -1;	// -p // listage audio devices (-1=rien, 0=minimal, 1=s
 int solB = 0;			// -B // variante pour copie drawpad (cf gluplot.cpp) "-B" pour B1, sinon defaut = B2 
 int option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
 glo->option_monospec = 0;	// -m // spectrogrammes 2D sur L+R si stereo
+glo->option_noaudio = 0;	// -N // no audio output (for debug)
 const char * fnam = NULL;
 
 // 	parsage CLI
@@ -511,26 +512,24 @@ if	( ( val = lepar->get( 'p' ) ) )	pa_dev_options = atoi( val );
 if	( ( val = lepar->get( 'B' ) ) )	solB = 1;
 if	( ( val = lepar->get( 'S' ) ) )	option_spectrogramme = 1;
 if	( ( val = lepar->get( 'm' ) ) )	glo->option_monospec = 1;
+if	( ( val = lepar->get( 'N' ) ) )	glo->option_noaudio = 1;
 if	( ( val = lepar->get( 'h' ) ) )
 	{
 	printf( "options :\n"
 	"-L <val> : latence demandee (defaut : 0.090)\n"
 	"-d <id>  : choix output device (defaut -1 = system default)\n"
 	"-p <opt> : listage devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)\n"
-	"-B	  : variante pour copie drawpad (cf gluplot.cpp) '-B' pour B1, sinon defaut = B2\n" );
+	"-B	  : variante pour copie drawpad (cf gluplot.cpp) '-B' pour B1, sinon defaut = B2\n"
+	"-S	  : calcul spectrogramme a l'ouverture\n"
+	"-m	  : spectrogramme toujours mono\n"
+	"-N	  : no audio output\n" );
+	return 0;
 	}
 fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
 
 printf( "output device %d, latency %g, pa_dev option %d\n", myoutput, mylatency, pa_dev_options );
 fflush(stdout);
 
-if	( fnam == NULL )
-	gasp("fournir un nom de fichier WAV");
-
-
-snprintf( glo->pro.wnam, sizeof( glo->pro.wnam ), fnam );
-
- 
 // traiter choix options B1 vs B2
 if	( solB == 1 )
 	{
@@ -539,21 +538,25 @@ if	( solB == 1 )
 	}
 else	printf("Sol. B2\n");
 
-// traitement donnees audio, wav ou mp3
+// traitement fichier donnees audio, wav ou mp3
 int retval;
-retval = glo->pro.audiofile_process();
-if	( retval )
-	gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
-fflush(stdout);
+if	( fnam )
+	{
+	snprintf( glo->pro.wnam, sizeof( glo->pro.wnam ), fnam );
+	retval = glo->pro.audiofile_process();
+	if	( retval )
+		gasp("echec lecture %s, erreur %d", glo->pro.wnam, retval );
+	fflush(stdout);
+	// preparer le layout pour wav L (et R si stereo)
+	glo->pro.prep_layout_W( &glo->panneau );
+	retval = glo->pro.connect_layout_W( &glo->panneau );
+	if	( retval )
+		gasp("echec connect layout, erreur %d", retval );
+	fflush(stdout);
+	}
+// else	gasp("fournir un nom de fichier WAV");
 
-// preparer le layout pour wav L (et R si stereo)
-glo->pro.prep_layout_W( &glo->panneau );
-retval = glo->pro.connect_layout_W( &glo->panneau );
-if	( retval )
-	gasp("echec connect layout, erreur %d", retval );
-fflush(stdout);
-
-if	( option_spectrogramme )
+if	( ( option_spectrogramme ) && ( glo->pro.Lbuf.size ) )
 	{
 	retval = glo->pro.spectrum_compute( glo->option_monospec );
 	if	( retval )
@@ -576,12 +579,13 @@ glo->para.build();
 glo->pro.prep_layout2( &glo->para.panneau );
 glo->pro.connect_layout2( &glo->para.panneau, 0 );
 
-rewind_call( NULL, glo );
-
 #ifdef USE_PORTAUDIO
-// demarrer la sortie audio (en silence)
-audio_engine_start( glo, mylatency, myoutput, pa_dev_options );
-printf("audio engine started\n");
+if	( glo->option_noaudio == 0 )
+	{
+	// demarrer la sortie audio (en silence)
+	audio_engine_start( glo, mylatency, myoutput, pa_dev_options );
+	printf("audio engine started\n");
+	}
 #endif
 
 g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
@@ -592,7 +596,8 @@ gtk_main();
 
 printf("closing\n");
 #ifdef USE_PORTAUDIO
-audio_engine_stop( glo );
+if	( glo->option_noaudio == 0 )
+	audio_engine_stop( glo );
 #endif
 return(0);
 }

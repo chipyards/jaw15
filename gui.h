@@ -30,19 +30,23 @@ gpanel panneau;		// panneau principal (wav), dans darea
 gzoombar zbar;		// sa zoombar
 param_view para;	// la fenetre auxiliaire de parametres
 
-int iplay;		// index echantillon en train d'etre joue (-1 <==> idle)
+int iplay;		// index echantillon en train d'etre joue (<0 <==> idle)
 int iplayp;		// index echantillon en pause
-int iplay0;		// index depart
-int iplay1;		// index fin
+int iplay0;		// index debut fenetre playable
+int iplay1;		// index fin   fenetre playable (ignore si tres grand)
 
 #ifdef USE_PORTAUDIO
-PaStream *stream;	// WAV player : portaudio stream
-double play_start_time;
+PaStream *stream;	// portaudio stream
+// double play_start_time;
 #endif
 
 int option_monospec;
+int option_noaudio;
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
+
+// constructeur
+glostru() : iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000), option_monospec(0), option_noaudio(0) {};
 
 };
 
