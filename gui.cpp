@@ -630,27 +630,22 @@ if	( glo->option_noaudio == 0 )
 #endif
 
 /* experience de liberation de memoire (non necessaire ici) */
-printf("begin deletion\n"); fflush(stdout);
-unsigned int ib, ic;
-for	( ib = 0; ib < glo->panneau.bandes.size(); ++ib )
-	{
-	for	( ic = 0; ic < glo->panneau.bandes[ib]->courbes.size(); ++ic )
-		delete glo->panneau.bandes[ib]->courbes[ic];
-	delete glo->panneau.bandes[ib];
-	}
-glo->panneau.bandes.clear();
+printf("> begin deletion of spectra\n"); fflush(stdout);
+glo->pro.clean_spectros();
 glo->panneau.dump();
-printf("panneau : layers and strips deleted\n");
+glo->pro.unlay_S( &glo->panneau );
+glo->panneau.dump();
 
-for	( ib = 0; ib < glo->para.panneau.bandes.size(); ++ib )
-	{
-	for	( ic = 0; ic < glo->para.panneau.bandes[ib]->courbes.size(); ++ic )
-		delete glo->para.panneau.bandes[ib]->courbes[ic];
-	delete glo->para.panneau.bandes[ib];
-	}
-glo->para.panneau.bandes.clear();
+printf(">begin deletion of waves\n"); fflush(stdout);
+glo->pro.unlay_W( &glo->panneau );
+glo->panneau.dump();
+
+printf("> begin deletion of aux plot\n"); fflush(stdout);
 glo->para.panneau.dump();
-printf("para.panneau : layers and strips deleted\n");
+glo->pro.unlay_2( &glo->para.panneau );
+glo->para.panneau.dump();
+
+printf("> end deletion\n"); fflush(stdout);
 
 //*/
 return(0);

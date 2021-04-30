@@ -46,6 +46,7 @@ for	( unsigned int i = 0; i < fftsize; ++i )
 // allouer les buffers pour la fft
 // on alloue large, selon FFTSIZEMAX, pour pouvoir changer fftsize a chaud
 // fftw3 recommande d'utiliser leur fonction fftwf_malloc() plutot que malloc() ou []
+// c'est la raison pour laquelle on ne les a pas mis en statique
 int spectro::alloc_fft()
 {
 // verifications preliminaires
@@ -298,6 +299,21 @@ for	( y = 0; y < H; y++ )
 	}
 }
 
+void spectro::specfree( int deep )	// free all allocated memory
+{
+if	(spectre) free(spectre);
+allocatedWH = 0; spectre = NULL;
+// unsigned char * pal : n'est pas alloue par spectro, gere a l'exterieur;
+// window[] : statique
+if	( deep )	// ces buffers ont une taille fixe, ils sont non static en raison
+	{		// des contraites d'alignement de fftw.
+	if (fftinbuf)  { fftwf_free(fftinbuf);  fftinbuf = NULL;  }
+	if (fftoutbuf) { fftwf_free(fftoutbuf); fftoutbuf = NULL; }
+	}
+fftwf_destroy_plan(p);
+// fftwf_cleanup();	// pas ici, c'est commun a tous les spectros
+printf("spectre and fft cleaned\n"); fflush(stdout);
+}
 
 // utility functions
 double midi2Hz( int midinote )

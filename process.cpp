@@ -558,3 +558,56 @@ spectre2rgb( &Lspek, Lpix );
 if	( qspek >= 2 )
 	spectre2rgb( &Rspek, Rpix );
 }
+
+// liberer la memoire des spectros et pixbufs
+void process::clean_spectros()
+{
+if	( Lspek.allocatedWH )
+	{ Lspek.specfree( 0 ); printf("Lspek freed\n"); fflush(stdout); }
+if	( Rspek.allocatedWH )
+	{ Rspek.specfree( 0 ); printf("Rspek freed\n"); fflush(stdout); }
+if	( Lpix )	// since gdk_pixbuf_unref() is deprecated
+	{ g_object_unref( Lpix ); printf("Lpix freed\n"); fflush(stdout); }
+if	( Rpix )
+	{ g_object_unref( Rpix ); printf("Rpix freed\n"); fflush(stdout); }	
+}
+
+// deconnecter et defaire le layout S
+void process::unlay_S( gpanel * panneau )
+{
+unsigned int ib, ic;	// on saute le premier strip reserve aux WAV
+for	( ib = 1; ib < panneau->bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < panneau->bandes[ib]->courbes.size(); ++ic )
+		delete panneau->bandes[ib]->courbes[ic];
+	delete panneau->bandes[ib];
+	}
+panneau->bandes.resize(1);
+}
+
+// deconnecter et defaire le layout W (seulement si le layout S est deja defait !)
+void process::unlay_W( gpanel * panneau )
+{
+unsigned int ic;
+if	( panneau->bandes.size() == 1 )
+	{
+	for	( ic = 0; ic < panneau->bandes[0]->courbes.size(); ++ic )
+		delete panneau->bandes[0]->courbes[ic];
+	delete panneau->bandes[0];
+	panneau->bandes.clear();
+	}
+}
+
+// deconnecter et defaire le layout 2
+void process::unlay_2( gpanel * panneau )
+{
+unsigned int ib, ic;
+for	( ib = 0; ib < panneau->bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < panneau->bandes[ib]->courbes.size(); ++ic )
+		delete panneau->bandes[ib]->courbes[ic];
+	delete panneau->bandes[ib];
+	}
+panneau->bandes.clear();
+}
+

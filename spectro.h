@@ -49,7 +49,7 @@ Echelle verticale :
 	  interpretation : au dela de cette F, il y a moins de sample dans spectre que de bins FFT, donc perte d'info
 	  mais sans consequence pour l'appli
 */
-#define FFTSIZEMAX 8192
+#define FFTSIZEMAX 16384
 #define HMAX 2048
 
 // un point precalcule pour le reechantillonnage du spectre en echelle log
@@ -90,9 +90,9 @@ double relog_opp;			// echelle spectre re-echantillonne en OPP (Octave Per Point
 double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
 public:
 // constructeur
-spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), pal(NULL), wav_peak(32767.0), fftinbuf(NULL), fftoutbuf(NULL) {};
+spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), pal(NULL), wav_peak(32767.0),
+	 fftinbuf(NULL), fftoutbuf(NULL), p(NULL) {};
 // methodes
-
 
 // FFT window functions
 // precalcul de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
@@ -112,6 +112,8 @@ void compute( float * src );	// calcul spectre complet W colonnes x H lignes
 // conversion en style GDK pixbuf
 // N.B. spectro ne connait pas GDK mais est compatible avec le style
 void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels );
+// liberation memoire
+void specfree( int deep );	// free all allocated memory
 };
 
 // utility functions
