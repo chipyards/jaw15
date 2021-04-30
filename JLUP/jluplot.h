@@ -123,6 +123,9 @@ string label;
 layer_base() : parent(NULL),	m0(0.0), km(1.0), n0(0.0), kn(1.0),
 				u0(0.0), ku(1.0), v0(0.0), kv(1.0),
 				visible(1), fgcolor( 0.0 ), ylabel(20), label("") {};
+// destructeur
+virtual ~layer_base() { printf("layer_base destructor called\n"); fflush(stdout); };
+
 // methodes de conversion essentielles
 double UdeM( double m ) { return( ( m - m0 ) * km );  };
 double VdeN( double n ) { return( ( n - n0 ) * kn );  };
@@ -188,6 +191,8 @@ string Ylabel;
 strip() : parent(NULL), y0(0.0), ky(1.0), kmfn(0.05), r0(0.0), kr(1.0),
 	  tdr(10.0), qtky(11), subtk(1), bgcolor( 1.0 ), lncolor( 0.5 ),
 	  force_redraw(1), fdy(100), ndy(100), optX(0), optretX(1), optretY(1), optcadre(0), visible(1) {};
+// destructeur virtuel
+virtual ~strip() {}; 
 // methodes
 double NdeY( double y ) { return( ( y - y0 ) * ky );  };
 double YdeN( double n ) { return( ( n / ky ) + y0 );  };

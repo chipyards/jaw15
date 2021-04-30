@@ -1,4 +1,5 @@
 // layer_f_param : une courbe parametrique en float (classe derivee de layer_base)
+// (no destructor needed , float * U and float * V are allocated and freed by app)
 
 class layer_f_param : public layer_base {
 public :

@@ -18,6 +18,8 @@ gpanel panneau1;	// panneau1 dans darea1
 gzoombar zbar;		// sa zoombar
 gpanel panneau2;	// panneau2 dans darea2
 
+int idle_id;		// id pour la fonction idle du timeout
+
 #define QBUF 		(1<<11)		// taille de buffer
 float Xbuf[QBUF];	// donnees pour l'experience
 float Ybuf[QBUF];

@@ -4,6 +4,7 @@
 // l'intervalle glissant [Ub, Ue[ contient des data significatives
 // contrairement a la plupart des layers, dans celui-ci l'appli n'est pas proprietaire du buffer
 // elle ne doit pas allouer la memoire ni ecrire directement dans le buffer
+// (le buffer est libere automatiquement a la destruction de l'objet)
 
 class layer_f_fifo : public layer_base {
 public :
@@ -19,6 +20,11 @@ layer_f_fifo( unsigned int lelog=10 ) : layer_base(),
 	V = (float *)malloc( (1<<log_qfifo) * sizeof(float) );
 	if (V == NULL) { fprintf(stderr, "failed layer_f_fifo malloc"); exit(1); }
 	};
+// destructeur
+~layer_f_fifo() {
+	printf("layer_f_fifo destructor called\n"); fflush(stdout);
+	free(V);
+	}
 
 // methodes propres a cette classe derivee
 unsigned int maskfifo() {

@@ -155,6 +155,8 @@ public :
 GtkWidget * smenu_y;    // scale menu : menu contextuel pour les echelles Y
 // constructeur
 gstrip() : smenu_y(NULL) {};
+// destructeur
+~gstrip() { gtk_widget_destroy( smenu_y ); };
 
 void add_layer( layer_base * lacourbe, const char * lelabel );
 };

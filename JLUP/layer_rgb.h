@@ -1,8 +1,9 @@
 // une image RGB telle qu'un spectrogramme (classe derivee de layer_base)
+// (no destructor needed , GdkPixbuf * spectropix is allocated and freed by app)
 
 class layer_rgb : public layer_base {
 public :
-GdkPixbuf * spectropix;	// pixbuf pour recevoir le spectrogramme apres palettisation
+GdkPixbuf * spectropix;	// pixbuf contenant le spectrogramme apres palettisation
 
 // constructeur
 layer_rgb() : layer_base(), spectropix(NULL) {};

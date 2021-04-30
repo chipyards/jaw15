@@ -26,9 +26,11 @@ GtkWidget *     esta;
 GtkWidget *     bpar;
 GtkWidget *     bqui;
 
-gpanel panneau;		// panneau principal (wav), dans darea
+gpanel panneau;		// panneau principal, dans darea
 gzoombar zbar;		// sa zoombar
 param_view para;	// la fenetre auxiliaire de parametres
+
+int idle_id;		// id pour la fonction idle du timeout
 
 int iplay;		// index echantillon en train d'etre joue (<0 <==> idle)
 int iplayp;		// index echantillon en pause

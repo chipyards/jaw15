@@ -1,7 +1,10 @@
 // layer_lod : une courbe a pas uniforme (classe derivee de layer_base)
 // supporte multiples LOD (Level Of Detail)
-// donnees allouees a l'exterieur, de type Tsamp parametrable
 // teste avec short et float
+// (no destructor needed , Tsamp * V is allocated and freed by app)
+
+// chaque lod a un buffer qu'il alloue, lequel sera libere iterativement
+// par le destructeur de layer_lod
 
 template <typename Tsamp> class lod {	// un niveau de detail
 public :
@@ -10,12 +13,17 @@ Tsamp * min;	// des couples min_max
 int qc;		// nombre de couples min_max
 int kdec;	// decimation par rapport a l'audio original
 // constructeur
-lod() : max(NULL), min(NULL), qc(0), kdec(1) {};
+lod() : max(NULL), min(NULL), qc(0), kdec(1) {
+	// printf("lod %p constructor\n", this ); fflush(stdout);
+	};
+// destructeur TRES MAUVAISE IDEE : les lods mis dans un vector sont sujet a copies intempestives
+//~lod() { if (min) free(min); }; // a chaque copie le destructor de l'original est appelé
+
 // methodes
-void allocMM( size_t size ) {	// allouer buffers min et max
+void allocMM( size_t size ) {	// allouer buffers min et max (max est contenu dans min pour simplifier)
 	min = (Tsamp *)malloc( 2 * size * sizeof(Tsamp) );
 	max = min + size;
-	//printf("alloc  %08x : %08x, size %d\n", (unsigned int)min, (unsigned int)max, size );
+	// printf("lod %p alloc  %p : %p, size %08x\n", this, min, max, size ); fflush(stdout);
 	};
 };
 
@@ -39,6 +47,12 @@ int ilod;		// indice du LOD courant, -1 pour affichage a pleine resolution
 layer_lod() : layer_base(), V(NULL), Vmin(0), Vmax(1),
 		qu(0), curi(0), linewidth(0.7), spp_max(0.9/linewidth),
 		ilod(-2) {};
+// destructeur : il doit liberer la memoire des lods - ceux-ci seront detruits ensuite automatiquement
+~layer_lod() {
+	printf("layer_lod destructor, about to free %d lods\n", lods.size() ); fflush(stdout);
+	for	( unsigned int i = 0; i < lods.size(); ++i )
+		if	( lods[i].min ) free( lods[i].min );
+	};
 
 // methodes propres a cette classe derivee
 int make_lods( unsigned int klod1, unsigned int klod2, unsigned int maxwin );	// allouer et calculer les LODs
@@ -90,7 +104,8 @@ unsigned int j;		// sous-indice decimation
 unsigned int k;		// indice destination
 Tsamp min=0, max=0;
 lod<Tsamp> * curlod, * prevlod;
-// lods.reserve(16);
+lods.reserve(12);	// evite plein de copies de lods
+
 // ------------------------------ premiere decimation
 lodsize = qu / klod1;
 if	( lodsize <= maxwin )
@@ -99,7 +114,7 @@ lods.push_back( lod<Tsamp>() );
 curlod = &lods.back();
 curlod->kdec = klod1;
 curlod->qc = lodsize;
-// printf("lod 0 : k = %6d size = %d\n", curlod->kdec, curlod->qc );
+printf("lod %p #0 : k = %6d size = %d\n", curlod, curlod->kdec, curlod->qc ); fflush(stdout);
 curlod->allocMM( lodsize );
 if	( ( curlod->min == NULL ) || ( curlod->max == NULL ) )
 	return -1;
@@ -135,9 +150,8 @@ if	( k < lodsize )
 	curlod->max[k] = max;
 	++k;
 	}
-// printf("lod 0 : finu size = %d(%d)\n", curlod->qc, k );
-// printf("fini @ %08x : %08x, size %d\n", (unsigned int)curlod->min,
-//					   (unsigned int)curlod->max, curlod->qc );
+// printf("lod %p #0 : fini size = %d(%d)\n", curlod, curlod->qc, k );
+// printf("fini @ %p : %p, size %d\n", curlod->min, curlod->max, curlod->qc );
 // ------------------------------ decimations suivantes
 while	( ( lodsize = lodsize / klod2 ) > maxwin )
 	{
@@ -147,7 +161,7 @@ while	( ( lodsize = lodsize / klod2 ) > maxwin )
 	curlod = &lods.back();
 	curlod->kdec = prevlod->kdec * klod2;
 	curlod->qc = lodsize;
-	// printf("lod %d : k = %6d size = %d\n", (int)lods.size()-1, curlod->kdec, curlod->qc );
+	printf("lod %p #%d : k = %6d size = %d\n", curlod, (int)lods.size()-1, curlod->kdec, curlod->qc ); fflush(stdout);
 	curlod->allocMM( lodsize );
 	if	( ( curlod->min == NULL ) || ( curlod->max == NULL ) )
 		return -1;
@@ -177,7 +191,7 @@ while	( ( lodsize = lodsize / klod2 ) > maxwin )
 		curlod->max[k] = max;
 		++k;
 		}
-	// printf("lod   : fini size = %d(%d)\n", curlod->qc, k );
+	// printf("lod %p : fini size = %d(%d)\n", curlod, curlod->qc, k );
 	}
 return 0;
 }

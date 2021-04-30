@@ -614,16 +614,44 @@ if	( glo->option_noaudio == 0 )
 	}
 #endif
 
-g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
+glo->idle_id = g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
+// cet id servira pour deconnecter l'idle_call : g_source_remove( glo->idle_id );
 
 fflush(stdout);
+
 gtk_main();
 
+g_source_remove( glo->idle_id );
 
-printf("closing\n");
 #ifdef USE_PORTAUDIO
+printf("stopping audio out\n");
 if	( glo->option_noaudio == 0 )
 	audio_engine_stop( glo );
 #endif
+
+/* experience de liberation de memoire (non necessaire ici) */
+printf("begin deletion\n"); fflush(stdout);
+unsigned int ib, ic;
+for	( ib = 0; ib < glo->panneau.bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < glo->panneau.bandes[ib]->courbes.size(); ++ic )
+		delete glo->panneau.bandes[ib]->courbes[ic];
+	delete glo->panneau.bandes[ib];
+	}
+glo->panneau.bandes.clear();
+glo->panneau.dump();
+printf("panneau : layers and strips deleted\n");
+
+for	( ib = 0; ib < glo->para.panneau.bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < glo->para.panneau.bandes[ib]->courbes.size(); ++ic )
+		delete glo->para.panneau.bandes[ib]->courbes[ic];
+	delete glo->para.panneau.bandes[ib];
+	}
+glo->para.panneau.bandes.clear();
+glo->para.panneau.dump();
+printf("para.panneau : layers and strips deleted\n");
+
+//*/
 return(0);
 }

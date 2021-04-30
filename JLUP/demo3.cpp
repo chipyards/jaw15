@@ -275,14 +275,29 @@ printf("coeff de decimation LODs : k = %d\n", glo->k ); fflush(stdout);
 
 glo->process();
 
-g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
+glo->idle_id = g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
+// cet id servira pour deconnecter l'idle_call : g_source_remove( glo->idle_id );
 
 fflush(stdout);
 
 gtk_main();
 
+g_source_remove( glo->idle_id );
 
-printf("closing\n");
+/* experience de liberation de memoire (non necessaire ici) */
+printf("begin deletion\n"); fflush(stdout);
+unsigned int ib, ic;
+for	( ib = 0; ib < glo->panneau1.bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < glo->panneau1.bandes[ib]->courbes.size(); ++ic )
+		delete glo->panneau1.bandes[ib]->courbes[ic];
+	delete glo->panneau1.bandes[ib];
+	}
+glo->panneau1.bandes.clear();
+glo->panneau1.dump();
+printf("panneau1 : layers and strips deleted\n");
+//*/
 return(0);
 }
+
 
