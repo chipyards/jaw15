@@ -214,47 +214,32 @@ if	( qspek >= 1 )
 	}
 else	gasp("no spek to init");
 
-// calcul spectre : hum, il faut les data en float mais on a lu la wav en s16
-// provisoirement on va convertir en float l'audio qu'on a deja en RAM
+// calcul spectre
 
 printf("start calcul spectre\n"); fflush(stdout);
-float * raw32 = (float *) malloc( Lbuf.size * sizeof(float) );
-if	( raw32 == NULL )
-	gasp("echec alloc %d floats pour source fft", Lbuf.size );
-printf("Ok alloc %d floats pour source fft\n", Lbuf.size );
-unsigned int i;
 if	( af->qchan == 1 )
 	{
-	for	( i = 0; i < Lbuf.size; ++i )
-		raw32[i] = (float)Lbuf.data[i];
 	Lspek.wav_peak = 32767.0;
-	Lspek.compute( raw32 );
+	Lspek.compute( Lbuf.data );
 	}
 else if	( af->qchan == 2 )
 	{
 	if	( qspek == 1 )	// spectre mono sur WAV stereo
 		{
-		for	( i = 0; i < Lbuf.size; ++i)
-			raw32[i] = (float)Lbuf.data[i] + (float)Rbuf.data[i];
 		Lspek.wav_peak = 65534.0;
-		Lspek.compute( raw32 );
+		Lspek.compute( Lbuf.data, Rbuf.data );
 		}
 	else if	( qspek == 2 )
 		{
-		for	( i = 0; i < Lbuf.size; ++i)
-			raw32[i] = (float)Lbuf.data[i];
 		Lspek.wav_peak = 32767.0;
-		Lspek.compute( raw32 );
-		for	( i = 0; i < Rbuf.size; ++i)
-			raw32[i] = (float)Rbuf.data[i];
+		Lspek.compute( Lbuf.data );
 		Rspek.wav_peak = 32767.0;
-		Rspek.compute( raw32 );
+		Rspek.compute( Rbuf.data );
 		}
 	else	gasp("pas de spek pour fft");
 	}
 else	gasp("pas de channel pour fft");
 
-free(raw32);
 // a ce point on a 1 ou 2 spectres de la wav entiere dans 1 ou 2 tableaux unsigned int Xspek->spectre
 // de dimensions Xspek->H x Xspek->W
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
@@ -263,7 +248,9 @@ printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
 // printf("start colorisation spectrogrammes\n"); fflush(stdout);
 // adapter la palette a la limite umax et l'applique a tous les spectres
 // (umax a ete  calcule par spectro::compute)
-palettize( (Lspek.umax>Rspek.umax)?(Lspek.umax):(Rspek.umax) );
+if	( qspek == 2 )
+	palettize( (Lspek.umax>Rspek.umax)?(Lspek.umax):(Rspek.umax) );
+else	palettize( Lspek.umax );
 // printf("end colorisation spectrogrammes\n" ); fflush(stdout);
 return 0;
 }

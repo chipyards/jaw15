@@ -108,7 +108,7 @@ void log_resamp_dump();
 int alloc_WH();
 // top actions
 int init( unsigned int fsamp, unsigned int qsamples );
-void compute( float * src );	// calcul spectre complet W colonnes x H lignes
+void compute( short * src1, short * src2 = NULL );	// calcul spectre complet W x H
 // conversion en style GDK pixbuf
 // N.B. spectro ne connait pas GDK mais est compatible avec le style
 void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels );

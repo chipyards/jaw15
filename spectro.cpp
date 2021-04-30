@@ -208,7 +208,7 @@ return 0;
 }
 
 // enfin !
-void spectro::compute( float * src )
+void spectro::compute( short * src1, short * src2 )
 {
 unsigned int a, j;
 float k;
@@ -226,8 +226,18 @@ for	( unsigned int icol = 0; icol < W; ++icol )
 	{
 	// fenetrage sur fftinbuf
 	a = icol * fftstride;
-	for	( j = 0; j < fftsize; ++j )
-		fftinbuf[j] = src[a++] * window[j];
+	if	( src2 )
+		{
+		for	( j = 0; j < fftsize; ++j )
+			{
+			fftinbuf[j] = ( (float)src1[a] + (float)src2[a] ) * window[j];
+			++a;
+			}
+		}
+	else	{
+		for	( j = 0; j < fftsize; ++j )
+			fftinbuf[j] = (float)src1[a++] * window[j];
+		}
 	// fft de fftinbuf vers fftoutbuf
 	fftwf_execute(p);
 	// calcul magnitudes sur place (fftoutbuf)
