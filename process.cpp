@@ -249,13 +249,13 @@ else	gasp("pas de channel pour fft");
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
 
 
-// printf("start colorisation spectrogrammes\n"); fflush(stdout);
+printf("start colorisation spectrogrammes\n"); fflush(stdout);
 // adapter la palette a la limite umax et l'applique a tous les spectres
 // (umax a ete  calcule par spectro::compute)
 if	( qspek == 2 )
 	palettize( (Lspek.umax>Rspek.umax)?(Lspek.umax):(Rspek.umax) );
 else	palettize( Lspek.umax );
-// printf("end colorisation spectrogrammes\n" ); fflush(stdout);
+printf("end colorisation spectrogrammes\n" ); fflush(stdout);
 return 0;
 }
 
@@ -525,6 +525,7 @@ memset( palB + iend, val, 65536 - iend );
 // c'est un wrapper sur spectro::spectre2rgb
 void spectre2rgb( spectro * spek, GdkPixbuf * lepix )
 {
+printf("spectre2rgb, pixbuf %p\n", lepix );
 int rowstride = gdk_pixbuf_get_rowstride( lepix );
 unsigned char * RGBdata = gdk_pixbuf_get_pixels( lepix );
 int colorchans = gdk_pixbuf_get_n_channels( lepix );
@@ -538,10 +539,13 @@ void process::palettize( unsigned int iend )
 fill_palette_simple( mutpal, iend );
 // creer les pixbufs si necessaire, chacun pour le spectre entier
 if	( Lpix == NULL )
-	Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
-if	( qspek >= 2 )
 	{
-	if	( Rpix == NULL )
+	printf("creation d'un pixbuf %u x %u\n", Lspek.W, Lspek.H ); fflush(stdout);
+	Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
+	}
+if	( ( qspek >= 2 ) && ( Rpix == NULL ) )
+	{
+	printf("creation d'un pixbuf %u x %u\n", Rspek.W, Rspek.H ); fflush(stdout);
 	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
 	}
 // coloriser les spectre (qui sont supposes deja referencer cette palette)

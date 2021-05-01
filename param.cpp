@@ -32,7 +32,7 @@ gtk_widget_hide( widget );
 return (TRUE);
 }
 
-void load_call( GtkWidget *widget, glostru * glo )
+static void load_call( GtkWidget *widget, glostru * glo )
 {
 GtkWidget *dialog;
 dialog = gtk_file_chooser_dialog_new ("Ouvrir WAV ou MP3", GTK_WINDOW(glo->wmain),
@@ -51,6 +51,65 @@ if	( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
 	g_free( fnam );
 	}
 gtk_widget_destroy (dialog);
+}
+
+static void reset_call( GtkWidget *widget, glostru * glo )
+{
+printf(">>>> begin deletion of waves\n"); fflush(stdout);
+glo->panneau.reset();
+glo->panneau.dump();
+
+printf(">>>> begin deletion of aux plot\n"); fflush(stdout);
+glo->para.panneau.reset();
+glo->para.panneau.dump();
+
+printf(">>>> begin deletion of spectra\n"); fflush(stdout);
+glo->pro.clean_spectros();
+printf(">>>> end deletion\n"); fflush(stdout);
+glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+printf("gmenu check: %d\n", glo->panneau.check_gmenu() ); fflush(stdout);
+}
+
+static void layout_W_call( GtkWidget *widget, glostru * glo )
+{
+if	( glo->panneau.bandes.size() )
+	return;
+// preparer le layout pour wav L (et R si stereo)
+glo->pro.prep_layout_W( &glo->panneau );
+int retval = glo->pro.connect_layout_W( &glo->panneau );
+if	( retval )
+	gasp("echec connect layout, erreur %d", retval );
+fflush(stdout);
+glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+glo->iplay = -1; glo->iplayp = glo->iplay0 = 0; glo->iplay1 = 2000000000;
+printf("gmenu check: %d\n", glo->panneau.check_gmenu() ); fflush(stdout);
+printf("gmenu fix: %d\n", glo->panneau.fix_gmenu() ); fflush(stdout);
+printf("gmenu check: %d\n", glo->panneau.check_gmenu() ); fflush(stdout);
+}
+
+
+static void reset_S_call( GtkWidget *widget, glostru * glo )
+{
+printf(">>>> begin deletion of waves\n"); fflush(stdout);
+glo->panneau.dump();
+glo->panneau.shrink(1);
+glo->panneau.dump();
+printf(">>>> begin deletion of spectra\n"); fflush(stdout);
+glo->pro.clean_spectros();
+printf(">>>> end deletion\n"); fflush(stdout);
+glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+printf("gmenu check: %d\n", glo->panneau.check_gmenu() ); fflush(stdout);
+printf("gmenu fix: %d\n", glo->panneau.fix_gmenu() ); fflush(stdout);
+printf("gmenu check: %d\n", glo->panneau.check_gmenu() ); fflush(stdout);
+}
+
+static void compute_call( GtkWidget *widget, glostru * glo )
+{
+glo->spectrographize();
+glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+printf("gmenu check: %d\n", glo->panneau.check_gmenu() ); fflush(stdout);
+printf("gmenu fix: %d\n", glo->panneau.fix_gmenu() ); fflush(stdout);
+printf("gmenu check: %d\n", glo->panneau.check_gmenu() ); fflush(stdout);
 }
 
 /** main methods --------------------------------------*/
@@ -90,14 +149,34 @@ gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Spectru
 vspe = curwidg;
 
 // container pour les fichiers
-curwidg = gtk_vbox_new( FALSE, 10 );
+curwidg = gtk_vbox_new( FALSE, 30 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Files") );
 vfil = curwidg;
 
-/* simple bouton */
+/* simples boutons */
 curwidg = gtk_button_new_with_label ("Load File");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( load_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( vfil ), curwidg, FALSE, FALSE, 0 );
+
+curwidg = gtk_button_new_with_label ("reset layout");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( reset_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( vfil ), curwidg, FALSE, FALSE, 0 );
+
+curwidg = gtk_button_new_with_label ("layout W");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( layout_W_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( vfil ), curwidg, FALSE, FALSE, 0 );
+
+curwidg = gtk_button_new_with_label ("reset spectro");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( reset_S_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( vfil ), curwidg, FALSE, FALSE, 0 );
+
+curwidg = gtk_button_new_with_label ("compute spectro");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( compute_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( vfil ), curwidg, FALSE, FALSE, 0 );
 
 // container pour les I/O (audio et midi)

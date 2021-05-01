@@ -382,7 +382,9 @@ iplay = -1; iplayp = iplay0 = 0; iplay1 = 2000000000;
 
 void glostru::spectrographize()	// creation et layout du spectrogramme
 {
-if	( ( this->pro.qspek == 0 ) && ( this->pro.Lbuf.size ) )
+if	( ( this->pro.qspek == 0 ) && ( this->pro.Lbuf.size ) &&
+	  ( this->panneau.bandes.size() == 1 )
+	)
 	{
 	int retval;
 	retval = this->pro.spectrum_compute( this->option_monospec );

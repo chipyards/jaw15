@@ -208,7 +208,7 @@ snprintf( idbuf, sizeof(idbuf), "%02d_%02d", istrip, ilay );
 lacourbe->label = string(lelabel);
 // appendre le layer au strip
 strip::add_layer( lacourbe );
-// creer la check box pour visibilite dans le menu contectuel principal
+/* creer la check box pour visibilite dans le menu contectuel principal */
 GtkWidget * curitem = gtk_check_menu_item_new_with_label( lacourbe->label.c_str() );
 gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), true );
 // lui donner un id et le connecter a la callback commune
@@ -581,6 +581,85 @@ else	{
 	}
 }
 
+// verification de coherence entre gmenu et layout
+// retourne zero si Ok
+// N.B. regles concernant la zone des checkboxes de visibilite de layers :
+//	- les items precedents ne doivent pas etre des checkboxes
+//	- le premier item suivant ne doit pas etre une checkbox
+int gpanel::check_gmenu()
+{
+if	( gmenu == NULL )
+	return -9;
+unsigned int ib, ic, istrip, ilayer;
+const char * check_box_id;
+GList * momes = gtk_container_get_children( GTK_CONTAINER(gmenu) );
+// sauter les items irrelevants
+while	( momes )
+	{	// momes est son propre iterateur
+	if	( GTK_IS_CHECK_MENU_ITEM( momes->data ) )
+		break;
+	momes = momes->next;
+	}
+// iterer sur le layout
+for	( ib = 0; ib < bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < bandes[ib]->courbes.size(); ++ic )
+		{
+		if	( momes == NULL )
+			return -1;	// fin prematuree du menu
+		if	( !GTK_IS_CHECK_MENU_ITEM( momes->data ) )
+			return -2;	// fin prematuree de la zone visi
+		check_box_id = gtk_widget_get_name( GTK_WIDGET(momes->data) );
+		if	( ( strlen( check_box_id ) != 5 ) || ( check_box_id[2] != '_' ) )
+			return -3;	// nom de widget incorrect
+		istrip = atoi( check_box_id );		// format ss_ll
+		ilayer = atoi( check_box_id + 3 );
+		if	( istrip != ib )
+			return -4;	// istrip faux
+		if	( ilayer != ic )
+			return -5;	// ilayer faux
+		momes = momes->next;
+		}
+	}
+if	( ( momes ) && ( GTK_IS_CHECK_MENU_ITEM( momes->data ) ) )
+	return -6;	// excedent de check menu item
+return 0;
+}
+
+// regenerer le gmenu s'il n'est pas conforme (alors les extensions sont perdues)
+// retourne 0 si n'a rien fait
+int gpanel::fix_gmenu()
+{
+int retval = check_gmenu();
+if	( retval == 0 )
+	return 0;
+if	( gmenu )
+	gtk_widget_destroy( gmenu );
+// creer les items precedant la zone des checkboxes de visibilite
+gmenu = mkgmenu();
+unsigned int ib, ic; char idbuf[8];
+// iterer sur le layout
+for	( ib = 0; ib < bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < bandes[ib]->courbes.size(); ++ic )
+		{
+		// creer la check box pour visibilite du  layer
+		GtkWidget * curitem =
+		gtk_check_menu_item_new_with_label( bandes[ib]->courbes[ic]->label.c_str() );
+		// lui donner un id
+		snprintf( idbuf, sizeof(idbuf), "%02d_%02d", ib, ic );
+		gtk_widget_set_name( curitem, idbuf );
+		// le connecter a la callback commune
+		g_signal_connect( G_OBJECT( curitem ), "toggled", G_CALLBACK( gmenu_visi ), (gpointer)this );
+		// l'ajouter au menu
+		gtk_menu_shell_append( GTK_MENU_SHELL( gmenu ), curitem );
+		gtk_widget_show ( curitem );
+		// fixer la visibilite
+		gtk_check_menu_item_set_active( GTK_CHECK_MENU_ITEM(curitem), true );
+		}
+	}
+return retval;
+}
 // copie les checkboxes du menu contextuel vers les flags 'visible' des layers
 // et intuite les flags 'visible' des strips
 void gpanel::copy_gmenu2visi()

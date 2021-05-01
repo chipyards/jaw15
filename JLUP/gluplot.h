@@ -205,6 +205,8 @@ void configure();
 void expose();
 void set_layer_vis( unsigned int ib, unsigned int ic, int visi );
 void toggle_vis( unsigned int ib, int ic );
+int check_gmenu();		// verifie coherence entre gmenu et layout
+int fix_gmenu();		// regenere gmenu si non conforme
 void copy_gmenu2visi();		// copie les checkboxes du menu contextuel vers les flags 'visible' 
 void paint();			// copie automatique du drawpad sur la drawing area
 void draw();			// dessin vectoriel automatique sur le drawpad
