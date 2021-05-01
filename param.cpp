@@ -32,6 +32,20 @@ gtk_widget_hide( widget );
 return (TRUE);
 }
 
+static void recomp_call( GtkWidget *widget, glostru * glo )
+{
+printf(">>>> begin deletion of waves\n"); fflush(stdout);
+glo->panneau.shrink(1);
+printf(">>>> begin deletion of spectra\n"); fflush(stdout);
+glo->pro.clean_spectros();
+printf(">>>> end deletion\n"); fflush(stdout);
+glo->spectrographize();
+glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+glo->para.panneau.force_repaint = 1; glo->para.panneau.force_redraw = 1;
+
+printf("gmenu fix: %d\n", glo->panneau.fix_gmenu() ); fflush(stdout);
+}
+
 static void load_call( GtkWidget *widget, glostru * glo )
 {
 GtkWidget *dialog;
@@ -148,6 +162,46 @@ curwidg = gtk_vbox_new( FALSE, 10 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Spectrum") );
 vspe = curwidg;
 
+/* creer une drawing area resizable depuis la fenetre */
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, 640, 320 );
+panneau.events_connect( GTK_DRAWING_AREA( curwidg ) );
+gtk_box_pack_start( GTK_BOX( vspe ), curwidg, TRUE, TRUE, 0 );
+sarea = curwidg;
+
+// combo pour le type de fenetre FFT
+// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+curwidg = gtk_combo_box_text_new();
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "0 Rect" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "1 Hann" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "2 Hamming" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "3 Blackman" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "4 BlackmanHarris" );
+gtk_combo_box_set_active( GTK_COMBO_BOX(curwidg), 1 );
+gtk_box_pack_start( GTK_BOX( vspe ), curwidg, FALSE, FALSE, 0 );
+cfwin = curwidg;
+
+// combo pour fftsize
+curwidg = gtk_combo_box_text_new();
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "512" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "1024" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "2048" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "4096" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "8192" );
+gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "16384" );
+gtk_combo_box_set_active( GTK_COMBO_BOX(curwidg), 4 );
+gtk_box_pack_start( GTK_BOX( vspe ), curwidg, FALSE, FALSE, 0 );
+cfsiz = curwidg;
+
+
+// entry pour fft stride
+
+/* simples boutons */
+curwidg = gtk_button_new_with_label ("recompute");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( recomp_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( vspe ), curwidg, FALSE, FALSE, 0 );
+
 // container pour les fichiers
 curwidg = gtk_vbox_new( FALSE, 30 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Files") );
@@ -184,12 +238,6 @@ curwidg = gtk_vbox_new( FALSE, 10 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("I/O ports") );
 vpor = curwidg;
 
-/* creer une drawing area resizable depuis la fenetre */
-curwidg = gtk_drawing_area_new();
-gtk_widget_set_size_request( curwidg, 640, 320 );
-panneau.events_connect( GTK_DRAWING_AREA( curwidg ) );
-gtk_box_pack_start( GTK_BOX( vspe ), curwidg, TRUE, TRUE, 0 );
-sarea = curwidg;
 
 // on doit faire un show de tous les widgets sauf la top window
 // solution peu elegante :

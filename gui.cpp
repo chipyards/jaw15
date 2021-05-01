@@ -387,6 +387,7 @@ if	( ( this->pro.qspek == 0 ) && ( this->pro.Lbuf.size ) &&
 	)
 	{
 	int retval;
+	parametrize();
 	retval = this->pro.spectrum_compute( this->option_monospec );
 	if	( retval )
 		gasp("echec spectrum, erreur %d", retval );
@@ -401,6 +402,16 @@ if	( ( this->pro.qspek == 0 ) && ( this->pro.Lbuf.size ) &&
 this->panneau.force_repaint = 1; this->panneau.force_redraw = 1;
 }
 
+void glostru::parametrize()	// recuperation des parametres editables
+{
+if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont pas prets
+	{
+	pro.Lspek.window_type = gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfwin) );
+	pro.Rspek.window_type = pro.Lspek.window_type;
+	pro.Lspek.fftsize = 1 << ( 9 + gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfsiz) ) );
+	pro.Rspek.fftsize = pro.Lspek.fftsize;
+	}
+}
 
 /** ============================ context menus ======================= */
 

@@ -55,6 +55,6 @@ glostru() : para(this), iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000),
 // methodes
 void wavisualize( const char * fnam );	// chargement et layout d'un fichier audio
 void spectrographize();			// creation et layout du spectrogramme
-
+void parametrize();			// recuperation des parametres editables
 };
 

@@ -10,6 +10,8 @@ GtkWidget * nmain;	// notebook principal
   GtkWidget * vlay;	// layout multitrack
   GtkWidget * vspe;	// params spectro
     GtkWidget * sarea;	// spectrum
+    GtkWidget * cfwin;	// combo pour FFT window
+    GtkWidget * cfsiz;	// combo pour FFT size
   GtkWidget * vfil;	// files
   GtkWidget * vpor;	// I/O ports
 

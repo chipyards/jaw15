@@ -90,7 +90,7 @@ double relog_opp;			// echelle spectre re-echantillonne en OPP (Octave Per Point
 double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
 public:
 // constructeur
-spectro() : fftsize(4096), fftstride(4096/8), spectre(NULL), allocatedWH(0), pal(NULL), wav_peak(32767.0),
+spectro() : fftsize(8192), fftstride(1024), window_type(1), spectre(NULL), allocatedWH(0), pal(NULL), wav_peak(32767.0),
 	 fftinbuf(NULL), fftoutbuf(NULL), p(NULL) {};
 // methodes
 

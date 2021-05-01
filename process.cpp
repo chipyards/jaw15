@@ -185,19 +185,19 @@ printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 // parametres primitifs
 Lspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
 Lspek.octaves = 7;		// 7 octaves
-Lspek.fftsize = 8192;
+// Lspek.fftsize = 8192;
 Lspek.fftstride = 1024;
-Lspek.window_type = 1;
+// Lspek.window_type = 1;
 Lspek.midi0 = 28;		// E1 = mi grave de la basse
 Lspek.pal = mutpal;		// palette commune
 if	( qspek >= 2 )
 	{
 	Rspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
 	Rspek.octaves = 7;		// 7 octaves
-	Rspek.fftsize = 8192;
+	// Rspek.fftsize = 8192;
 	Rspek.fftstride = 1024;
 	Rspek.midi0 = 28;		// E1 = mi grave de la basse
-	Rspek.window_type = 1;
+	// Rspek.window_type = 1;
 	Rspek.pal = mutpal;		// palette commune
 	}
 
@@ -207,13 +207,13 @@ if	( qspek >= 1 )
 	retval = Lspek.init( af->fsamp, Lbuf.size );
 	if	( retval )
 		gasp("erreur init L spectro %d", retval );
-	printf("end init L spectro, window type %d, avg %g\n\n", Lspek.window_type, Lspek.window_avg ); fflush(stdout);
+	printf("ready L spek, FFT %u/%u, window type %d, avg %g\n\n", Lspek.fftsize, Lspek.fftstride, Lspek.window_type, Lspek.window_avg ); fflush(stdout);
 	if	( qspek >= 2 )
 		{
 		retval = Rspek.init( af->fsamp, Rbuf.size );
 		if	( retval )
 			gasp("erreur init R spectro %d", retval );
-		printf("end init R spectro, window type %d, avg %g\n\n", Rspek.window_type, Rspek.window_avg ); fflush(stdout);
+		printf("ready R spek\n"); fflush(stdout);
 		}
 	}
 else	gasp("no spek to init");
