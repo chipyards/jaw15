@@ -50,7 +50,6 @@ if	( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
 		glo->spectrographize();
 	g_free( fnam );
 	}
-else	gasp("audio already loaded");
 gtk_widget_destroy (dialog);
 }
 

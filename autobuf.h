@@ -31,4 +31,9 @@ int more( unsigned int amount ) {
 		{ capa = 0; return -1; }
 	return 0;
 	};
+void reset() {
+	if	( capa )
+		free( data );
+	capa = 0; data = NULL;
+	};
 };

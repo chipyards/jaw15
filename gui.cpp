@@ -268,10 +268,17 @@ glo->iplayp = M;
 // normalement idle_call va detecter si le curseur n'est pas au bon endroit et va le retracer
 
 // spectre instantane
-glo->pro.connect_layout2( &glo->para.panneau, glo->iplayp );	// assure le scan
-glo->para.panneau.force_repaint = 1;
-glo->para.panneau.fullMN();
-
+if	( glo->pro.Lspek.allocatedWH )
+	{
+	if	( glo->para.panneau.bandes.size() == 0 )
+		glo->pro.prep_layout2( &glo->para.panneau );
+	if	( glo->para.panneau.bandes.size() )
+		{
+		glo->pro.connect_layout2( &glo->para.panneau, glo->iplayp );	// assure le scan
+		glo->para.panneau.force_repaint = 1;
+		glo->para.panneau.fullMN();
+		}
+	}
 }
 
 void key_call_back( int v, void * vglo )
@@ -350,20 +357,26 @@ switch	( v )
 void glostru::wavisualize( const char * fnam )	// chargement et layout d'un fichier audio
 {
 snprintf( this->pro.wnam, sizeof( this->pro.wnam ), fnam );
-if	( this->pro.Lbuf.size == 0 )
-	{
-	int retval;
-	retval = this->pro.audiofile_process();
-	if	( retval )
-		gasp("echec lecture %s, erreur %d", this->pro.wnam, retval );
-	fflush(stdout);
-	// preparer le layout pour wav L (et R si stereo)
-	this->pro.prep_layout_W( &this->panneau );
-	retval = this->pro.connect_layout_W( &this->panneau );
-	if	( retval )
-		gasp("echec connect layout, erreur %d", retval );
-	fflush(stdout);
-	}
+gtk_entry_set_text( GTK_ENTRY( this->esta ), fnam );
+// nettoyer
+panneau.reset();
+para.panneau.reset();
+pro.clean_spectros();
+panneau.dump();
+// charger fichier
+int retval;
+retval = this->pro.audiofile_process();
+if	( retval )
+	gasp("echec lecture %s, erreur %d", this->pro.wnam, retval );
+fflush(stdout);
+// preparer le layout pour wav L (et R si stereo)
+this->pro.prep_layout_W( &this->panneau );
+retval = this->pro.connect_layout_W( &this->panneau );
+if	( retval )
+	gasp("echec connect layout, erreur %d", retval );
+fflush(stdout);
+this->panneau.force_repaint = 1; this->panneau.force_redraw = 1;
+iplay = -1; iplayp = iplay0 = 0; iplay1 = 2000000000;
 }
 
 
@@ -497,14 +510,14 @@ glo->hbut = curwidg;
 curwidg = gtk_button_new_with_label (" Play/Pause ");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( play_pause_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 glo->bpla = curwidg;
 
 /* simple bouton */
 curwidg = gtk_button_new_with_label ("Restrict Play");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( rewind_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 glo->brew = curwidg;
 
 // entree non editable
@@ -512,21 +525,21 @@ curwidg = gtk_entry_new();
 gtk_widget_set_usize( curwidg, 160, 0 );
 gtk_entry_set_editable( GTK_ENTRY(curwidg), FALSE );
 gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->esta = curwidg;
 
 /* simple bouton */
 curwidg = gtk_button_new_with_label (" Param ");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( param_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 glo->bpar = curwidg;
 
 /* simple bouton */
 curwidg = gtk_button_new_with_label (" Quit ");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( quit_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 glo->bqui = curwidg;
 
 // connecter la zoombar au panel et inversement
@@ -602,8 +615,8 @@ glo->panneau.key_callback_register( key_call_back, (void *)glo );
 // preparer le layout de la fenetre non modale 'param'
 glo->para.build();
 // alors glo->para.panneau existe et est connecte a glo->para.sarea
-glo->pro.prep_layout2( &glo->para.panneau );
-glo->pro.connect_layout2( &glo->para.panneau, 0 );
+// glo->pro.prep_layout2( &glo->para.panneau ); <-- seulement sur action clic_call_back()
+// glo->pro.connect_layout2( &glo->para.panneau, 0 );  <-- idem
 
 #ifdef USE_PORTAUDIO
 if	( glo->option_noaudio == 0 )
@@ -630,22 +643,21 @@ if	( glo->option_noaudio == 0 )
 #endif
 
 /* experience de liberation de memoire (non necessaire ici) */
-printf("> begin deletion of spectra\n"); fflush(stdout);
+
+printf(">>>> begin deletion of waves\n"); fflush(stdout);
+glo->panneau.dump();
+glo->panneau.reset();
+glo->panneau.dump();
+
+printf(">>>> begin deletion of aux plot\n"); fflush(stdout);
+glo->para.panneau.dump();
+glo->para.panneau.reset();
+glo->para.panneau.dump();
+
+printf(">>>> begin deletion of spectra\n"); fflush(stdout);
 glo->pro.clean_spectros();
-glo->panneau.dump();
-glo->pro.unlay_S( &glo->panneau );
-glo->panneau.dump();
 
-printf(">begin deletion of waves\n"); fflush(stdout);
-glo->pro.unlay_W( &glo->panneau );
-glo->panneau.dump();
-
-printf("> begin deletion of aux plot\n"); fflush(stdout);
-glo->para.panneau.dump();
-glo->pro.unlay_2( &glo->para.panneau );
-glo->para.panneau.dump();
-
-printf("> end deletion\n"); fflush(stdout);
+printf(">>>> end deletion\n"); fflush(stdout);
 
 //*/
 return(0);

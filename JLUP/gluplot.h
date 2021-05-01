@@ -236,6 +236,9 @@ void dump() {
 	panel::dump();
 	printf("offscreen_flag = %d\n", offscreen_flag );
 	};
+// destruction
+void reset();				// retire tous les strips et layers, et le gmenu
+void shrink( unsigned int qstrips );	// conserve les qstrips premiers strips
 };
 
 // la zoombar, en version horizontale

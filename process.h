@@ -41,10 +41,6 @@ void palettize( unsigned int iend );
 
 // nettoyage
 void clean_spectros();		// liberer la memoire des spectros et pixbufs
-void unlay_S( gpanel * panneau );	// deconnecter et defaire le layout S
-void unlay_W( gpanel * panneau );	// deconnecter et defaire le layout W
-void unlay_2( gpanel * panneau );	// deconnecter et defaire le layout 2
-
 };
 
 // utilitaires

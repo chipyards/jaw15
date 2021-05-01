@@ -707,14 +707,11 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 					printf("clic marge gauche strip %d\n", istrip & ~CLIC_MARGE );
 					}
 				else	{	// clic dans une courbe
+					scientout( utbuf, M, 0.002 * tdq ); // ce coeff 0.002 suggere une resolution 500 fois plus fine que le tick, Ok ?
+					scientout( vtbuf, N, 0.002 * bandes[istrip]->tdr );
+					printf("clic strip %d [%s:%s]\n", istrip, utbuf, vtbuf ); fflush(stdout);
 					if	( clic_call_back )
 						clic_call_back( M, N, call_back_data );
-					else	{
-						// ce coeff 0.002 suggere une resolution 500 fois plus fine que le tick, Ok ?
-						scientout( utbuf, M, 0.002 * tdq );
-						scientout( vtbuf, N, 0.002 * bandes[istrip]->tdr );
-						printf("clic strip %d [%s:%s]\n", istrip, utbuf, vtbuf );
-						}
 					}
 				}
 			else	printf("clic hors graphique (%d)\n", istrip );
@@ -736,12 +733,14 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 								event->button, event->time );
 					}
 				else	{	// clic dans une courbe
-					gtk_menu_popup( (GtkMenu *)gmenu, NULL, NULL, NULL, NULL,
-							event->button, event->time );
+					if	( gmenu )
+						gtk_menu_popup( (GtkMenu *)gmenu, NULL, NULL, NULL, NULL,
+								event->button, event->time );
 					}
 				}
 			else	{	// aucun strip visible ?
-				gtk_menu_popup( (GtkMenu *)gmenu, NULL, NULL, NULL, NULL,
+				if	( gmenu )
+					gtk_menu_popup( (GtkMenu *)gmenu, NULL, NULL, NULL, NULL,
 							event->button, event->time );
 				}
 			}
@@ -793,6 +792,7 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 		force_repaint = 1;
 		}
 	}
+fflush(stdout);
 }
 
 void gpanel::motion( GdkEventMotion * event )
@@ -1050,6 +1050,46 @@ gtk_widget_show( curitem );
 return curmenu;
 }
 
+// defaire tout le layout
+// via ~gstrip les destructeurs des layers est appeles et les menus Y effaces. 
+// le menu global est efface car il a ete enrichi lors de la creation des layers
+// le drawpad, le ghost_drag et le menu X sont conserves
+void gpanel::reset()
+{
+unsigned int ib, ic;
+for	( ib = 0; ib < bandes.size(); ++ib )
+	{
+	for	( ic = 0; ic < bandes[ib]->courbes.size(); ++ic )
+		delete bandes[ib]->courbes[ic];
+	delete bandes[ib];
+	}
+bandes.clear();
+if	( gmenu )
+	{ gtk_widget_destroy( gmenu ); gmenu = NULL; }
+drag.mode = nil; xcursor = xdirty = -1.0;
+init_flags = 0; full_valid = 0;
+}
+
+// defaire tout le layout sauf les qstrips premieres bandes
+// le menu global est efface en entier (provisoire)
+void gpanel::shrink( unsigned int qstrips )
+{
+if	( bandes.size() > qstrips )
+	{
+	unsigned int ib, ic;
+	for	( ib = qstrips; ib < bandes.size(); ++ib )
+		{
+		for	( ic = 0; ic < bandes[ib]->courbes.size(); ++ic )
+			delete bandes[ib]->courbes[ic];
+		delete bandes[ib];
+		}
+	bandes.resize( qstrips );
+	if	( gmenu )
+		{ gtk_widget_destroy( gmenu ); gmenu = NULL; }
+	drag.mode = nil; xcursor = xdirty = -1.0;
+	init_flags = 0; full_valid = 0;
+	}
+}
 
 /** ===================== ghost_drag methods ===================================== */
 

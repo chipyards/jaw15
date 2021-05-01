@@ -89,19 +89,23 @@ short pcmbuf[QRAW*2];	// supporte stereo, supporte mp3 si QRAW > QPFR
 
 
 /* pre-allocation (facultative) des buffers pour l'audio entier a servir a jluplot */
-if	( Lbuf.more( af->estpfr ) )
-	gasp("echec malloc Lbuf %d samples", (int)af->estpfr );
-
-if	( af->qchan > 1 )
+if	( af->estpfr > Lbuf.capa )
 	{
+	Lbuf.reset();	// pour eviter realloc, qui serait inefficace ici
+	if	( Lbuf.more( af->estpfr ) )
+		gasp("echec alloc Lbuf %d samples", (int)af->estpfr );
+	}
+if	( ( af->qchan > 1 ) && ( af->estpfr > Rbuf.capa ) )
+	{
+	Rbuf.reset();
 	if	( Rbuf.more( af->estpfr ) )
-		gasp("echec malloc Rbuf %d samples", (int)af->estpfr );
+		gasp("echec alloc Rbuf %d samples", (int)af->estpfr );
 	}
 //*/
 
 // 3eme etape : boucler sur le buffer
 int i;
-unsigned int j = 0;
+unsigned int j = 0; af->realpfr = 0;
 unsigned int qpfr = (mp3flag?QPFR:QRAW);
 if	( af->qchan == 2 )
 	{			// boucle stereo
@@ -547,6 +551,7 @@ if	( qspek >= 2 )
 }
 
 // liberer la memoire des spectros et pixbufs
+// (safe to call unnecessarily)
 void process::clean_spectros()
 {
 if	( Lspek.allocatedWH )
@@ -554,47 +559,9 @@ if	( Lspek.allocatedWH )
 if	( Rspek.allocatedWH )
 	{ Rspek.specfree( 0 ); printf("Rspek freed\n"); fflush(stdout); }
 if	( Lpix )	// since gdk_pixbuf_unref() is deprecated
-	{ g_object_unref( Lpix ); printf("Lpix freed\n"); fflush(stdout); }
+	{ g_object_unref( Lpix ); Lpix = NULL; printf("Lpix freed\n"); fflush(stdout); }
 if	( Rpix )
-	{ g_object_unref( Rpix ); printf("Rpix freed\n"); fflush(stdout); }	
-}
-
-// deconnecter et defaire le layout S
-void process::unlay_S( gpanel * panneau )
-{
-unsigned int ib, ic;	// on saute le premier strip reserve aux WAV
-for	( ib = 1; ib < panneau->bandes.size(); ++ib )
-	{
-	for	( ic = 0; ic < panneau->bandes[ib]->courbes.size(); ++ic )
-		delete panneau->bandes[ib]->courbes[ic];
-	delete panneau->bandes[ib];
-	}
-panneau->bandes.resize(1);
-}
-
-// deconnecter et defaire le layout W (seulement si le layout S est deja defait !)
-void process::unlay_W( gpanel * panneau )
-{
-unsigned int ic;
-if	( panneau->bandes.size() == 1 )
-	{
-	for	( ic = 0; ic < panneau->bandes[0]->courbes.size(); ++ic )
-		delete panneau->bandes[0]->courbes[ic];
-	delete panneau->bandes[0];
-	panneau->bandes.clear();
-	}
-}
-
-// deconnecter et defaire le layout 2
-void process::unlay_2( gpanel * panneau )
-{
-unsigned int ib, ic;
-for	( ib = 0; ib < panneau->bandes.size(); ++ib )
-	{
-	for	( ic = 0; ic < panneau->bandes[ib]->courbes.size(); ++ic )
-		delete panneau->bandes[ib]->courbes[ic];
-	delete panneau->bandes[ib];
-	}
-panneau->bandes.clear();
+	{ g_object_unref( Rpix ); Rpix = NULL; printf("Rpix freed\n"); fflush(stdout); }
+qspek = 0;	
 }
 
