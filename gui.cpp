@@ -202,7 +202,7 @@ else	{			// Not Playing
 // 	- glo->para.wmain est invisible au depart de l'appli et chaque fois qu'on la ferme avec bouton [X]
 //	  mais reste visible quand iconifiee ou cachee derriere une autre
 //	- les pages de notebook sont toujours 'visibles', mais la page affichees est identifiable par son index  
-if	( ( gtk_widget_get_visible(glo->para.wmain) ) && ( gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->para.nmain) ) == 1 ) )
+if	( ( gtk_widget_get_visible(glo->para.wmain) ) && ( gtk_notebook_get_current_page( GTK_NOTEBOOK(glo->para.nmain) ) == 0 ) )
 	if	( glo->para.panneau.force_repaint )
 		glo->para.panneau.paint();
 
@@ -283,7 +283,7 @@ if	( glo->pro.Lspek.allocatedWH )
 
 void key_call_back( int v, void * vglo )
 {
-glostru * glo = (glostru *)vglo; int k = 1;
+glostru * glo = (glostru *)vglo;
 switch	( v )
 	{
 	case GDK_KEY_KP_0 :
@@ -307,18 +307,11 @@ switch	( v )
 		{
 		glo->panneau.dump();
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
+		glo->para.panneau.dump();
 		fflush(stdout);
 		} break;
-	case GDK_KEY_F6 : k += 2;
-	case GDK_KEY_F5 : k += 2;
-	case GDK_KEY_F4 : k += 1;
-	case GDK_KEY_F3 : k += 1;
-	case GDK_KEY_F2 : k += 1;
 	case GDK_KEY_F1 :
 		printf("F key hit\n"); fflush(stdout);
-		glo->spectrographize();
-		glo->pro.palettize( glo->pro.Lspek.umax / k );
-		glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
 		break;
 	//
 	case 'v' :
@@ -407,9 +400,22 @@ void glostru::parametrize()	// recuperation des parametres editables
 if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont pas prets
 	{
 	pro.Lspek.window_type = gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfwin) );
+	pro.Lspek.fftsize     = 1 << ( 9 + gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfsiz) ) );
+	unsigned int stride   = atoi( gtk_entry_get_text( GTK_ENTRY(para.estri) ) ); 
+	if	( stride < ( pro.Lspek.fftsize / 16 ) )
+		stride = ( pro.Lspek.fftsize / 16 );
+	if	( stride > pro.Lspek.fftsize )
+		stride = pro.Lspek.fftsize;
+	pro.Lspek.fftstride   = stride;
+	char tbuf[16];
+	snprintf( tbuf, sizeof(tbuf), "%u", stride );
+	gtk_entry_set_text( GTK_ENTRY(para.estri), tbuf );
+	pro.Lspek.bpst        = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON(para.bbpst) );
+
 	pro.Rspek.window_type = pro.Lspek.window_type;
-	pro.Lspek.fftsize = 1 << ( 9 + gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfsiz) ) );
-	pro.Rspek.fftsize = pro.Lspek.fftsize;
+	pro.Rspek.fftsize     = pro.Lspek.fftsize;
+	pro.Rspek.fftstride   = pro.Lspek.fftstride;
+	pro.Rspek.bpst        = pro.Lspek.bpst;
 	}
 }
 

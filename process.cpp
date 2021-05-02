@@ -182,23 +182,24 @@ else	qspek = af->qchan;
 
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 
-// parametres primitifs
-Lspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
-Lspek.octaves = 7;		// 7 octaves
+// -- parametres FFT
 // Lspek.fftsize = 8192;
-Lspek.fftstride = 1024;
+// Lspek.fftstride = 1024;
 // Lspek.window_type = 1;
+// -- parametres conversion LOG
+// Lspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
+Lspek.octaves = 7;		// 7 octaves
 Lspek.midi0 = 28;		// E1 = mi grave de la basse
 Lspek.pal = mutpal;		// palette commune
 if	( qspek >= 2 )
 	{
-	Rspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
-	Rspek.octaves = 7;		// 7 octaves
 	// Rspek.fftsize = 8192;
-	Rspek.fftstride = 1024;
-	Rspek.midi0 = 28;		// E1 = mi grave de la basse
+	// Rspek.fftstride = 1024;
 	// Rspek.window_type = 1;
-	Rspek.pal = mutpal;		// palette commune
+	// Rspek.bpst = 10;
+	Rspek.octaves = 7;
+	Rspek.midi0 = 28;
+	Rspek.pal = mutpal;
 	}
 
 // allocations pour spectro
@@ -468,8 +469,9 @@ curcour = new layer_u<unsigned short>;	//
 curbande->add_layer( curcour, "Lin" );
 
 // configurer le layer pour le spectre
-curcour->set_km( 1.0 );
-curcour->set_m0( 0.0 );
+curcour->set_km( (double)Lspek.bpst );		// M est en MIDI-note (demi-tons), U est en bins
+						// la midinote correspondant au bas du spectre
+curcour->set_m0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
 curcour->set_kn( 1.0 );	// amplitude normalisee a +-1
 curcour->set_n0( 0.0 );
 curcour->fgcolor.dR = 0.0;
@@ -498,10 +500,13 @@ layL->scan();
 return 0;
 }
 
-
-
+// remplir la palette d'un gradient qui va de l'indice 0 a iend (exclu)
+// completer le reste (saturation) avec la derniere couleur
+// N.B. la palette contient toujours 65536 triplets RGB
 void fill_palette_simple( unsigned char * pal, unsigned int iend )
 {
+if	( iend > 65535 )	// ne pas deborder de la palette !
+	iend = 65535;
 unsigned char * palR = pal;
 unsigned char * palG = palR + 65536;
 unsigned char * palB = palG + 65536;
@@ -512,7 +517,7 @@ for	( unsigned int i = 0; i < iend; ++i )
 	val = ( i * mul ) >> 16;
 	palR[i] = val;
 	palG[i] = val;
-	palB[i] = 69;
+	palB[i] = 69;	// fond bleu
 	}
 // completer la zone de saturation
 memset( palR + iend, val, 65536 - iend );

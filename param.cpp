@@ -32,14 +32,27 @@ gtk_widget_hide( widget );
 return (TRUE);
 }
 
+// sliders
+static void k_call( GtkAdjustment *adjustment, glostru * glo )
+{
+glo->spectrographize();		// ne fera la computation que si elle n'a pas encore ete faite
+double k = adjustment->value;
+if	( k > 0.5 )
+	glo->pro.palettize( (unsigned int)(((double)glo->pro.Lspek.umax) / k ) );
+glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+}
+
 static void recomp_call( GtkWidget *widget, glostru * glo )
 {
-printf(">>>> begin deletion of waves\n"); fflush(stdout);
+printf(">>>> begin deletion of strips\n"); fflush(stdout);
 glo->panneau.shrink(1);
 printf(">>>> begin deletion of spectra\n"); fflush(stdout);
 glo->pro.clean_spectros();
 printf(">>>> end deletion\n"); fflush(stdout);
 glo->spectrographize();
+double k = glo->para.adjk->value;
+if	( k > 0.5 )
+	glo->pro.palettize( (unsigned int)(((double)glo->pro.Lspek.umax) / k ) );
 glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
 glo->para.panneau.force_repaint = 1; glo->para.panneau.force_redraw = 1;
 
@@ -144,33 +157,40 @@ gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
 gtk_window_set_title( GTK_WINDOW(curwidg), "Parameters" );
 gtk_container_set_border_width( GTK_CONTAINER(curwidg), 2 );
 // set a minimum size
-gtk_widget_set_size_request( curwidg, 640, 480 );
+// gtk_widget_set_size_request( curwidg, 640, 480 );
 wmain = curwidg;
 
 // notebook (collection de tabs)
+// ATTENTION : des fonctions appelees par idle function ou events peuvent utiliser
+// gtk_notebook_get_current_page() pour identifier la page visible.
+// Si on change l'ordre des pages ces identifications devront etre reparametrees
 curwidg = gtk_notebook_new();
 gtk_container_add( GTK_CONTAINER( wmain ), curwidg );
 nmain = curwidg;
 
 // container pour les params de layout
-curwidg = gtk_vbox_new( FALSE, 10 );
-gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Multitrack") );
-vlay = curwidg;
+//curwidg = gtk_vbox_new( FALSE, 10 );
+//gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Multitrack") );
+//vlay = curwidg;
 
-// container pour les params de spectre
+// container pour le spectre
 curwidg = gtk_vbox_new( FALSE, 10 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Spectrum") );
 vspe = curwidg;
 
-/* creer une drawing area resizable depuis la fenetre */
-curwidg = gtk_drawing_area_new();
-gtk_widget_set_size_request( curwidg, 640, 320 );
-panneau.events_connect( GTK_DRAWING_AREA( curwidg ) );
+curwidg = gtk_hbox_new( FALSE, 10 );
 gtk_box_pack_start( GTK_BOX( vspe ), curwidg, TRUE, TRUE, 0 );
-sarea = curwidg;
+hspe = curwidg;
+
+// container pour les parametres de spectre
+curwidg = gtk_vbox_new( FALSE, 10 );
+gtk_box_pack_start( GTK_BOX( hspe ), curwidg, FALSE, FALSE, 0 );
+vspp = curwidg;
 
 // combo pour le type de fenetre FFT
 // 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+curwidg = gtk_label_new("FFT window");
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 curwidg = gtk_combo_box_text_new();
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "0 Rect" );
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "1 Hann" );
@@ -178,10 +198,12 @@ gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "2 Hamming" );
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "3 Blackman" );
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "4 BlackmanHarris" );
 gtk_combo_box_set_active( GTK_COMBO_BOX(curwidg), 1 );
-gtk_box_pack_start( GTK_BOX( vspe ), curwidg, FALSE, FALSE, 0 );
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 cfwin = curwidg;
 
 // combo pour fftsize
+curwidg = gtk_label_new("FFT size");
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 curwidg = gtk_combo_box_text_new();
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "512" );
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "1024" );
@@ -190,17 +212,51 @@ gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "4096" );
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "8192" );
 gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "16384" );
 gtk_combo_box_set_active( GTK_COMBO_BOX(curwidg), 4 );
-gtk_box_pack_start( GTK_BOX( vspe ), curwidg, FALSE, FALSE, 0 );
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 cfsiz = curwidg;
 
-
 // entry pour fft stride
+curwidg = gtk_label_new("FFT stride");
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
+curwidg = gtk_entry_new();
+gtk_widget_set_usize( curwidg, 160, 0 );
+gtk_entry_set_editable( GTK_ENTRY(curwidg), TRUE );
+gtk_entry_set_text( GTK_ENTRY(curwidg), "1024" );
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
+estri = curwidg;
+
+// spin button pour BPST bin_per_semi_tone
+curwidg = gtk_label_new("Binxels Per SemiTone");
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
+curwidg = gtk_spin_button_new_with_range( 2.0, 20.0, 1.0 );
+gtk_spin_button_set_value( GTK_SPIN_BUTTON(curwidg), 10.0 );
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
+bbpst = curwidg;
+// gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON(widget) );
 
 /* simples boutons */
 curwidg = gtk_button_new_with_label ("recompute");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( recomp_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( vspe ), curwidg, FALSE, FALSE, 0 );
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
+
+/* creer une drawing area resizable depuis la fenetre */
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, 720, 400 );
+panneau.events_connect( GTK_DRAWING_AREA( curwidg ) );
+gtk_box_pack_start( GTK_BOX( hspe ), curwidg, TRUE, TRUE, 0 );
+sarea = curwidg;
+
+// slider pour le gain spectrogramme
+GtkAdjustment * curadj;
+			//value,lower,upper,step_increment,page_increment,page_size);
+curadj = GTK_ADJUSTMENT( gtk_adjustment_new( 1.0, 0.5, 10.0, 0.1, 1.0, 0 ));
+g_signal_connect( curadj, "value_changed",
+		  G_CALLBACK( k_call ), (gpointer)glo );
+curwidg = gtk_hscale_new(curadj);
+gtk_scale_set_digits( GTK_SCALE(curwidg), 1 );
+gtk_box_pack_start( GTK_BOX(vspe), curwidg, FALSE, FALSE, 0 );
+adjk = curadj;
 
 // container pour les fichiers
 curwidg = gtk_vbox_new( FALSE, 30 );

@@ -9,9 +9,15 @@ GtkWidget * wmain;	// fenetre principale
 GtkWidget * nmain;	// notebook principal
   GtkWidget * vlay;	// layout multitrack
   GtkWidget * vspe;	// params spectro
-    GtkWidget * sarea;	// spectrum
-    GtkWidget * cfwin;	// combo pour FFT window
-    GtkWidget * cfsiz;	// combo pour FFT size
+    GtkWidget * hspe;	// params spectro
+      GtkWidget * vspp;	// params spectro
+        GtkWidget * cfwin;	// combo pour FFT window
+        GtkWidget * cfsiz;	// combo pour FFT size
+        GtkWidget * estri;	// entry for FFT stride
+        GtkWidget * bbpst;	// spin button pour BPST
+      GtkWidget * sarea;	// spectrum
+    GtkAdjustment * adjk;	// ajustement pour gain module
+
   GtkWidget * vfil;	// files
   GtkWidget * vpor;	// I/O ports
 
