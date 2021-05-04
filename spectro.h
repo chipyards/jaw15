@@ -62,6 +62,7 @@ float k0;	// coeff d'interpolation cote is0
 float k1;	// coeff d'interpolation cote is1
 };
 
+
 #define PALSIZE (65536*3)
 
 class spectro {
@@ -74,24 +75,39 @@ unsigned short * spectre;	// spectre W * H binxels, resample en log, pret a pale
 unsigned int W;			// nombre de colonnes ( env. nombre_samples / fftstride )
 unsigned int H;			// nombre de frequences (bins) sur le spectre resample
 unsigned int allocatedWH;	// W*H effectivement alloue
-unsigned int umax;		// valeur max vue dans spectre[]
+unsigned int umax;		// valeur max mise dans spectre[]
 unsigned char * pal;		// la palette 16 bits --> RGB, contient PALSIZE byte
-unsigned int bpst = 10;		// binxel-per-semi-tone : resolution spectro log
+unsigned int bpst;		// binxel-per-semi-tone : resolution spectro log
 unsigned int octaves;		// hauteur du spectre a partir de midi0
 int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
 double wav_peak;		// pour facteur d'echelle avant conversion du spectre en u16
-private:
+unsigned int qthread;		// nombre de threads
+
+// pourrait etre private, sauf que les threads doivent y acceder
+short * src1;			// audio a transformer
+short * src2; 			// second canal si on veut transformer de la stereo sur un spectrogramme
+float k;			// facteur d'echelle en vue conversion en u16
 float window[FFTSIZEMAX];	// fenetre pre-calculee
-float * fftinbuf;		// buffer pour entree fft reelle
-float * fftoutbuf;		// buffer pour sortie fft complexe
-fftwf_plan p;			// le plan FFTW
 logpoint log_resamp[HMAX];	// parametres precalcules pour re-echantillonnage log
-double relog_opp;			// echelle spectre re-echantillonne en OPP (Octave Per Point) << 1
+double relog_opp;		// echelle spectre re-echantillonne en OPP (Octave Per Point) << 1
 double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
-public:
+// les donnees separees par thread
+float * fftinbuf[8];		// buffers pour entree fft reelle
+float * fftoutbuf[8];		// buffers pour sortie fft complexe
+fftwf_plan plan[8];		// les plan FFTW
+unsigned int umax_part[8];	// valeur max mise dans spectre[] par chaque thread
+
 // constructeur
-spectro() : fftsize(8192), fftstride(1024), window_type(1), spectre(NULL), allocatedWH(0), pal(NULL), wav_peak(32767.0),
-	 fftinbuf(NULL), fftoutbuf(NULL), p(NULL) {};
+spectro() : fftsize(8192), fftstride(1024), window_type(1), spectre(NULL), allocatedWH(0), umax(0),
+	pal(NULL), bpst(10), octaves(7), midi0(28), wav_peak(32767.0), qthread(1) {
+	for	( int i = 0; i < 8 ; ++i )
+		{
+		fftinbuf[i] = NULL;
+		fftoutbuf[i] = NULL;
+		plan[i] = NULL;
+		}
+	};
+
 // methodes
 
 // FFT window functions
@@ -108,12 +124,19 @@ void log_resamp_dump();
 int alloc_WH();
 // top actions
 int init( unsigned int fsamp, unsigned int qsamples );
-void compute( short * src1, short * src2 = NULL );	// calcul spectre complet W x H
+void compute( short * srcA, short * srcB = NULL );	// calcul spectre complet W x H
 // conversion en style GDK pixbuf
 // N.B. spectro ne connait pas GDK mais est compatible avec le style
 void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels );
 // liberation memoire
 void specfree( int deep );	// free all allocated memory
+};
+
+// structure pour passer a chaque thread
+class kernelblock {
+public:
+int id;
+spectro * lespectro;
 };
 
 // utility functions

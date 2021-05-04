@@ -52,30 +52,33 @@ int spectro::alloc_fft()
 // verifications preliminaires
 if	( fftsize > FFTSIZEMAX )	return -1;
 if	( fftstride < 32 )		return -2;
-unsigned int size;
+unsigned int size, i = 0;
 // allouer buffer pour entree fft
-if	( fftinbuf == NULL )
+for	( i = 0; i < qthread; ++i )
 	{
-	size = FFTSIZEMAX;
-	fftinbuf = (float *)fftwf_malloc( size * sizeof(float) );	// pour reel float
-	if	( fftinbuf == NULL )
-		return -20;
-	printf("fftw alloc %d floats, align %04X\n", size, (unsigned int)fftinbuf & 0x0FFFF );
+	if	( fftinbuf[i] == NULL )
+		{
+		size = FFTSIZEMAX;
+		fftinbuf[i] = (float *)fftwf_malloc( size * sizeof(float) );	// pour reel float
+		if	( fftinbuf[i] == NULL )
+			return -20;
+		printf("fftw alloc %d floats\n", size );
+		}
+	// allouer buffer pour sortie fft
+	if	( fftoutbuf[i] == NULL )
+		{
+		size = ( (FFTSIZEMAX/2) + 1 ) * 2;
+		fftoutbuf[i] = (float *)fftwf_malloc( size * sizeof(float) );	// pour complex float
+		if	( fftoutbuf[i] == NULL )
+			return -21;
+		printf("fftw alloc %d floats\n", size );
+		}
+	// preparer le plan FFTW
+	plan[i] = fftwf_plan_dft_r2c_1d( fftsize, fftinbuf[i], (fftwf_complex*)fftoutbuf[i], FFTW_MEASURE );
+	if	( plan[i] == NULL )
+		return -30;
+	printf("FFTW plan ready\n");
 	}
-// allouer buffer pour sortie fft
-if	( fftoutbuf == NULL )
-	{
-	size = ( (FFTSIZEMAX/2) + 1 ) * 2;
-	fftoutbuf = (float *)fftwf_malloc( size * sizeof(float) );	// pour complex float
-	if	( fftoutbuf == NULL )
-		return -21;
-	printf("fftw alloc %d floats, align %04X\n", size, (unsigned int)fftoutbuf & 0x0FFFF );
-	}
-// preparer le plan FFTW
-p = fftwf_plan_dft_r2c_1d( fftsize, fftinbuf, (fftwf_complex*)fftoutbuf, FFTW_MEASURE );
-if	( p == NULL )
-	return -30;
-printf("FFTW plan ready\n");
 return 0;
 }
 
@@ -207,13 +210,95 @@ if	( retval )
 return 0;
 }
 
-// enfin !
-void spectro::compute( short * src1, short * src2 )
+// un thread pour executer la FFT sur un sous-ensemble de colonnes 
+void * computekernel( void * kdata )
 {
+// extraire 2 donnees de kdata :
+unsigned int id = ((kernelblock *)kdata)->id;
+spectro * ceci = ((kernelblock *)kdata)->lespectro;
+if	( id > ceci->qthread )
+	return NULL;
+// variables locales
+float * fftin;		// buffer pour entree fft reelle
+float * fftout;		// buffer pour sortie fft complexe
 unsigned int a, j;
-float k;
 unsigned short u;
-umax = 0;
+
+fftin = ceci->fftinbuf[id];
+fftout = ceci->fftoutbuf[id];
+ceci->umax_part[id] = 0;
+
+for	( unsigned int icol = id; icol < ceci->W; icol += ceci->qthread )
+	{
+	// fenetrage sur fftin
+	a = icol * ceci->fftstride;
+	if	( ceci->src2 )
+		{
+		for	( j = 0; j < ceci->fftsize; ++j )
+			{
+			fftin[j] = ( (float)ceci->src1[a] + (float)ceci->src2[a] ) * ceci->window[j];
+			++a;
+			}
+		}
+	else	{
+		for	( j = 0; j < ceci->fftsize; ++j )
+			fftin[j] = (float)ceci->src1[a++] * ceci->window[j];
+		}
+	// fft de fftin vers fftout
+	fftwf_execute( ceci->plan[id] );
+	// calcul magnitudes sur place (fftout)
+	a = 0;
+	for	( j = 0; j <= ( ceci->fftsize / 2 ); ++j )
+		{
+		fftout[j] = hypotf( fftout[a], fftout[a+1] );
+		a += 2;
+		}
+	// resampling log, de fftout vers fftin
+	logpoint *p; float peak;
+	for	( j = 0; j < ceci->H; ++j )
+		{
+		p = &(ceci->log_resamp[j]);
+		if	( p->decimflag == 1 )	// decimation par valeur pic
+			{
+			peak = 0.0;
+			for	( a = p->is0; a <= (unsigned int)p->is1; ++a )
+				{
+				if	( fftout[a] > peak )
+					peak = fftout[a];
+				}
+			}
+		else if	( p->decimflag == 0 )	// interpolation lineaire
+			{
+			peak = fftout[p->is0] * p->k0 + fftout[p->is1] * p->k1;
+			}
+		else	peak = 0.0;
+		fftin[j] = peak;
+		}
+	// conversion en u16 avec application du facteur d'echelle k, pour palettisation ulterieure
+	a = icol * ceci->H;
+	for	( j = 0; j < ceci->H; ++j )
+		{
+		u = (unsigned short)( ceci->k * fftin[j] );
+		if	( u > ceci->umax_part[id] )
+			ceci->umax_part[id] = u;
+		ceci->spectre[a++] = u;
+		}
+	}
+
+return NULL;
+}
+
+
+// enfin !
+void spectro::compute( short * srcA, short * srcB )
+{
+kernelblock kdata;
+kdata.id = 0;
+kdata.lespectro = this;
+
+this->src1 = srcA;
+this->src2 = srcB;
+
 // facteur d'echelle en vue conversion en u16
 // un signal sinus d'amplitude max sur une frequence multiple de fsamp/fftsize atteint le plafond
 // un signal carre peut depasser - c'est un cas theorique (alors on observe un visuel de "solarise")
@@ -222,61 +307,17 @@ k = (2.0/(float)fftsize);	// correction DFT classique, selon JLN, pour signal si
 k /= window_avg;		// correction fenetre
 k /= wav_peak;		// 1.0 si wav en float normalisee, 32767.0 si audio 16 bits, ou adapte 
 k *= 65535.0;
-for	( unsigned int icol = 0; icol < W; ++icol )
+
+if	( qthread = 1 )
+	computekernel( (void *)&kdata );
+else	{
+	}
+
+umax = 0;
+for	( unsigned i = 0; i < qthread; ++i )
 	{
-	// fenetrage sur fftinbuf
-	a = icol * fftstride;
-	if	( src2 )
-		{
-		for	( j = 0; j < fftsize; ++j )
-			{
-			fftinbuf[j] = ( (float)src1[a] + (float)src2[a] ) * window[j];
-			++a;
-			}
-		}
-	else	{
-		for	( j = 0; j < fftsize; ++j )
-			fftinbuf[j] = (float)src1[a++] * window[j];
-		}
-	// fft de fftinbuf vers fftoutbuf
-	fftwf_execute(p);
-	// calcul magnitudes sur place (fftoutbuf)
-	a = 0;
-	for	( j = 0; j <= ( fftsize / 2 ); ++j )
-		{
-		fftoutbuf[j] = hypotf( fftoutbuf[a], fftoutbuf[a+1] );
-		a += 2;
-		}
-	// resampling log, de fftoutbuf vers fftinbuf
-	logpoint *p; float peak;
-	for	( j = 0; j < H; ++j )
-		{
-		p = &log_resamp[j];
-		if	( p->decimflag == 1 )	// decimation par valeur pic
-			{
-			peak = 0.0;
-			for	( a = p->is0; a <= (unsigned int)p->is1; ++a )
-				{
-				if	( fftoutbuf[a] > peak )
-					peak = fftoutbuf[a];
-				}
-			}
-		else if	( p->decimflag == 0 )	// interpolation lineaire
-			{
-			peak = fftoutbuf[p->is0] * p->k0 + fftoutbuf[p->is1] * p->k1;
-			}
-		else	peak = 0.0;
-		fftinbuf[j] = peak;
-		}
-	// conversion en u16 avec application du facteur d'echelle k, pour palettisation ulterieure
-	a = icol * H;
-	for	( j = 0; j < H; ++j )
-		{
-		u = (unsigned short)(k*fftinbuf[j]);
-		if	( u > umax )
-			umax = u;
-		spectre[a++] = u;
-		}
+	if	( umax_part[i] > umax )
+		umax = umax_part[i];
 	}
 printf("max binxel umax %u/65535\n", umax );
 }
@@ -315,12 +356,19 @@ if	(spectre) free(spectre);
 allocatedWH = 0; spectre = NULL;
 // unsigned char * pal : n'est pas alloue par spectro, gere a l'exterieur;
 // window[] : statique
-if	( deep )	// ces buffers ont une taille fixe, ils sont non static en raison
-	{		// des contraites d'alignement de fftw.
-	if (fftinbuf)  { fftwf_free(fftinbuf);  fftinbuf = NULL;  }
-	if (fftoutbuf) { fftwf_free(fftoutbuf); fftoutbuf = NULL; }
+// ces buffers ont une taille fixe, ils sont non static en raison des
+// des contraites d'alignement de fftw.
+if	( deep )
+	{
+	for	( int i = 0; i < 8; i++ )
+		{		
+		if ( fftinbuf[i] )  { fftwf_free(fftinbuf[i]);  fftinbuf[i] = NULL;  }
+		if ( fftoutbuf[i] ) { fftwf_free(fftoutbuf[i]); fftoutbuf[i] = NULL; }
+		}
 	}
-fftwf_destroy_plan(p);
+// les plans fftw
+for	( int i = 0; i < 8; i++ )
+	fftwf_destroy_plan(plan[i]);
 // fftwf_cleanup();	// pas ici, c'est commun a tous les spectros
 printf("spectre and fft cleaned\n"); fflush(stdout);
 }
