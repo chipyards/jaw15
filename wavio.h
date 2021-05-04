@@ -19,7 +19,7 @@ unsigned int block;	// bytes par frame
 wavio() : audiofile(), hand(-1) {};
 
 // methodes bas niveau (legacy)
-void WAVreadHeader();
+int WAVreadHeader();
 void WAVwriteHeader();
 
 // methodes d'interface heritee d'audiofile

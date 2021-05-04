@@ -270,14 +270,9 @@ glo->iplayp = M;
 // spectre instantane
 if	( glo->pro.Lspek.allocatedWH )
 	{
-	if	( glo->para.panneau.bandes.size() == 0 )
-		glo->pro.prep_layout2( &glo->para.panneau );
-	if	( glo->para.panneau.bandes.size() )
-		{
-		glo->pro.connect_layout2( &glo->para.panneau, glo->iplayp );	// assure le scan
-		glo->para.panneau.force_repaint = 1;
-		glo->para.panneau.fullMN();
-		}
+	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );	// assure le scan
+	glo->para.panneau.force_repaint = 1;
+	glo->para.panneau.fullMN();
 	}
 }
 
@@ -351,7 +346,7 @@ void glostru::wavisualize( const char * fnam )	// chargement et layout d'un fich
 {
 snprintf( this->pro.wnam, sizeof( this->pro.wnam ), fnam );
 gtk_entry_set_text( GTK_ENTRY( this->esta ), fnam );
-// nettoyer
+// nettoyer TOUT
 panneau.reset();
 para.panneau.reset();
 pro.clean_spectros();
@@ -360,7 +355,11 @@ panneau.dump();
 int retval;
 retval = this->pro.audiofile_process();
 if	( retval )
-	gasp("echec lecture %s, erreur %d", this->pro.wnam, retval );
+	{
+	printf("echec lecture %s, erreur audiofile_process %d\n", this->pro.wnam, retval );
+	fflush(stdout);
+	return;
+	}
 fflush(stdout);
 // preparer le layout pour wav L (et R si stereo)
 this->pro.prep_layout_W( &this->panneau );
@@ -375,9 +374,7 @@ iplay = -1; iplayp = iplay0 = 0; iplay1 = 2000000000;
 
 void glostru::spectrographize()	// creation et layout du spectrogramme
 {
-if	( ( this->pro.qspek == 0 ) && ( this->pro.Lbuf.size ) &&
-	  ( this->panneau.bandes.size() == 1 )
-	)
+if	( ( this->pro.Lbuf.size ) && ( this->panneau.bandes.size() >= 1 ) )
 	{
 	int retval;
 	parametrize();
@@ -385,10 +382,8 @@ if	( ( this->pro.qspek == 0 ) && ( this->pro.Lbuf.size ) &&
 	if	( retval )
 		gasp("echec spectrum, erreur %d", retval );
 	fflush(stdout);
-	this->pro.prep_layout_S( &this->panneau );
-	retval = this->pro.connect_layout_S( &this->panneau );
-	if	( retval )
-		gasp("echec connect layout, erreur %d", retval );
+	this->pro.auto_layout_S( &this->panneau );
+	this->pro.auto_layout2( &this->para.panneau, this->iplayp ); 
 	fflush(stdout);
 	this->panneau.full_valid = 0; this->panneau.init_flags = 0;
 	}
@@ -661,7 +656,7 @@ if	( glo->option_noaudio == 0 )
 	audio_engine_stop( glo );
 #endif
 
-/* experience de liberation de memoire (non necessaire ici) */
+/* experience de liberation de memoire (non necessaire ici) *
 
 printf(">>>> begin deletion of waves\n"); fflush(stdout);
 glo->panneau.dump();

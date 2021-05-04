@@ -23,7 +23,7 @@
 				<Option object_output="obj/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="F:\DEV\JAW\JAW15\WAV\quistereo.wav" />
+				<Option parameters="-m" />
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-g" />
@@ -72,6 +72,8 @@
 		<Unit filename="../JLUP/layer_lod.h" />
 		<Unit filename="../JLUP/layer_rgb.cpp" />
 		<Unit filename="../JLUP/layer_rgb.h" />
+		<Unit filename="../audiofile.h" />
+		<Unit filename="../autobuf.h" />
 		<Unit filename="../cli_parse.h" />
 		<Unit filename="../glostru.h" />
 		<Unit filename="../gui.cpp" />
@@ -79,6 +81,8 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="../modpop3.h" />
+		<Unit filename="../mp3in.cpp" />
+		<Unit filename="../mp3in.h" />
 		<Unit filename="../pa_devs.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -89,10 +93,6 @@
 		<Unit filename="../process.h" />
 		<Unit filename="../spectro.cpp" />
 		<Unit filename="../spectro.h" />
-		<Unit filename="../autobuf.h" />
-		<Unit filename="../audiofile.h" />
-		<Unit filename="../mp3in.cpp" />
-		<Unit filename="../mp3in.h" />
 		<Unit filename="../wavio.cpp" />
 		<Unit filename="../wavio.h" />
 		<Extensions />

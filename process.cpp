@@ -59,7 +59,9 @@ else	{
 	retval = wavp.read_head( wnam );
 	if	( retval )
 		{
-		printf("file not found %s\n", wnam );
+		if	( retval == -1 )
+			printf("file not found %s\n", wnam );
+		else	printf("erreur wavio::read_head %d\n", retval );
 		fflush(stdout); return -1;
 		}
 	}
@@ -173,12 +175,18 @@ return 0;
 // calculs spectrogramme dans l'objet process
 int process::spectrum_compute( int force_mono )
 {
-int retval;
+int retval, qspek;
 
 // creation spectrographe
 if	( force_mono )
 	qspek = 1;
 else	qspek = af->qchan;
+
+if	( ( Lspek.spectre ) || ( ( Rspek.spectre ) && ( qspek > 1 ) ) )
+	{
+	printf("\nspectrum_compute aborted (not freed)\n"); fflush(stdout);
+	return 0;
+	}
 
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 
@@ -250,13 +258,13 @@ else	gasp("pas de channel pour fft");
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
 
 
-printf("start colorisation spectrogrammes\n"); fflush(stdout);
+// printf("start colorisation spectrogrammes\n"); fflush(stdout);
 // adapter la palette a la limite umax et l'applique a tous les spectres
 // (umax a ete  calcule par spectro::compute)
 if	( qspek == 2 )
 	palettize( (Lspek.umax>Rspek.umax)?(Lspek.umax):(Rspek.umax) );
 else	palettize( Lspek.umax );
-printf("end colorisation spectrogrammes\n" ); fflush(stdout);
+// printf("end colorisation spectrogrammes\n" ); fflush(stdout);
 return 0;
 }
 
@@ -318,73 +326,6 @@ if	( af->qchan > 1 )
 	}
 }
 
-// layout pour pour spectrograms (depend de qspek)
-void process::prep_layout_S( gpanel * panneau )
-{
-gstrip * curbande;
-if	( qspek >= 1 )
-	{
-	layer_rgb * curcour2;
-	/* creer le strip pour le spectro */
-	curbande = new gstrip;
-	panneau->add_strip( curbande );
-	// configurer le strip
-	curbande->bgcolor.dR = 1.0;
-	curbande->bgcolor.dG = 1.0;
-	curbande->bgcolor.dB = 1.0;
-	curbande->Ylabel = "midi";
-	curbande->optX = 1;
-	if	( panneau->bandes.size() > 1 )
-		panneau->bandes[0]->optX = 0;
-	curbande->optretX = 0;
-	curbande->optretY = 0;
-	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
-	gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
-	// curbande->optcadre = 1;	// pour economiser le fill du fond
-
-	// creer le layer
-	curcour2 = new layer_rgb;
-	curbande->add_layer( curcour2, "RGB left" );
-
-	// configurer le layer
-	curcour2->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
-	curcour2->set_m0( 0.5 * (double)(Lspek.fftsize-Lspek.fftstride ) );
-	curcour2->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
-								// la midinote correspondant au bas du spectre
-	curcour2->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
-	}
-if	( qspek >= 2 )
-	{
-	panneau->bandes.back()->Ylabel = "midi L";
-	layer_rgb * curcour2;
-	/* creer le strip pour le spectro */
-	curbande = new gstrip;
-	panneau->add_strip( curbande );
-	// configurer le strip
-	curbande->bgcolor.dR = 1.0;
-	curbande->bgcolor.dG = 1.0;
-	curbande->bgcolor.dB = 1.0;
-	curbande->Ylabel = "midi R";
-	curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
-	curbande->optretX = 0;
-	curbande->optretY = 0;
-	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
-	gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
-	// curbande->optcadre = 1;	// pour economiser le fill du fond
-
-	// creer le layer
-	curcour2 = new layer_rgb;
-	curbande->add_layer( curcour2, "RGB right" );
-
-	// configurer le layer
-	curcour2->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
-	curcour2->set_m0( 0.5 * (double)(Rspek.fftsize-Rspek.fftstride) );
-	curcour2->set_kn( (double)Rspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
-								// la midinote correspondant au bas du spectre
-	curcour2->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
-	}
-}
-
 // connexion du layout aux data type wave
 int process::connect_layout_W( gpanel * panneau )
 {
@@ -415,89 +356,143 @@ printf("end layout W, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 return 0;
 }
 
-// connexion du layout aux data type spek
-int process::connect_layout_S( gpanel * panneau )
+
+// layout pour spectrogrammes
+void process::auto_layout_S( gpanel * panneau )
 {
+if	( Lspek.spectre == NULL )
+	return;
+//// partie non repetable
+if	( panneau->bandes.size() == 1 )
+	{
+	gstrip * curbande;
+	layer_rgb * curcour;
+	/* creer le strip pour le spectro */
+	curbande = new gstrip;
+	panneau->add_strip( curbande );
+	// configurer le strip
+	curbande->bgcolor.dR = 1.0;
+	curbande->bgcolor.dG = 1.0;
+	curbande->bgcolor.dB = 1.0;
+	curbande->Ylabel = "midi";
+	curbande->optX = 1;
+	if	( panneau->bandes.size() > 1 )
+		panneau->bandes[0]->optX = 0;
+	curbande->optretX = 0;
+	curbande->optretY = 0;
+	curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
+	gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
+	// curbande->optcadre = 1;	// pour economiser le fill du fond
+	// creer le layer
+	curcour = new layer_rgb;
+	curbande->add_layer( curcour, "RGB left" );
+	if	( Rspek.spectre )
+		{
+		panneau->bandes.back()->Ylabel = "midi L";
+		/* creer le strip pour le spectro */
+		curbande = new gstrip;
+		panneau->add_strip( curbande );
+		// configurer le strip
+		curbande->bgcolor.dR = 1.0;
+		curbande->bgcolor.dG = 1.0;
+		curbande->bgcolor.dB = 1.0;
+		curbande->Ylabel = "midi R";
+		curbande->optX = 0;	// l'axe X reste entre les waves et le spectro, pourquoi pas ?
+		curbande->optretX = 0;
+		curbande->optretY = 0;
+		curbande->kmfn = 0.004;	// on reduit la marge de 5% qui est appliquee par defaut au fullN
+		gpanel::smenu_set_title( curbande->smenu_y, "MELODIC RANGE" );
+		// curbande->optcadre = 1;	// pour economiser le fill du fond
+		// creer le layer
+		curcour = new layer_rgb;
+		curbande->add_layer( curcour, "RGB right" );
+		}
+	printf("end hard layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
+	}	// fin de la partie non-repetable
+//// partie repetable a chaud, compatible avec un changement des params FFT
 unsigned int ib = 1;
 layer_rgb * laySL, * laySR;
-
-if	( qspek >= 1 )
+if	( ib < panneau->bandes.size() )
 	{
-	if	( ib >= panneau->bandes.size() )
-		gasp("erreur sur layout");
 	laySL = (layer_rgb *)panneau->bandes[ib]->courbes[0];
+	laySL->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
+	laySL->set_m0( 0.5 * (double)(Lspek.fftsize-Lspek.fftstride ) );
+	laySL->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
+								// la midinote correspondant au bas du spectre
+	laySL->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
 	laySL->spectropix = Lpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
 	}
-if	( qspek >= 2 )
+++ib;
+if	( ib < panneau->bandes.size() )
 	{
-	ib++;
-	if	( ib >= panneau->bandes.size() )
-		gasp("erreur sur layout");
 	laySR = (layer_rgb *)panneau->bandes[ib]->courbes[0];
+	laySR->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
+	laySR->set_m0( 0.5 * (double)(Rspek.fftsize-Rspek.fftstride ) );
+	laySR->set_kn( (double)Rspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
+								// la midinote correspondant au bas du spectre
+	laySR->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
 	laySR->spectropix = Rpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
 	}
-
-printf("end layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
-return 0;
+printf("end soft layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 }
 
-// layout pour le domaine frequentiel (spectre ponctuel)
-void process::prep_layout2( gpanel * panneau )
+// layout pour le spectre ponctuel (domaine frequentiel)
+void process::auto_layout2( gpanel * panneau, int time_curs )
 {
-gstrip * curbande;
-layer_u<unsigned short> * curcour;
+if	( Lspek.spectre == NULL )
+	return;
+//// partie non repetable
+if	( panneau->bandes.size() == 0 )
+	{
+	gstrip * curbande;
+	layer_u<unsigned short> * curcour;
 
-panneau->offscreen_flag = 0;	// 1 par defaut
-// marge pour les textes
-panneau->mx = 60;
+	panneau->offscreen_flag = 0;	// 1 par defaut
+	panneau->mx = 60;
 
-// creer le strip pour les spectres
-curbande = new gstrip;
-panneau->add_strip( curbande );
+	// creer le strip pour les spectres
+	curbande = new gstrip;
+	panneau->add_strip( curbande );
+	// configurer le strip
+	curbande->bgcolor.dR = 0.9;
+	curbande->bgcolor.dG = 0.9;
+	curbande->bgcolor.dB = 0.9;
+	curbande->Ylabel = "spec";
+	curbande->optX = 1;
+	curbande->optretX = 1;
+	// gpanel::smenu_set_title( curbande->smenu_y, "MAG ?" );
 
-// configurer le strip
-curbande->bgcolor.dR = 0.8;
-curbande->bgcolor.dG = 0.8;
-curbande->bgcolor.dB = 0.8;
-curbande->Ylabel = "spec";
-curbande->optX = 1;
-curbande->optretX = 1;
-// gpanel::smenu_set_title( curbande->smenu_y, "MAG ?" );
-
-// creer un layer
-curcour = new layer_u<unsigned short>;	//
-curbande->add_layer( curcour, "Lin" );
-
-// configurer le layer pour le spectre
-curcour->set_km( (double)Lspek.bpst );		// M est en MIDI-note (demi-tons), U est en bins
-						// la midinote correspondant au bas du spectre
-curcour->set_m0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
-curcour->set_kn( 1.0 );	// amplitude normalisee a +-1
-curcour->set_n0( 0.0 );
-curcour->fgcolor.dR = 0.0;
-curcour->fgcolor.dG = 0.0;
-curcour->fgcolor.dB = 0.0;
-}
-
-// connexion du layout aux data
-int process::connect_layout2( gpanel * panneau, int pos )
-{
-// pointeurs locaux sur les layers
-layer_u<unsigned short> * layL;
-// connecter les layers de ce layout sur les buffers existants
-layL = (layer_u<unsigned short> *)panneau->bandes[0]->courbes[0];
-
-int m0 = (Lspek.fftsize-Lspek.fftstride )/2;
-int ibin = ( pos - m0 ) / Lspek.fftstride; 	// division entiere (ou floor)
-if	( ibin < 0 ) ibin = 0;
-if	( ibin > (int)( Lspek.W - 1 ) ) ibin = Lspek.W - 1;	// bornage sur [0,W-1]
-
-layL->V = Lspek.spectre + ( ibin * Lspek.H ); 
-
-// H est le nombre de "bins" apres passage en echelle log
-layL->qu = Lspek.H;
-layL->scan();
-return 0;
+	// creer un layer
+	curcour = new layer_u<unsigned short>;
+	curbande->add_layer( curcour, "Lin" );
+	curcour->fgcolor.dR = 0.0;
+	curcour->fgcolor.dG = 0.0;
+	curcour->fgcolor.dB = 0.0;
+	printf("end hard layout 2, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
+	}	// fin de la partie non-repetable
+//// partie repetable a chaud, compatible avec un changement des params FFT
+	{
+	layer_u<unsigned short> * layL;
+	layL = (layer_u<unsigned short> *)panneau->bandes[0]->courbes[0];
+	layL->set_kn( 1.0 );	// amplitude normalisee a +-1
+	layL->set_n0( 0.0 );
+	layL->set_km( (double)Lspek.bpst );		// M est en MIDI-note (demi-tons), U est en bins
+							// la midinote correspondant au bas du spectre
+	layL->set_m0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
+	// prise en compte de la position du curseur temporel (time_curs, en samples)
+	int time_m0 = ( Lspek.fftsize - Lspek.fftstride ) / 2; // c'est le m0 du spectrogramme
+	int ibin = ( time_curs - time_m0 ) / (int)Lspek.fftstride; 	// division entiere (ou floor)
+	// bornage sur [0,W-1] ==> robustesse vs time_curs
+	if	( ibin < 0 ) ibin = 0;
+	if	( ibin > (int)( Lspek.W - 1 ) ) ibin = Lspek.W - 1;
+	// printf("time_curs = %d ==> ibin = %d/%d\n", time_curs, ibin, Lspek.W ); fflush(stdout);
+	// aller piquer une colonne du spectrogramme
+	layL->V = Lspek.spectre + ( ibin * Lspek.H ); 
+	// H est le nombre de "bins" apres passage en echelle log
+	layL->qu = Lspek.H;
+	layL->scan();
+	}
+printf("end soft layout 2, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 }
 
 // remplir la palette d'un gradient qui va de l'indice 0 a iend (exclu)
@@ -548,14 +543,15 @@ if	( Lpix == NULL )
 	printf("creation d'un pixbuf %u x %u\n", Lspek.W, Lspek.H ); fflush(stdout);
 	Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
 	}
-if	( ( qspek >= 2 ) && ( Rpix == NULL ) )
+if	( ( Rspek.spectre ) && ( Rpix == NULL ) )
 	{
 	printf("creation d'un pixbuf %u x %u\n", Rspek.W, Rspek.H ); fflush(stdout);
 	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
 	}
 // coloriser les spectre (qui sont supposes deja referencer cette palette)
-spectre2rgb( &Lspek, Lpix );
-if	( qspek >= 2 )
+if	( Lspek.spectre )
+	spectre2rgb( &Lspek, Lpix );
+if	( Rspek.spectre )
 	spectre2rgb( &Rspek, Rpix );
 }
 
@@ -563,14 +559,13 @@ if	( qspek >= 2 )
 // (safe to call unnecessarily)
 void process::clean_spectros()
 {
-if	( Lspek.allocatedWH )
+if	( Lspek.spectre )
 	{ Lspek.specfree( 0 ); printf("Lspek freed\n"); fflush(stdout); }
-if	( Rspek.allocatedWH )
+if	( Rspek.spectre )
 	{ Rspek.specfree( 0 ); printf("Rspek freed\n"); fflush(stdout); }
 if	( Lpix )	// since gdk_pixbuf_unref() is deprecated
 	{ g_object_unref( Lpix ); Lpix = NULL; printf("Lpix freed\n"); fflush(stdout); }
 if	( Rpix )
 	{ g_object_unref( Rpix ); Rpix = NULL; printf("Rpix freed\n"); fflush(stdout); }
-qspek = 0;	
 }
 

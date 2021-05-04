@@ -60,14 +60,14 @@ return(s);
 
 #define QBUF 4096
 
-void wavio::WAVreadHeader()
+int wavio::WAVreadHeader()
 {
 unsigned char buf[QBUF]; unsigned int chucksize, factsize, resol;
 read( this->hand, buf, 4 );
-if ( strncmp( (char *)buf, "RIFF", 4 ) != 0 ) gasp("manque en-tete RIFF");
+if ( strncmp( (char *)buf, "RIFF", 4 ) != 0 ) return -2;
 read( this->hand, buf, 4 ); // filesize = readlong( buf );
 read( this->hand, buf, 4 );
-if ( strncmp( (char *)buf, "WAVE", 4 ) != 0 ) gasp("manque en-tete WAVE");
+if ( strncmp( (char *)buf, "WAVE", 4 ) != 0 ) return -3;
 this->type = 0x10000;
 factsize = 0;
 chucksize = 0;
@@ -78,10 +78,10 @@ while	( read( this->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
 		break;	// c'est le bon chuck, on le lira plus tard...
 	buf[4] = 0;
 	// printf("chuck %s : %d bytes\n", buf, chucksize );
-	if	( chucksize > QBUF ) gasp("chuck trop gros");
+	if	( chucksize > QBUF ) return -4;
 	if	( strncmp( (char *)buf, "fmt ", 4 ) == 0 )		// chuck fmt
 		{
-		if ( chucksize > QBUF ) gasp("chuck fmt trop gros");
+		if ( chucksize > QBUF ) return -5;
 		read( this->hand, buf, (int)chucksize );
 		this->type = readshort( buf );
 		if	( ( this->type == 1 ) || ( this->type == 3 ) || ( this->type == 0xFFFE ) )
@@ -97,22 +97,22 @@ while	( read( this->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
 				{
 				printf("WAVE_FORMAT_EXTENSIBLE\n");
 				if	( this->qchan > 2 )
-					gasp("plus que 2 canaux : non supporte\n");
+					return -6;
 				int extsize = readshort( buf + 16 );
 				if	( extsize == 22 )
 					{
 					unsigned int validbits = readshort( buf + 18 );
 					if	( validbits != resol )
-						gasp("validbits = %d vs %d\n", validbits, resol );
+						return -7;
 					int ext_type = readshort( buf + 20 );
 					if	( ( ext_type != 1 ) && ( ext_type != 3 ) )
-						gasp("ext format %d non supporte", ext_type );
+						return -8;
 					this->type = ext_type;
 					}
-				else	gasp("fmt extension toot short %d\n", extsize );
+				else	return -9;
 				}
 			}
-		else	gasp("format %d inconnu", this->type );
+		else	return( -100 - this->type );
 		}
 	else if	( strncmp( (char *)buf, "fact", 4 ) == 0 )		// chuck fact
 		{
@@ -121,8 +121,8 @@ while	( read( this->hand, buf, 8 ) == 8 )	// boucle des chucks preliminaires
 		}
 	else	read( this->hand, buf, chucksize );				// autre chuck
 	}
-if	( this->type == 0x10000 ) gasp("pas de chuck fmt");
-if	( strncmp( (char *)buf, "data", 4 ) != 0 ) gasp("pas de chuck data");
+if	( this->type == 0x10000 ) return -10;
+if	( strncmp( (char *)buf, "data", 4 ) != 0 ) return -11;
 					// on est bien arrive dans les data !
 this->estpfr = chucksize / ( this->qchan * this->monosamplesize );
 
@@ -132,7 +132,7 @@ this->estpfr = chucksize / ( this->qchan * this->monosamplesize );
 if	( factsize != 0 )
 	{
 	// printf("%u echantillons selon fact chuck\n", factsize );
-	if ( this->estpfr != factsize ) gasp("longueurs incoherentes");
+	if ( this->estpfr != factsize ) return -200;
 	}
 // printf("fichier %u bytes, chuck data %u bytes\n", filesize, chucksize );
 /*	{
@@ -142,6 +142,7 @@ if	( factsize != 0 )
 	printf("duree %.3f s soit %d mn %.3f s\n", durs, mn, ds );
 	}
 */
+return 0;
 }
 
 int wavio::read_head( const char * fnam )
@@ -149,8 +150,7 @@ int wavio::read_head( const char * fnam )
 hand = open( fnam, O_RDONLY | O_BINARY );
 if	( hand == -1 )
 	return -1;
-WAVreadHeader();
-return 0;
+return WAVreadHeader();
 }
 
 // The buffer size qpfr is in PCM frame

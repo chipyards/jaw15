@@ -779,16 +779,16 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 				if	( istrip & CLIC_MARGE_INF )
 					{
 					scientout( utbuf, M, 0.002 * tdq );
-					printf("clic marge inf M = %s\n", utbuf );
+					// printf("clic marge inf M = %s\n", utbuf );
 					}
 				else if	( istrip & CLIC_MARGE_GAUCHE )
 					{
-					printf("clic marge gauche strip %d\n", istrip & ~CLIC_MARGE );
+					// printf("clic marge gauche strip %d\n", istrip & ~CLIC_MARGE );
 					}
 				else	{	// clic dans une courbe
 					scientout( utbuf, M, 0.002 * tdq ); // ce coeff 0.002 suggere une resolution 500 fois plus fine que le tick, Ok ?
 					scientout( vtbuf, N, 0.002 * bandes[istrip]->tdr );
-					printf("clic strip %d [%s:%s]\n", istrip, utbuf, vtbuf ); fflush(stdout);
+					// printf("clic strip %d [%s:%s]\n", istrip, utbuf, vtbuf ); fflush(stdout);
 					if	( clic_call_back )
 						clic_call_back( M, N, call_back_data );
 					}
