@@ -407,6 +407,7 @@ if	( panneau->bandes.size() == 1 )
 		curcour = new layer_rgb;
 		curbande->add_layer( curcour, "RGB right" );
 		}
+	panneau->full_valid = 0;
 	printf("end hard layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 	}	// fin de la partie non-repetable
 //// partie repetable a chaud, compatible avec un changement des params FFT
@@ -468,6 +469,7 @@ if	( panneau->bandes.size() == 0 )
 	curcour->fgcolor.dR = 0.0;
 	curcour->fgcolor.dG = 0.0;
 	curcour->fgcolor.dB = 0.0;
+	panneau->full_valid = 0;
 	printf("end hard layout 2, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 	}	// fin de la partie non-repetable
 //// partie repetable a chaud, compatible avec un changement des params FFT

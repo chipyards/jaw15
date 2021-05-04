@@ -272,7 +272,6 @@ if	( glo->pro.Lspek.allocatedWH )
 	{
 	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );	// assure le scan
 	glo->para.panneau.force_repaint = 1;
-	glo->para.panneau.fullMN();
 	}
 }
 
@@ -385,7 +384,7 @@ if	( ( this->pro.Lbuf.size ) && ( this->panneau.bandes.size() >= 1 ) )
 	this->pro.auto_layout_S( &this->panneau );
 	this->pro.auto_layout2( &this->para.panneau, this->iplayp ); 
 	fflush(stdout);
-	this->panneau.full_valid = 0; this->panneau.init_flags = 0;
+	this->panneau.init_flags = 0;
 	}
 this->panneau.force_repaint = 1; this->panneau.force_redraw = 1;
 }
