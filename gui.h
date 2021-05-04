@@ -45,6 +45,7 @@ PaStream *stream;	// portaudio stream
 int option_spectrogramme;
 int option_monospec;
 int option_noaudio;
+unsigned int option_threads;
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
 

@@ -5,6 +5,7 @@
 #include "fftw3.h"
 
 #include "spectro.h"
+#include <pthread.h>
 
 /** FFT window functions ======================================================= */
 
@@ -211,7 +212,7 @@ return 0;
 }
 
 // un thread pour executer la FFT sur un sous-ensemble de colonnes 
-void * computekernel( void * kdata )
+static void * computekernel( void * kdata )
 {
 // extraire 2 donnees de kdata :
 unsigned int id = ((kernelblock *)kdata)->id;
@@ -289,12 +290,10 @@ return NULL;
 }
 
 
-// enfin !
-void spectro::compute( short * srcA, short * srcB )
+// execution de 1 ou plusieurs computekernel en parallele
+int spectro::compute( short * srcA, short * srcB )
 {
-kernelblock kdata;
-kdata.id = 0;
-kdata.lespectro = this;
+kernelblock kdata[8];
 
 this->src1 = srcA;
 this->src2 = srcB;
@@ -308,11 +307,35 @@ k /= window_avg;		// correction fenetre
 k /= wav_peak;		// 1.0 si wav en float normalisee, 32767.0 si audio 16 bits, ou adapte 
 k *= 65535.0;
 
-if	( qthread = 1 )
-	computekernel( (void *)&kdata );
+// le choeur des coeurs
+if	( qthread == 1 )
+	{
+	kdata[0].id = 0;
+	kdata[0].lespectro = this;
+	computekernel( (void *)&kdata[0] );
+	}
 else	{
+	pthread_t zeth[8];
+	int retval;
+	// demarrer les threads
+	for	( unsigned i = 0; i < qthread; ++i )
+		{
+		kdata[i].id = i;
+		kdata[i].lespectro = this;
+		retval = pthread_create( &zeth[i], NULL, computekernel, (void *)&kdata[i] );
+		if	( retval )
+			return -1;
+		}
+	// attendre leurs fins
+	for	( unsigned i = 0; i < qthread; ++i )
+		{
+		retval = pthread_join( zeth[i], NULL );
+		if	( retval )
+			return -2;
+		}
 	}
 
+// la synthese des umax
 umax = 0;
 for	( unsigned i = 0; i < qthread; ++i )
 	{
@@ -320,6 +343,7 @@ for	( unsigned i = 0; i < qthread; ++i )
 		umax = umax_part[i];
 	}
 printf("max binxel umax %u/65535\n", umax );
+return 0;
 }
 
 // conversion en style GDK pixbuf

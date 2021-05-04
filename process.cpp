@@ -189,11 +189,12 @@ if	( ( Lspek.spectre ) || ( ( Rspek.spectre ) && ( qspek > 1 ) ) )
 	}
 
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
-
+// N.B. les parametres en commentaire sont supposes avoir ete injectes avant l'appel
 // -- parametres FFT
 // Lspek.fftsize = 8192;
 // Lspek.fftstride = 1024;
 // Lspek.window_type = 1;
+// Lspek.qthread;
 // -- parametres conversion LOG
 // Lspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
 Lspek.octaves = 7;		// 7 octaves
@@ -204,6 +205,7 @@ if	( qspek >= 2 )
 	// Rspek.fftsize = 8192;
 	// Rspek.fftstride = 1024;
 	// Rspek.window_type = 1;
+	// Rspek.qthread = 1;
 	// Rspek.bpst = 10;
 	Rspek.octaves = 7;
 	Rspek.midi0 = 28;
@@ -211,25 +213,20 @@ if	( qspek >= 2 )
 	}
 
 // allocations pour spectro
-if	( qspek >= 1 )
+retval = Lspek.init( af->fsamp, Lbuf.size );
+if	( retval )
+	gasp("erreur init L spectro %d", retval );
+printf("ready L spek, FFT %u/%u, window type %d, avg %g\n\n", Lspek.fftsize, Lspek.fftstride, Lspek.window_type, Lspek.window_avg ); fflush(stdout);
+if	( qspek >= 2 )
 	{
-	retval = Lspek.init( af->fsamp, Lbuf.size );
+	retval = Rspek.init( af->fsamp, Rbuf.size );
 	if	( retval )
-		gasp("erreur init L spectro %d", retval );
-	printf("ready L spek, FFT %u/%u, window type %d, avg %g\n\n", Lspek.fftsize, Lspek.fftstride, Lspek.window_type, Lspek.window_avg ); fflush(stdout);
-	if	( qspek >= 2 )
-		{
-		retval = Rspek.init( af->fsamp, Rbuf.size );
-		if	( retval )
-			gasp("erreur init R spectro %d", retval );
-		printf("ready R spek\n"); fflush(stdout);
-		}
+		gasp("erreur init R spectro %d", retval );
+	printf("ready R spek\n"); fflush(stdout);
 	}
-else	gasp("no spek to init");
 
 // calcul spectre
-
-printf("start calcul spectre\n"); fflush(stdout);
+printf("start calcul spectre sur %d threads\n", Lspek.qthread ); fflush(stdout);
 if	( af->qchan == 1 )
 	{
 	Lspek.wav_peak = 32767.0;

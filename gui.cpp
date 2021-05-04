@@ -400,16 +400,22 @@ if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont p
 		stride = ( pro.Lspek.fftsize / 16 );
 	if	( stride > pro.Lspek.fftsize )
 		stride = pro.Lspek.fftsize;
+	if	( option_threads > 7 )
+		option_threads = 7;
+	if	( option_threads < 1 )
+		option_threads = 1;
 	pro.Lspek.fftstride   = stride;
 	char tbuf[16];
 	snprintf( tbuf, sizeof(tbuf), "%u", stride );
 	gtk_entry_set_text( GTK_ENTRY(para.estri), tbuf );
 	pro.Lspek.bpst        = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON(para.bbpst) );
+	pro.Lspek.qthread     = option_threads;
 
 	pro.Rspek.window_type = pro.Lspek.window_type;
 	pro.Rspek.fftsize     = pro.Lspek.fftsize;
 	pro.Rspek.fftstride   = pro.Lspek.fftstride;
 	pro.Rspek.bpst        = pro.Lspek.bpst;
+	pro.Rspek.qthread     = option_threads;
 	}
 }
 
@@ -577,10 +583,11 @@ int solB = 0;			// -B // variante pour copie drawpad (cf gluplot.cpp) "-B" pour 
 glo->option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
 glo->option_monospec = 0;	// -m // spectrogrammes 2D sur L+R si stereo
 glo->option_noaudio = 0;	// -N // no audio output (for debug)
+glo->option_threads = 1;	// -T // 1 a 8 threads (en plus du principal)
 const char * fnam = NULL;
 
 // 	parsage CLI
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "Ldp" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LdpT" );
 // le parsage est fait, on recupere les args !
 const char * val;
 if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
@@ -590,6 +597,7 @@ if	( ( val = lepar->get( 'B' ) ) )	solB = 1;
 if	( ( val = lepar->get( 'S' ) ) )	glo->option_spectrogramme = 1;
 if	( ( val = lepar->get( 'm' ) ) )	glo->option_monospec = 1;
 if	( ( val = lepar->get( 'N' ) ) )	glo->option_noaudio = 1;
+if	( ( val = lepar->get( 'T' ) ) )	glo->option_threads = atoi( val );
 if	( ( val = lepar->get( 'h' ) ) )
 	{
 	printf( "options :\n"
@@ -599,7 +607,8 @@ if	( ( val = lepar->get( 'h' ) ) )
 	"-B	  : variante pour copie drawpad (cf gluplot.cpp) '-B' pour B1, sinon defaut = B2\n"
 	"-S	  : calcul spectrogramme a l'ouverture\n"
 	"-m	  : spectrogramme toujours mono\n"
-	"-N	  : no audio output\n" );
+	"-N	  : no audio output\n"
+	"-T <n>   : threads pour FFT ( 1 a 8 )\n" );
 	return 0;
 	}
 fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
