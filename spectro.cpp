@@ -346,30 +346,56 @@ printf("max binxel umax %u/65535\n", umax );
 return 0;
 }
 
-// conversion en style GDK pixbuf
-// N.B. spectro ne connait pas GDK mais est compatible avec le style
-// utilise la palette connue du spectro
+// conversion spectre en style GDK pixbuf, en utilisant la palette connue du spectro
+// N.B. spectro ne connait pas GDK mais est compatible avec la disposition pixbuf
+// spectre est scrute par ligne (bien que dispose par colonnes) pour supporter cette disposition.
+// la question du signe de Y:
+	// si on veut afficher le pixbuf directement avec GDK, il faut gerer Y+ vers le bas (origine en haut)
+	// destadr = ( (H-1) - y ) * RGBstride;
+	// si on veut afficher le pixbuf avec JLUPLOT, il faut gerer Y+ vers le haut (origine en bas)
+	// destadr = y * RGBstride;
+// la question du piano-roll en filigrane
+	// il faut convertir y (aka v) en midinote (aka n) pour decider noir ou blanc
+	// V = ( n - n0 ) * kn <==> n = n0 + v/bpst avec n0 = midi0 - 0.5/bpst
+	// midinote = midi0 + round( y/bpst - 0.5/bpst ) = midi0 + round( ( y - 0.5 ) / bpst )
+	// cette formule peut donner un offset trompeur si bpst est pair
 void spectro::spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels )
 {
 unsigned int x, y, destadr, srcadr, i;
 unsigned char * palR = pal;
 unsigned char * palG = palR + 65536;
 unsigned char * palB = palG + 65536;
+int midinote;
+const char * blacknotes = "010100101010";	// midinote = 0 est un Do
 for	( y = 0; y < H; y++ )
 	{
-	// si on veut afficher le pixbuf directement avec GDK, il faut gerer Y+ vers le bas (origine en haut)
-	// destadr = ( (H-1) - y ) * RGBstride;
-	// si on veut afficher le pixbuf avec JLUPLOT, il faut gerer Y+ vers le haut (origine en bas)
 	destadr = y * RGBstride;
 	srcadr = y;
-	for	( x = 0; x < W; x++ )
+	midinote = midi0 + int( round( ( double(y) - 0.5 ) / double(bpst) ) );
+	if	( blacknotes[ midinote % 12 ] & 1 )
 		{
-		i = spectre[srcadr];
-		RGBdata[destadr]   = palR[i];
-		RGBdata[destadr+1] = palG[i];
-		RGBdata[destadr+2] = palB[i];
-		destadr += channels;
-		srcadr += H;
+		for	( x = 0; x < W; x++ )
+			{
+			i = spectre[srcadr];
+			RGBdata[destadr]   = palR[i];
+			RGBdata[destadr+1] = palG[i];
+			if	( palB[i] < palG[i] )	// tres provisoire
+				RGBdata[destadr+2] = palB[i];
+			else	RGBdata[destadr+2] = 0;
+			destadr += channels;
+			srcadr += H;
+			}
+		}
+	else	{
+		for	( x = 0; x < W; x++ )
+			{
+			i = spectre[srcadr];
+			RGBdata[destadr]   = palR[i];
+			RGBdata[destadr+1] = palG[i];
+			RGBdata[destadr+2] = palB[i];
+			destadr += channels;
+			srcadr += H;
+			}
 		}
 	}
 }

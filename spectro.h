@@ -85,7 +85,7 @@ unsigned int H;			// nombre de frequences (bins) sur le spectre resample
 unsigned int allocatedWH;	// W*H effectivement alloue
 unsigned int umax;		// valeur max mise dans spectre[]
 unsigned char * pal;		// la palette 16 bits --> RGB, contient PALSIZE byte
-unsigned int bpst;		// binxel-per-semi-tone : resolution spectro log
+unsigned int bpst;		// binxel-per-semi-tone : resolution spectro log DOIT etre IMPAIR
 unsigned int octaves;		// hauteur du spectre a partir de midi0
 int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
 double wav_peak;		// pour facteur d'echelle avant conversion du spectre en u16
@@ -107,7 +107,7 @@ unsigned int umax_part[8];	// valeur max mise dans spectre[] par chaque thread
 
 // constructeur
 spectro() : fftsize(8192), fftstride(1024), window_type(1), spectre(NULL), allocatedWH(0), umax(0),
-	pal(NULL), bpst(10), octaves(7), midi0(28), wav_peak(32767.0), qthread(1) {
+	pal(NULL), bpst(9), octaves(7), midi0(28), wav_peak(32767.0), qthread(1) {
 	for	( int i = 0; i < 8 ; ++i )
 		{
 		fftinbuf[i] = NULL;

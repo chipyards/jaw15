@@ -298,12 +298,16 @@ switch	( v )
 		glo->panneau.png_save_drawpad( "drawpad.png" );
 		break;
 	case 'd' :
-		{
 		glo->panneau.dump();
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		glo->para.panneau.dump();
 		fflush(stdout);
-		} break;
+		break;
+	case 'D' :
+		if	( glo->pro.Lspek.spectre )
+			glo->pro.Lspek.log_resamp_dump();
+		fflush(stdout);
+		break;
 	case GDK_KEY_F1 :
 		printf("F key hit\n"); fflush(stdout);
 		break;

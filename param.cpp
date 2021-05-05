@@ -185,8 +185,8 @@ estri = curwidg;
 // spin button pour BPST bin_per_semi_tone
 curwidg = gtk_label_new("Binxels Per SemiTone");
 gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
-curwidg = gtk_spin_button_new_with_range( 2.0, 20.0, 1.0 );
-gtk_spin_button_set_value( GTK_SPIN_BUTTON(curwidg), 10.0 );
+curwidg = gtk_spin_button_new_with_range( 3.0, 19.0, 2.0 );	// impair obligatoire
+gtk_spin_button_set_value( GTK_SPIN_BUTTON(curwidg), 9.0 );
 gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 bbpst = curwidg;
 // gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON(widget) );
