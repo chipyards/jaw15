@@ -477,7 +477,7 @@ if	( panneau->bandes.size() == 0 )
 	layL->set_n0( 0.0 );
 	layL->set_km( (double)Lspek.bpst );		// M est en MIDI-note (demi-tons), U est en bins
 							// la midinote correspondant au bas du spectre
-	layL->set_m0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
+	layL->set_m0( (double)Lspek.midi0);  // + 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
 	// prise en compte de la position du curseur temporel (time_curs, en samples)
 	int time_m0 = ( Lspek.fftsize - Lspek.fftstride ) / 2; // c'est le m0 du spectrogramme
 	int ibin = ( time_curs - time_m0 ) / (int)Lspek.fftstride; 	// division entiere (ou floor)

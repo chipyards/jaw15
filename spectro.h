@@ -2,7 +2,7 @@
 la classe spectro cree une representation intermediaire du spectrogramme d'un passage musical
 sous forme d'un buffer 'spectre' de valeurs de 16 bits, destinees a servir d'index dans une LUT pour donner du RGB.
 
-Le procede inspire de Sonic Visualizer utilise la FFT suivie d'une conversion log de l'axe F ( spectro::compute() ).
+Le procede, inspire de Sonic Visualizer, utilise la FFT suivie d'une conversion log de l'axe F ( spectro::compute() ).
 
 Ensuite la conversion en RGB ou colorisation peut se faire avec spectro::spectre2rgb(), possiblement directement
 dans un GDK pixbuf (actuellement la colorisation traite 'spectre' entier)
@@ -10,19 +10,19 @@ dans un GDK pixbuf (actuellement la colorisation traite 'spectre' entier)
 Le buffer 'spectre' represente un ruban de hauteur H et longueur W
 	- H est le nombre de "bins" apres passage en echelle log, on le fixe arbitrairement
 	  exemple : 840 pour 7 octaves a 120 bins par octave
-	- W est le nombre d'echantillons spectraux = nombres de runs FFT,
+	- W est le nombre d'echantillons spectraux = nombres de runs FFT [aka icol],
 	  (approximativement W = nombre total de samples audio / fftstride)
 	- fftstride est le pas temporel des iterations de calcul FFT, c'est la largeur d'un binxel en samples
 	- fftsize est la largeur de fenetre FFT
 	- fftsize >= fftstride
-Changement de coordonnee :
-	- le centre du binxel d'indice ibin est sur le sample d'indice isamp = fftsize/2 + (ibin * fftstride)
-	  son bord gauche est a isamp0 = fftsize/2 + (ibin * fftstride) - (fftstride/2)
-	  son bord droit  est a isamp1 = fftsize/2 + (ibin * fftstride) + (fftstride/2)
+Changement de coordonnee abcisse (temps) :
+	- le centre des binxels d'indice icol est sur le sample d'indice isamp = fftsize/2 + (icol * fftstride)
+	  son bord gauche est a isamp0 = fftsize/2 + (icol * fftstride) - (fftstride/2)
+	  son bord droit  est a isamp1 = fftsize/2 + (icol * fftstride) + (fftstride/2)
 	  l'image s'etend de ( fftsize/2 - (fftstride/2) ) a ( fftsize/2 + ((W-1)*fftstride) + (fftstride/2) )
 	  laissant deux petites marges a droite et gauche
-	  d'ou les coeffs de transformation U = ibin, M = isamp pour l'affichage du spectrogramme RGB 
-		km = 1.0 / fftstride
+	  d'ou les coeffs de transformation U = icol, M = isamp pour l'affichage du spectrogramme RGB 
+		km = 1.0 / fftstride			U = ( m - m0 ) * km
 		m0 = 0.5 * (fftsize-fftstride)
 	  et la transformation ibin(isamp) pour l'extraction d'un spectre ponctuel :
 		ibin = ( isamp - m0 ) / fftstride, avec division entiere (ou floor), borne sur [0,W-1]
@@ -33,8 +33,16 @@ Changement de coordonnee :
 			  W-1				<= ( qsamples - fftsize ) / fftstride
 		d'ou la formule pratique
 			W = ( ( qsamples - fftsize ) / fftstride ) + 1 avec division entiere (par defaut)
+Changement de coordonnee ordonnee (frequence)
+	- transformation V = ibin [aka irow], N = midinote pour l'affichage du spectrogramme RGB
+		kn = bpst (bins per semi-tone)		V = ( n - n0 ) * kn
+		n0 = midi0 - 0.5/bpst		<-- offset pour que la graduation tombe au milieu du binxel
+	  Une transformation similaire est utilisee pour l'axe des abcisses du spectre ponctuel :
+		km = bpst (bins per semi-tone)		U = ( m - m0 ) * km
+		m0 = midi0			<-- pas d'offset ici (ce ne sont pas des pixels)
+	  Au niveau des reticules ces tranformations peuvent etre affectees d'un offset de "fine tuning" r0 (resp. q0)
 
-ATTENTION : rappel : les elements de 'spectre' sont ranges par colonne, non par ligne comme dans une image
+ATTENTION : rappel : les elements de 'spectre' sont ranges en memoire 1D par colonne, non par ligne comme dans une image
 
 Echelle verticale :
 	- l'application doit fournir

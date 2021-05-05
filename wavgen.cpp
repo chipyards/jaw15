@@ -1,5 +1,5 @@
 /* ce prog genere un son arbitraire
-gcc -o wavgen.exe -Wall wav_head.c wavgen.c -lm
+g++ -o wavgen.exe -Wall -O2 wavio.cpp wavgen.cpp -lm
 
 */
 
@@ -10,7 +10,7 @@ gcc -o wavgen.exe -Wall wav_head.c wavgen.c -lm
 #include <fcntl.h>
 #include <math.h>
 
-#include "wav_head.h"
+#include "wavio.h"
 
 /* --------------------------------------- traitement erreur fatale */
 void gasp( const char *fmt, ... )
@@ -25,50 +25,50 @@ void gasp( const char *fmt, ... )
 /* ---------------------------------------------------------------- */
 
 // generation signal sinus frequence fixe
-void gen_fix_f( wavpars *d, double f, int duree )
+void gen_fix_f( wavio *d, double f, int duree )
 {
 // parametres de generation
 double amplitude = 1.0;
 
 // variables temporaires
 short frame[2];		// left et right...
-int writcnt, i;
+unsigned int writcnt, i;
 double phi, v;
 
-d->wavsize = d->freq * duree;	// nombre de frames
-WAVwriteHeader( d );
+d->realpfr = d->fsamp * duree;	// nombre de frames
+d->WAVwriteHeader();
 
 amplitude *= 32767.0;
 phi = 0.0; 
-for	( i = 0; i < d->wavsize; ++i )
+for	( i = 0; i < d->realpfr; ++i )
 	{
 	v = amplitude * sin( phi );
 	frame[0] = (short int)round(v);
 	frame[1] = frame[0];
-	phi += ( ( f * 2.0 * M_PI ) / (double)d->freq );
-	writcnt = write( d->hand, frame, d->chan * sizeof(short) );
-	if	( writcnt != ( d->chan * sizeof(short) ) )
+	phi += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
+	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
+	if	( writcnt != ( d->qchan * sizeof(short) ) )
 		gasp("erreur ecriture disque (plein?)");
 	}
 }
 
 // generation signal triangle frequence fixe
-void gen_tri_f( wavpars *d, double f, int duree )
+void gen_tri_f( wavio *d, double f, int duree )
 {
 // parametres de generation
 double amplitude = 1.0;
 
 // variables temporaires
 short frame[2];		// left et right...
-int writcnt, i;
+unsigned int writcnt, i;
 double phi, v;
 
-d->wavsize = d->freq * duree;	// nombre de frames
-WAVwriteHeader( d );
+d->realpfr = d->fsamp * duree;	// nombre de frames
+d->WAVwriteHeader();
 
 amplitude *= 32767.0;
 phi = 0.0; 
-for	( i = 0; i < d->wavsize; ++i )
+for	( i = 0; i < d->realpfr; ++i )
 	{
 	if	( phi > 2.0 )
 		phi -= 2.0;
@@ -77,76 +77,76 @@ for	( i = 0; i < d->wavsize; ++i )
 	v *= amplitude;
 	frame[0] = (short int)round(v);
 	frame[1] = frame[0];
-	phi += ( ( f * 2.0 ) / (double)d->freq );
-	writcnt = write( d->hand, frame, d->chan * sizeof(short) );
-	if	( writcnt != ( d->chan * sizeof(short) ) )
+	phi += ( ( f * 2.0 ) / (double)d->fsamp );
+	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
+	if	( writcnt != ( d->qchan * sizeof(short) ) )
 		gasp("erreur ecriture disque (plein?)");
 	}
 }
 
 // generation signal sinus balayage lineaire en frequence
-void bal_f_lin( wavpars *d, int duree )
+void bal_f_lin( wavio *d, int duree )
 {
 // parametres de generation
 double f0 = 20.0;
 double f1 = 15000;
-double finc = (f1-f0)/(double)(d->freq*duree);
+double finc = (f1-f0)/(double)(d->fsamp*duree);
 double amplitude = 0.7;
 
 // variables temporaires
 short frame[2];		// left et right...
-int writcnt, i;
+unsigned int writcnt, i;
 double phi, v, f;
 
-d->wavsize = d->freq * duree;	// nombre de frames
-WAVwriteHeader( d );
+d->realpfr = d->fsamp * duree;	// nombre de frames
+d->WAVwriteHeader();
 
 amplitude *= 32767.0;
 f = f0;
 phi = 0.0; 
-for	( i = 0; i < d->wavsize; ++i )
+for	( i = 0; i < d->realpfr; ++i )
 	{
 	f += finc;
 	v = amplitude * sin( phi );
 	frame[0] = (short int)round(v);
 	frame[1] = frame[0];
-	phi += ( ( f * 2.0 * M_PI ) / (double)d->freq );
-	writcnt = write( d->hand, frame, d->chan * sizeof(short) );
-	if	( writcnt != ( d->chan * sizeof(short) ) )
+	phi += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
+	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
+	if	( writcnt != ( d->qchan * sizeof(short) ) )
 		gasp("erreur ecriture disque (plein?)");
 	}
 }
 
 // generation signal sinus balayage "log" en frequence
-void bal_f_log( wavpars *d, int duree )
+void bal_f_log( wavio *d, int duree )
 {
 // parametres de generation
 double f0 = 20.0;
 double f1 = 15000;
-double loginc = log( f1 / f0 ) / (double)(d->freq*duree);
+double loginc = log( f1 / f0 ) / (double)(d->fsamp*duree);
 double amplitude = 0.7;
 
 // variables temporaires
 short frame[2];		// left et right...
-int writcnt, i;
+unsigned int writcnt, i;
 double phi, v, flog, f;
 
-d->wavsize = d->freq * duree;	// nombre de frames
-WAVwriteHeader( d );
+d->realpfr = d->fsamp * duree;	// nombre de frames
+d->WAVwriteHeader();
 
 amplitude *= 32767.0;
 flog = log( f0 );
 phi = 0.0; 
-for	( i = 0; i < d->wavsize; ++i )
+for	( i = 0; i < d->realpfr; ++i )
 	{
 	flog += loginc;
 	f = exp( flog );
 	v = amplitude * sin( phi );
 	frame[0] = (short int)round(v);
 	frame[1] = frame[0];
-	phi += ( ( f * 2.0 * M_PI ) / (double)d->freq );
-	writcnt = write( d->hand, frame, d->chan * sizeof(short) );
-	if	( writcnt != ( d->chan * sizeof(short) ) )
+	phi += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
+	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
+	if	( writcnt != ( d->qchan * sizeof(short) ) )
 		gasp("erreur ecriture disque (plein?)");
 	}
 }
@@ -159,14 +159,14 @@ return 440.0 * pow( 2.0, ( ( midinote - 69 ) / 12.0 ) );
 // generation signal sinus gamme a intervale uniforme specifie en demi-tons,
 // debut et fin specifies en midi (A4 = 440Hz = midi 69)
 // stereo, mouvement ascendant en L, descendant en R
-void bal_gamme( wavpars *d, double duree_note, int interval, int midi0, int midi1 )
+void bal_gamme( wavio *d, double duree_note, int interval, int midi0, int midi1 )
 {
 // parametres de generation
 int qnotes = 1 + ( midi1 - midi0 ) / interval;
 if	( qnotes <= 0 )
 	gasp("trop peu de notes");
 double amplitude = 0.99;
-unsigned int samp_per_note = (int)( ((double)d->freq) * duree_note );
+unsigned int samp_per_note = (int)( ((double)d->fsamp) * duree_note );
 
 // variables temporaires
 short frame[2];		// left et right...
@@ -177,8 +177,8 @@ double f[2];
 double v;
 unsigned int writcnt, i, j;
 
-d->wavsize = samp_per_note * qnotes;	// nombre total de frames
-WAVwriteHeader( d );
+d->realpfr = samp_per_note * qnotes;	// nombre total de frames
+d->WAVwriteHeader();
 
 amplitude *= 32767.0;
 n[0] = midi0;
@@ -189,28 +189,28 @@ phi[0] = 0.0;
 phi[1] = 0.0;
 
 j = 0;
-for	( i = 0; i < d->wavsize; ++i )
+for	( i = 0; i < d->realpfr; ++i )
 	{
 	// produire 1 echantillon L et le sauver
 	v = amplitude * sin( phi[0] );
 	frame[0] = (short int)round(v);
 	// incrementer la phase
-	phi[0] += ( ( f[0] * 2.0 * M_PI ) / (double)d->freq );
+	phi[0] += ( ( f[0] * 2.0 * M_PI ) / (double)d->fsamp );
 	if	( phi[0] > ( 2.0 * M_PI ) )
 		phi[0] -= ( 2.0 * M_PI );
-	if	( d->chan > 1 )
+	if	( d->qchan > 1 )
 		{
 		// produire 1 echantillon R et le sauver
 		v = amplitude * sin( phi[1] );
 		frame[1] = (short int)round(v);
 		// incrementer la phase
-		phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->freq );
+		phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->fsamp );
 		if	( phi[1] > ( 2.0 * M_PI ) )
 			phi[1] -= ( 2.0 * M_PI );
 		}
 	// ecrire sur le disk
-	writcnt = write( d->hand, frame, d->chan * sizeof(short) );
-	if	( writcnt != ( d->chan * sizeof(short) ) )
+	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
+	if	( writcnt != ( d->qchan * sizeof(short) ) )
 		gasp("erreur ecriture disque (plein?)");
 	// gerer la note
 	if	( ++j == samp_per_note )
@@ -244,12 +244,12 @@ if	( argc < 4 )
 	return 1;
 	}
 
-wavpars d;
+wavio d;
 
 d.type = 1;
-d.resol = 16;
-d.freq = 44100;
-d.chan = 2;
+d.monosamplesize = 2;	// 16 bits
+d.fsamp = 44100;
+d.qchan = 2;
 
 d.hand = open( argv[2], O_RDWR | O_BINARY | O_CREAT | O_TRUNC, 0666 );
 if	( d.hand == -1 )
@@ -259,7 +259,7 @@ int opt = argv[1][0];
 if	( opt >= 'a' )
 	{
 	opt -= ('a'-'A');
-	d.chan = 1;
+	d.qchan = 1;
 	}
 
 switch	( opt )
