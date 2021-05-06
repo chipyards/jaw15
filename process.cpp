@@ -18,6 +18,7 @@ using namespace std;
 #include "JLUP/layer_lod.h"
 #include "JLUP/layer_rgb.h"
 #include "JLUP/layer_u.h"
+#include "JLUP/strip_x_midi.h"
 
 #include "autobuf.h"
 #include "wavio.h"
@@ -449,12 +450,12 @@ if	( panneau->bandes.size() == 0 )
 	panneau->mx = 60;
 
 	// creer le strip pour les spectres
-	curbande = new gstrip;
+	curbande = new strip_x_midi;
 	panneau->add_strip( curbande );
 	// configurer le strip
-	curbande->bgcolor.dR = 0.9;
-	curbande->bgcolor.dG = 0.9;
-	curbande->bgcolor.dB = 0.9;
+	curbande->bgcolor.dR = 1.0;
+	curbande->bgcolor.dG = 0.0;
+	curbande->bgcolor.dB = 0.0;
 	curbande->Ylabel = "spec";
 	curbande->optX = 1;
 	curbande->optretX = 1;
