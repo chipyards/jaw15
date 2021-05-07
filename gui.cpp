@@ -288,13 +288,18 @@ static void clic_call_back( double M, double N, void * vglo )
 glostru * glo = (glostru *)vglo;
 glo->iplayp = M;
 // normalement idle_call va detecter si le curseur n'est pas au bon endroit et va le retracer
-
-// spectre instantane
-if	( glo->pro.Lspek.allocatedWH )
+// spectre "ponctuel"
+if	( glo->pro.Lspek.spectre )
 	{
-	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );	// assure le scan
+	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );
 	glo->para.panneau.force_repaint = 1;
 	}
+}
+
+static void select_call_back( double M0, double N0, double M1, double N1, void * vglo )
+{
+printf("select M0 N0 M1 N1 : %g %g %g %g, dM = %g\n", M0, N0, M1, N1, fabs(M1-M0) );
+// glostru * glo = (glostru *)vglo;
 }
 
 static void key_call_back( int v, void * vglo )
@@ -665,6 +670,7 @@ if	( fnam )
 		glo->spectrographize();
 	}
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
+glo->panneau.select_callback_register( select_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );
 
 // preparer le layout de la fenetre non modale 'param'

@@ -270,6 +270,11 @@ void gpanel::clic_callback_register( void (*fon)(double,double,void*), void * da
 clic_call_back = fon; call_back_data = data;
 }
 
+void gpanel::select_callback_register( void (*fon)(double,double,double,double,void*), void * data )
+{
+select_call_back = fon; call_back_data = data;
+}
+
 void gpanel::key_callback_register( void (*fon)(int,void*), void * data )
 {
 key_call_back = fon; call_back_data = data;
@@ -469,14 +474,25 @@ if	( ( xdirty >= 0.0 ) && ( drawpad ) )
 // possibly draw the time cursor (possiblement en single-buffer)
 if	( xcursor >= 0.0 )
 	{
-	double x = xcursor + (double)mx;
+	double y0, y1, x = xcursor + (double)mx;
+	int icolor = 0;
 	if	( cair == NULL )
 		cair = gdk_cairo_create( larea->window );
-	cairo_set_source_rgba( cair, 0.0, 0.0, 0.0, 1.0 );
-	cairo_set_line_width( cair, 0.5 );
-	cairo_move_to( cair, x, 0.0 );
-	cairo_line_to( cair, x, fdy-my );
-	cairo_stroke(cair);
+	cairo_set_line_width( cair, 0.7 );
+	for	( y0 = 0.0; y0 < fdy-my; )
+		{				// tirete noir-blanc
+		if	( icolor )
+			cairo_set_source_rgb( cair, 1.0, 1.0, 1.0 );
+		else	cairo_set_source_rgb( cair, 0.0, 0.0, 0.0 );
+		icolor ^= 1;
+		y1 = y0 + 8;
+		if	( y1 > (fdy-my) )
+			y1 = (fdy-my);
+		cairo_move_to( cair, x, y0 );
+		cairo_line_to( cair, x, y1 );
+		cairo_stroke(cair);
+		y0 = y1;
+		}
 	xdirty = xcursor;
 	}
 
@@ -835,10 +851,24 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 				{
 				case nil : break;
 				case zoom :
-					if	( !( istrip0 & CLIC_MARGE ) )
+					if	( ( istrip0 & CLIC_MARGE_INF ) || ( istrip1 & CLIC_MARGE_INF ) )
+						{
+						if	( X1 >= X0 )		// si touche marge inf, zoom X seulement
+							zoomX( X0, X1 );
+						else	zoomX( X1, X0 );
+						}
+					else if	( ( istrip0 & CLIC_MARGE_GAUCHE ) || ( istrip1 & CLIC_MARGE_GAUCHE ) )
 						{
 						istrip0 &= (~CLIC_MARGE);
-						istrip1 &= (~CLIC_MARGE);
+						istrip1 &= (~CLIC_MARGE);	// si touche marge gauche, sur meme strip,
+						if	( istrip0 == istrip1 )	// zoom Y seulement
+							{
+							if	( Y1 >= Y0 )
+								bandes.at(istrip0)->zoomY( Y0, Y1 );
+							else	bandes.at(istrip0)->zoomY( Y1, Y0 );
+							}
+						}
+					else	{
 						// zoom X (toujours)
 						if	( X1 >= X0 )
 							zoomX( X0, X1 );
@@ -850,12 +880,22 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 								bandes.at(istrip0)->zoomY( Y0, Y1 );
 							else	bandes.at(istrip0)->zoomY( Y1, Y0 );
 							}
-						//*/
 						}
 					break;
 				case select_zone :
-					printf("selected from %d<%g:%g> to %d<%g:%g>\n",
-						istrip0, X0, Y0, istrip1, X1, Y1 );
+					// printf("select from %d<%g:%g> to %d<%g:%g>\n", istrip0, X0, Y0, istrip1, X1, Y1 );
+					istrip0 &= (~CLIC_MARGE);
+					istrip1 &= (~CLIC_MARGE);
+					if	( ( select_call_back ) && ( istrip0 == istrip1 ) )
+						{
+						// on a deja les coordonnes en XY du strip, on converit en MN
+						double M0, M1, N0, N1;
+						M0 = MdeX(X0);	// les transformations
+						M1 = MdeX(X1);	// les transformations
+						N0 = bandes.at(istrip0)->NdeY(Y0);
+						N1 = bandes.at(istrip0)->NdeY(Y1);
+						select_call_back( M0, N0, M1, N1, call_back_data );
+						}
 					break;
 				case pan :
 					if	( istrip0 == istrip1 )

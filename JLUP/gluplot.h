@@ -102,7 +102,10 @@ Cycle de vie du gpanel :
 	  (il n'y a pas trop d'inconvenient a faire des appels redondants de gpanel::paint() )
 	- GTK va appeler gpanel_configure() chaque fois que les dimensions de la drawing area changent
 	  ==> appel de panel::resize() pour redimensionner le contenu
-	- des evenements internes peuvent aussi appeler panel::resize()
+	- des evenements internes peuvent aussi appeler panel::resize(), notamment lors de changement de visibilite des strips
+	- le panel n'a pas de destructeur (pas besoin pour le moment), mais une methode reset() qui detruit le contenu
+		- les strips et layers recursivement, via leurs respectifs destructeurs
+		- le menu gmenu, car il contient des items dependant des layers
 Flags d'initialisation :
 	- jluplot : full_valid automatise le fullMN() initial necessaire pour que les transformations marchent
 	- gluplot : init_flags automatise l'appel initial de gpanel::configure()
@@ -182,8 +185,9 @@ int force_repaint;	// zero pour dessin cumulatif en single-buffer
 double xcursor;		// position demandee pour le curseur tempporel, abcisse en pixels
 double xdirty;		// region polluee par le curseur temporel, abcisse en pixels
 // variables
-void (*clic_call_back)(double,double,void*);	// pointeur callback pour clic sur courbe
-void (*key_call_back)(int,void*);		// pointeur callback pour touche clavier
+void (*clic_call_back)(double,double,void*);			// pointeur callback pour clic sur courbe
+void (*select_call_back)(double,double,double,double,void*);	// pointeur callback pour drag sur courbe
+void (*key_call_back)(int,void*);				// pointeur callback pour touche clavier
 void * call_back_data;			// pointeur a passer aux callbacks
 int selected_strip;	// strip duquel on a appele le menu (flags de marges inclus)
 int selected_key;	// touche couramment pressee
@@ -192,7 +196,7 @@ int selected_key;	// touche couramment pressee
 gpanel() : larea(NULL), laregion(NULL), drawpad(NULL), offcai(NULL), drawab(NULL), gc(NULL),
 	smenu_x( NULL ), gmenu(NULL),	
 	init_flags(0), offscreen_flag(1), force_repaint(1), xcursor(-1.0), xdirty(-1.0),
-	clic_call_back(NULL), key_call_back(NULL), selected_strip(0), selected_key(0)	
+	clic_call_back(NULL), select_call_back(NULL), key_call_back(NULL), selected_strip(0), selected_key(0)	
 	{};
 
 // methodes
@@ -232,6 +236,7 @@ GtkWidget * mksmenu( const char * title );
 GtkWidget * mkgmenu();
 static void smenu_set_title( GtkWidget * lemenu, const char *titre );
 void clic_callback_register( void (*fon)(double,double,void*), void * data );
+void select_callback_register( void (*fon)(double,double,double,double,void*), void * data );
 void key_callback_register( void (*fon)(int,void*), void * data );
 // dev utility
 void dump() {
