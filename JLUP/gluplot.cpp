@@ -924,16 +924,18 @@ else if	( istrip & CLIC_MARGE_GAUCHE )
 	force_repaint = 1;
 	}
 else	{
-	// strip * b = bandes.at(istrip & (~CLIC_MARGE));	// pour science
+	strip * b = bandes.at(istrip & (~CLIC_MARGE));
 	if	( event->direction == GDK_SCROLL_DOWN )
 		{
-		// b->panYbyK( -0.02 );	// pour science
-		panXbyK( -0.02 );	// pour audio
+		if	( event->state & GDK_CONTROL_MASK )
+			b->panYbyK( -0.02 );	// Y
+		else	panXbyK( -0.02 );	// X
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
-		// b->panYbyK( 0.02 );	// pour science
-		panXbyK( 0.02 );	// pour audio
+		if	( event->state & GDK_CONTROL_MASK )
+			b->panYbyK( 0.02 );	// Y
+		else	panXbyK( 0.02 );	// X
 		}
 	force_repaint = 1;
 	}
