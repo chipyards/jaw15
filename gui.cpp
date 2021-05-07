@@ -162,7 +162,7 @@ Pa_Terminate();
 
 
 /** ============================ GTK call backs ======================= */
-int idle_call( glostru * glo )
+static int idle_call( glostru * glo )
 {
 volatile double newx;
 if	( glo->iplay >= 0 )
@@ -209,7 +209,7 @@ if	( ( gtk_widget_get_visible(glo->para.wmain) ) && ( gtk_notebook_get_current_p
 return( -1 );
 }
 
-gint close_event_call( GtkWidget *widget, GdkEvent *event, gpointer data )
+static gint close_event_call( GtkWidget *widget, GdkEvent *event, gpointer data )
 {
 gtk_main_quit();
 return (TRUE);		// ne pas destroyer tout de suite
@@ -241,7 +241,7 @@ printf("play/pause: iplay=%d, iplayp=%d, iplay0=%d, iplay1=%d\n", glo->iplay, gl
 }
 
 // cette fonction restreint le play a la fenetre courante, et met le curseur au debut
-void rewind_call( GtkWidget *widget, glostru * glo )
+static void rewind_call( GtkWidget *widget, glostru * glo )
 {
 // prendre les limites de la fenetre
 glo->iplay0 = (int)glo->panneau.MdeX(0.0);
@@ -253,14 +253,36 @@ glo->iplay1 = (int)glo->panneau.MdeX((double)glo->panneau.ndx);	// iplay1 trop g
 printf("rewind: iplay=%d, iplayp=%d, iplay0=%d, iplay1=%d\n", glo->iplay, glo->iplayp, glo->iplay0, glo->iplay1 ); fflush(stdout);
 }
 
-void param_call( GtkWidget *widget, glostru * glo )
+static void load_call( GtkWidget *widget, glostru * glo )
+{
+GtkWidget *dialog;
+dialog = gtk_file_chooser_dialog_new ("Ouvrir WAV ou MP3", GTK_WINDOW(glo->wmain),
+	GTK_FILE_CHOOSER_ACTION_OPEN,
+	GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+	GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL );
+gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER (dialog), "." );
+if	( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+	{
+	char * fnam;
+	fnam = gtk_file_chooser_get_filename( GTK_FILE_CHOOSER (dialog) );
+	printf("chosen: %s\n", fnam ); fflush(stdout);
+	glo->wavisualize( fnam );
+	if	( glo->option_spectrogramme )
+		glo->spectrographize();
+	g_free( fnam );
+	}
+gtk_widget_destroy (dialog);
+glo->para.show();
+}
+
+static void param_call( GtkWidget *widget, glostru * glo )
 {
 glo->para.show();
 }
 
 /** ============================ GLUPLOT call backs =============== */
 
-void clic_call_back( double M, double N, void * vglo )
+static void clic_call_back( double M, double N, void * vglo )
 {
 // printf("clic M N %g %g\n", M, N );
 glostru * glo = (glostru *)vglo;
@@ -275,7 +297,7 @@ if	( glo->pro.Lspek.allocatedWH )
 	}
 }
 
-void key_call_back( int v, void * vglo )
+static void key_call_back( int v, void * vglo )
 {
 glostru * glo = (glostru *)vglo;
 switch	( v )
@@ -552,14 +574,21 @@ gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->esta = curwidg;
 
 /* simple bouton */
-curwidg = gtk_button_new_with_label (" Param ");
+curwidg = gtk_button_new_with_label ("Load");
+gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
+                    GTK_SIGNAL_FUNC( load_call ), (gpointer)glo );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
+glo->bpar = curwidg;
+
+/* simple bouton */
+curwidg = gtk_button_new_with_label ("Param");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( param_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
 glo->bpar = curwidg;
 
 /* simple bouton */
-curwidg = gtk_button_new_with_label (" Quit ");
+curwidg = gtk_button_new_with_label ("Quit");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( quit_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );

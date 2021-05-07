@@ -1,4 +1,5 @@
 // classe derivee de gstrip, pour reticule midi keyboard
+//	les "touches blanches" sont blanches
 class strip_x_midi : public gstrip {
 public :
 unsigned int bpst;		// binxel-per-semi-tone : resolution spectro log DOIT etre IMPAIR
@@ -38,7 +39,7 @@ void draw( cairo_t * cai ) {
 		if	( x1 > parent->ndx )	// clip note partially out
 			x1 = parent->ndx;
 		if	( blacknotes[ midinote % 12 ] & 1 )
-			cairo_set_source_rgb( cai, 0.8, 0.8, 0.8 );
+			cairo_set_source_rgb( cai, bgcolor.dR, bgcolor.dG, bgcolor.dB );
 		else	cairo_set_source_rgb( cai, 1.0, 1.0, 1.0 );	
 		cairo_rectangle( cai, x0, 0, x1-x0, ndy );
 		cairo_fill( cai );

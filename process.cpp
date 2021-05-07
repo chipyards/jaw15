@@ -453,20 +453,20 @@ if	( panneau->bandes.size() == 0 )
 	curbande = new strip_x_midi;
 	panneau->add_strip( curbande );
 	// configurer le strip
-	curbande->bgcolor.dR = 1.0;
-	curbande->bgcolor.dG = 0.0;
-	curbande->bgcolor.dB = 0.0;
+	curbande->bgcolor.dR = 0.94;
+	curbande->bgcolor.dG = 0.94;
+	curbande->bgcolor.dB = 0.94;
 	curbande->Ylabel = "spec";
 	curbande->optX = 1;
-	curbande->optretX = 1;
+	curbande->optretX = 0;
 	// gpanel::smenu_set_title( curbande->smenu_y, "MAG ?" );
 
 	// creer un layer
 	curcour = new layer_u<unsigned short>;
 	curbande->add_layer( curcour, "Lin" );
-	curcour->fgcolor.dR = 0.0;
+	curcour->fgcolor.dR = 0.9;
 	curcour->fgcolor.dG = 0.0;
-	curcour->fgcolor.dB = 0.0;
+	curcour->fgcolor.dB = 0.2;
 	panneau->full_valid = 0;
 	printf("end hard layout 2, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 	}	// fin de la partie non-repetable
