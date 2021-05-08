@@ -22,7 +22,7 @@ int audiofile_process();
 //int wave_process();
 //int mp3_process();
 
-int spectrum_compute( int force_mono );
+int spectrum_compute2D( int force_mono );
 
 // la partie du process en relation avec jluplot
 

@@ -289,7 +289,7 @@ glostru * glo = (glostru *)vglo;
 glo->iplayp = M;
 // normalement idle_call va detecter si le curseur n'est pas au bon endroit et va le retracer
 // spectre "ponctuel"
-if	( glo->pro.Lspek.spectre )
+if	( glo->pro.Lspek.spectre2D )
 	{
 	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );
 	glo->para.panneau.force_repaint = 1;
@@ -331,7 +331,7 @@ switch	( v )
 		fflush(stdout);
 		break;
 	case 'D' :
-		if	( glo->pro.Lspek.spectre )
+		if	( glo->pro.Lspek.spectre2D )
 			glo->pro.Lspek.log_resamp_dump();
 		fflush(stdout);
 		break;
@@ -408,7 +408,7 @@ if	( ( this->pro.Lbuf.size ) && ( this->panneau.bandes.size() >= 1 ) )
 	{
 	int retval;
 	parametrize();
-	retval = this->pro.spectrum_compute( this->option_monospec );
+	retval = this->pro.spectrum_compute2D( this->option_monospec );
 	if	( retval )
 		gasp("echec spectrum, erreur %d", retval );
 	fflush(stdout);
@@ -425,17 +425,20 @@ void glostru::parametrize()	// recuperation des parametres editables
 if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont pas prets
 	{
 	pro.Lspek.window_type = gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfwin) );
-	pro.Lspek.fftsize     = 1 << ( 9 + gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfsiz) ) );
+	unsigned int ifftsize = gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfsiz) );
+	if	( ifftsize >= ( sizeof(para.small_fftsize) / sizeof(unsigned int) ) )
+		ifftsize = 0;
+	pro.Lspek.fftsize = para.small_fftsize[ifftsize];
 	unsigned int stride   = atoi( gtk_entry_get_text( GTK_ENTRY(para.estri) ) ); 
 	if	( stride < ( pro.Lspek.fftsize / 16 ) )
 		stride = ( pro.Lspek.fftsize / 16 );
 	if	( stride > pro.Lspek.fftsize )
 		stride = pro.Lspek.fftsize;
-	if	( option_threads > 7 )
-		option_threads = 7;
+	pro.Lspek.fftstride   = stride;
+	if	( option_threads > QTH )
+		option_threads = QTH;
 	if	( option_threads < 1 )
 		option_threads = 1;
-	pro.Lspek.fftstride   = stride;
 	char tbuf[16];
 	snprintf( tbuf, sizeof(tbuf), "%u", stride );
 	gtk_entry_set_text( GTK_ENTRY(para.estri), tbuf );
@@ -621,7 +624,7 @@ int solB = 0;			// -B // variante pour copie drawpad (cf gluplot.cpp) "-B" pour 
 glo->option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
 glo->option_monospec = 0;	// -m // spectrogrammes 2D sur L+R si stereo
 glo->option_noaudio = 0;	// -N // no audio output (for debug)
-glo->option_threads = 1;	// -T // 1 a 8 threads (en plus du principal)
+glo->option_threads = 1;	// -T // 1 a QTH threads (en plus du principal)
 const char * fnam = NULL;
 
 // 	parsage CLI
@@ -646,7 +649,7 @@ if	( ( val = lepar->get( 'h' ) ) )
 	"-S	  : calcul spectrogramme a l'ouverture\n"
 	"-m	  : spectrogramme toujours mono\n"
 	"-N	  : no audio output\n"
-	"-T <n>   : threads pour FFT ( 1 a 8 )\n" );
+	"-T <n>   : threads pour FFT ( 1 a %u )\n", QTH );
 	return 0;
 	}
 fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 

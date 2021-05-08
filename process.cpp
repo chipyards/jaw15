@@ -174,7 +174,7 @@ return 0;
 }
 
 // calculs spectrogramme dans l'objet process
-int process::spectrum_compute( int force_mono )
+int process::spectrum_compute2D( int force_mono )
 {
 int retval, qspek;
 
@@ -183,9 +183,9 @@ if	( force_mono )
 	qspek = 1;
 else	qspek = af->qchan;
 
-if	( ( Lspek.spectre ) || ( ( Rspek.spectre ) && ( qspek > 1 ) ) )
+if	( ( Lspek.spectre2D ) || ( ( Rspek.spectre2D ) && ( qspek > 1 ) ) )
 	{
-	printf("\nspectrum_compute aborted (not freed)\n"); fflush(stdout);
+	printf("\nspectrum_compute2D aborted (not freed)\n"); fflush(stdout);
 	return 0;
 	}
 
@@ -197,7 +197,7 @@ printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 // Lspek.window_type = 1;
 // Lspek.qthread;
 // -- parametres conversion LOG
-// Lspek.bpst = 10;		// binxel-per-semi-tone : resolution spectro log
+// Lspek.bpst = 9;		// binxel-per-semi-tone : resolution spectro log
 Lspek.octaves = 7;		// 7 octaves
 Lspek.midi0 = 28;		// E1 = mi grave de la basse
 Lspek.pal = mutpal;		// palette commune
@@ -207,58 +207,58 @@ if	( qspek >= 2 )
 	// Rspek.fftstride = 1024;
 	// Rspek.window_type = 1;
 	// Rspek.qthread = 1;
-	// Rspek.bpst = 10;
+	// Rspek.bpst = 9;
 	Rspek.octaves = 7;
 	Rspek.midi0 = 28;
 	Rspek.pal = mutpal;
 	}
 
-// allocations pour spectro
-retval = Lspek.init( af->fsamp, Lbuf.size );
+// init2D
+retval = Lspek.init2D( af->fsamp, Lbuf.size );
 if	( retval )
-	gasp("erreur init L spectro %d", retval );
+	gasp("erreur init2D L spectro %d", retval );
 printf("ready L spek, FFT %u/%u, window type %d, avg %g\n\n", Lspek.fftsize, Lspek.fftstride, Lspek.window_type, Lspek.window_avg ); fflush(stdout);
 if	( qspek >= 2 )
 	{
-	retval = Rspek.init( af->fsamp, Rbuf.size );
+	retval = Rspek.init2D( af->fsamp, Rbuf.size );
 	if	( retval )
-		gasp("erreur init R spectro %d", retval );
+		gasp("erreur init2D R spectro %d", retval );
 	printf("ready R spek\n"); fflush(stdout);
 	}
 
-// calcul spectre
-printf("start calcul spectre sur %d threads\n", Lspek.qthread ); fflush(stdout);
+// calcul spectre2D
+printf("start calcul spectre2D sur %d threads\n", Lspek.qthread ); fflush(stdout);
 if	( af->qchan == 1 )
 	{
 	Lspek.wav_peak = 32767.0;
-	Lspek.compute( Lbuf.data );
+	Lspek.compute2D( Lbuf.data );
 	}
 else if	( af->qchan == 2 )
 	{
-	if	( qspek == 1 )	// spectre mono sur WAV stereo
+	if	( qspek == 1 )	// spectre2D mono sur WAV stereo
 		{
 		Lspek.wav_peak = 65534.0;
-		Lspek.compute( Lbuf.data, Rbuf.data );
+		Lspek.compute2D( Lbuf.data, Rbuf.data );
 		}
 	else if	( qspek == 2 )
 		{
 		Lspek.wav_peak = 32767.0;
-		Lspek.compute( Lbuf.data );
+		Lspek.compute2D( Lbuf.data );
 		Rspek.wav_peak = 32767.0;
-		Rspek.compute( Rbuf.data );
+		Rspek.compute2D( Rbuf.data );
 		}
 	else	gasp("pas de spek pour fft");
 	}
 else	gasp("pas de channel pour fft");
 
-// a ce point on a 1 ou 2 spectres de la wav entiere dans 1 ou 2 tableaux unsigned int Xspek->spectre
+// a ce point on a 1 ou 2 spectres de la wav entiere dans 1 ou 2 tableaux unsigned int Xspek->spectre2D
 // de dimensions Xspek->H x Xspek->W
 printf("end calcul %d spectres\n\n", qspek ); fflush(stdout);
 
 
 // printf("start colorisation spectrogrammes\n"); fflush(stdout);
 // adapter la palette a la limite umax et l'applique a tous les spectres
-// (umax a ete  calcule par spectro::compute)
+// (umax a ete  calcule par spectro::compute2D)
 if	( qspek == 2 )
 	palettize( (Lspek.umax>Rspek.umax)?(Lspek.umax):(Rspek.umax) );
 else	palettize( Lspek.umax );
@@ -358,7 +358,7 @@ return 0;
 // layout pour spectrogrammes
 void process::auto_layout_S( gpanel * panneau )
 {
-if	( Lspek.spectre == NULL )
+if	( Lspek.spectre2D == NULL )
 	return;
 //// partie non repetable
 if	( panneau->bandes.size() == 1 )
@@ -384,7 +384,7 @@ if	( panneau->bandes.size() == 1 )
 	// creer le layer
 	curcour = new layer_rgb;
 	curbande->add_layer( curcour, "RGB left" );
-	if	( Rspek.spectre )
+	if	( Rspek.spectre2D )
 		{
 		panneau->bandes.back()->Ylabel = "midi L";
 		/* creer le strip pour le spectro */
@@ -417,7 +417,7 @@ if	( ib < panneau->bandes.size() )
 	laySL->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
 	laySL->set_m0( 0.5 * (double)(Lspek.fftsize-Lspek.fftstride ) );
 	laySL->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
-								// la midinote correspondant au bas du spectre
+								// la midinote correspondant au bas du spectre2D
 	laySL->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
 	laySL->spectropix = Lpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
 	}
@@ -428,17 +428,17 @@ if	( ib < panneau->bandes.size() )
 	laySR->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
 	laySR->set_m0( 0.5 * (double)(Rspek.fftsize-Rspek.fftstride ) );
 	laySR->set_kn( (double)Rspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
-								// la midinote correspondant au bas du spectre
+								// la midinote correspondant au bas du spectre2D
 	laySR->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
 	laySR->spectropix = Rpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
 	}
 printf("end soft layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 }
 
-// layout pour le spectre ponctuel (domaine frequentiel)
+// layout pour le spectre1D ponctuel (domaine frequentiel)
 void process::auto_layout2( gpanel * panneau, int time_curs )
 {
-if	( Lspek.spectre == NULL )
+if	( Lspek.spectre2D == NULL )
 	return;
 //// partie non repetable
 if	( panneau->bandes.size() == 0 )
@@ -477,7 +477,7 @@ if	( panneau->bandes.size() == 0 )
 	layL->set_kn( 1.0 );	// amplitude normalisee a +-1
 	layL->set_n0( 0.0 );
 	layL->set_km( (double)Lspek.bpst );		// M est en MIDI-note (demi-tons), U est en bins
-							// la midinote correspondant au bas du spectre
+							// la midinote correspondant au bas du spectre2D
 	layL->set_m0( (double)Lspek.midi0);  // + 0.5/(double)Lspek.bpst ); PAS de recentrage de 0.5 bins
 	// prise en compte de la position du curseur temporel (time_curs, en samples)
 	int time_m0 = ( Lspek.fftsize - Lspek.fftstride ) / 2; // c'est le m0 du spectrogramme
@@ -487,7 +487,7 @@ if	( panneau->bandes.size() == 0 )
 	if	( ibin > (int)( Lspek.W - 1 ) ) ibin = Lspek.W - 1;
 	// printf("time_curs = %d ==> ibin = %d/%d\n", time_curs, ibin, Lspek.W ); fflush(stdout);
 	// aller piquer une colonne du spectrogramme
-	layL->V = Lspek.spectre + ( ibin * Lspek.H ); 
+	layL->V = Lspek.spectre2D + ( ibin * Lspek.H ); 
 	// H est le nombre de "bins" apres passage en echelle log
 	layL->qu = Lspek.H;
 	layL->scan();
@@ -520,8 +520,8 @@ memset( palG + iend, val, 65536 - iend );
 memset( palB + iend, val, 65536 - iend );
 }
 
-// colorisation d'un pixbuf sur le spectre precalcule, utilisant la palette referencee dans spek
-// i.e. remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre en u16
+// colorisation d'un pixbuf sur le spectre2D precalcule, utilisant la palette referencee dans spek
+// i.e. remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre2D en u16
 // c'est un wrapper sur spectro::spectre2rgb
 void spectre2rgb( spectro * spek, GdkPixbuf * lepix )
 {
@@ -537,21 +537,21 @@ void process::palettize( unsigned int iend )
 {
 // mettre a jour palette
 fill_palette_simple( mutpal, iend );
-// creer les pixbufs si necessaire, chacun pour le spectre entier
+// creer les pixbufs si necessaire, chacun pour le spectre2D entier
 if	( Lpix == NULL )
 	{
 	printf("creation d'un pixbuf %u x %u\n", Lspek.W, Lspek.H ); fflush(stdout);
 	Lpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Lspek.W, Lspek.H );
 	}
-if	( ( Rspek.spectre ) && ( Rpix == NULL ) )
+if	( ( Rspek.spectre2D ) && ( Rpix == NULL ) )
 	{
 	printf("creation d'un pixbuf %u x %u\n", Rspek.W, Rspek.H ); fflush(stdout);
 	Rpix = gdk_pixbuf_new( GDK_COLORSPACE_RGB, 0, 8, Rspek.W, Rspek.H );
 	}
-// coloriser les spectre (qui sont supposes deja referencer cette palette)
-if	( Lspek.spectre )
+// coloriser les spectre2D (qui sont supposes deja referencer cette palette)
+if	( Lspek.spectre2D )
 	spectre2rgb( &Lspek, Lpix );
-if	( Rspek.spectre )
+if	( Rspek.spectre2D )
 	spectre2rgb( &Rspek, Rpix );
 }
 
@@ -559,9 +559,9 @@ if	( Rspek.spectre )
 // (safe to call unnecessarily)
 void process::clean_spectros()
 {
-if	( Lspek.spectre )
+if	( Lspek.spectre2D )
 	{ Lspek.specfree( 0 ); printf("Lspek freed\n"); fflush(stdout); }
-if	( Rspek.spectre )
+if	( Rspek.spectre2D )
 	{ Rspek.specfree( 0 ); printf("Rspek freed\n"); fflush(stdout); }
 if	( Lpix )	// since gdk_pixbuf_unref() is deprecated
 	{ g_object_unref( Lpix ); Lpix = NULL; printf("Lpix freed\n"); fflush(stdout); }

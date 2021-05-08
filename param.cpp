@@ -130,7 +130,7 @@ nmain = curwidg;
 //gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Multitrack") );
 //vlay = curwidg;
 
-// container pour le spectre
+// container pour le spectre1D
 curwidg = gtk_vbox_new( FALSE, 10 );
 gtk_notebook_append_page( GTK_NOTEBOOK( nmain ), curwidg, gtk_label_new("Spectrum") );
 vspe = curwidg;
@@ -162,13 +162,13 @@ cfwin = curwidg;
 curwidg = gtk_label_new("FFT size");
 gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 curwidg = gtk_combo_box_text_new();
-gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "512" );
-gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "1024" );
-gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "2048" );
-gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "4096" );
-gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "8192" );
-gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), "16384" );
-gtk_combo_box_set_active( GTK_COMBO_BOX(curwidg), 4 );
+for	( unsigned int i = 0; i < ( sizeof(small_fftsize) / sizeof(unsigned int) ); ++i )
+	{
+	char tbuf[16];
+	snprintf( tbuf, sizeof(tbuf), "%u", small_fftsize[i] );
+	gtk_combo_box_text_append_text( GTK_COMBO_BOX_TEXT(curwidg), tbuf );
+	}
+gtk_combo_box_set_active( GTK_COMBO_BOX(curwidg), 8 );
 gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 cfsiz = curwidg;
 

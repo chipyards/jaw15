@@ -15,14 +15,14 @@ GtkWidget * nmain;	// notebook principal
         GtkWidget * cfsiz;	// combo pour FFT size
         GtkWidget * estri;	// entry for FFT stride
         GtkWidget * bbpst;	// spin button pour BPST
-      GtkWidget * sarea;	// spectrum
+      GtkWidget * sarea;	// spectre1D
     GtkAdjustment * adjk;	// ajustement pour gain module
 
   GtkWidget * vfil;	// files
   GtkWidget * vpor;	// I/O ports
 
 
-gpanel panneau;		// panneau pour spectre local, dans sarea
+gpanel panneau;		// panneau pour spectre1D local, dans sarea
 glostru * glo;
 
 // constructeur
@@ -33,4 +33,6 @@ void build();
 void show();
 void hide();
 
+// constantes
+const unsigned int small_fftsize[11] = { 512, 3*256, 1024, 3*512, 2048, 3*1024, 4096, 3*2048, 8192, 3*4096, 16384 };
 };
