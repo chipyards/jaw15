@@ -14,26 +14,26 @@ Le buffer spectre2D represente un ruban de hauteur H et longueur W
 	- W est le nombre d'echantillons spectraux = nombres de runs FFT [aka icol],
 	  (approximativement W = nombre total de samples audio / fftstride)
 	- fftstride est le pas temporel des iterations de calcul FFT, c'est la largeur d'un binxel en samples
-	- fftsize est la largeur de fenetre FFT
-	- fftsize >= fftstride
+	- fftsize2D est la largeur de fenetre FFT
+	- fftsize2D >= fftstride
 Changement de coordonnee abcisse (temps) :
-	- le centre des binxels d'indice icol est sur le sample d'indice isamp = fftsize/2 + (icol * fftstride)
-	  son bord gauche est a isamp0 = fftsize/2 + (icol * fftstride) - (fftstride/2)
-	  son bord droit  est a isamp1 = fftsize/2 + (icol * fftstride) + (fftstride/2)
-	  l'image s'etend de ( fftsize/2 - (fftstride/2) ) a ( fftsize/2 + ((W-1)*fftstride) + (fftstride/2) )
+	- le centre des binxels d'indice icol est sur le sample d'indice isamp = fftsize2D/2 + (icol * fftstride)
+	  son bord gauche est a isamp0 = fftsize2D/2 + (icol * fftstride) - (fftstride/2)
+	  son bord droit  est a isamp1 = fftsize2D/2 + (icol * fftstride) + (fftstride/2)
+	  l'image s'etend de ( fftsize2D/2 - (fftstride/2) ) a ( fftsize2D/2 + ((W-1)*fftstride) + (fftstride/2) )
 	  laissant deux petites marges a droite et gauche
 	  d'ou les coeffs de transformation U = icol, M = isamp pour l'affichage du spectrogramme RGB 
 		km = 1.0 / fftstride			U = ( m - m0 ) * km
-		m0 = 0.5 * (fftsize-fftstride)
+		m0 = 0.5 * (fftsize2D-fftstride)
 	  et la transformation ibin(isamp) pour l'extraction d'un spectre1D ponctuel :
 		ibin = ( isamp - m0 ) / fftstride, avec division entiere (ou floor), borne sur [0,W-1]
 	- le calcul de W 
-		le dernier run FFT finit au sample ((W-1)*fftstride) + fftsize - 1
-			((W-1)*fftstride) + fftsize - 1	< qsamples
-			((W-1)*fftstride) 	 	<= qsamples - fftsize
-			  W-1				<= ( qsamples - fftsize ) / fftstride
+		le dernier run FFT finit au sample ((W-1)*fftstride) + fftsize2D - 1
+			((W-1)*fftstride) + fftsize2D - 1	< qsamples
+			((W-1)*fftstride) 	 	<= qsamples - fftsize2D
+			  W-1				<= ( qsamples - fftsize2D ) / fftstride
 		d'ou la formule pratique
-			W = ( ( qsamples - fftsize ) / fftstride ) + 1 avec division entiere (par defaut)
+			W = ( ( qsamples - fftsize2D ) / fftstride ) + 1 avec division entiere (par defaut)
 Changement de coordonnee ordonnee (frequence)
 	- transformation V = ibin [aka irow], N = midinote pour l'affichage du spectrogramme RGB
 		kn = bpst (bins per semi-tone)		V = ( n - n0 ) * kn
@@ -50,9 +50,9 @@ Echelle verticale :
 		- relog_opp = octaves par bin (octaves par pixel par abus de langage, log aussi abus car opp est deja log)
 		  par exemple 1.0 / 120.0;	// 10 bins / demi-ton
 		- relog_fbase = frequence du bin le plus bas, exprimee en resolution FFT
-		  par exemple F0 / ( sample_freq / fftsize ), avec F0 en Hz
+		  par exemple F0 / ( sample_freq / fftsize2D ), avec F0 en Hz
 	- question : ou est la limite entre interpolation et decimation ?
-		- pitch fft = ( sample_freq / fftsize ) exemple 44100 / 8192 = 5.38 Hz
+		- pitch fft = ( sample_freq / fftsize2D ) exemple 44100 / 8192 = 5.38 Hz
 		- pitch spectre = f * ( pow( 2, opp ) - 1 ) exemple f * (pow(2,1/120)-1) = f * 0.0058
 		  soit f = pitch / 0.0058 = 5.38/0.0058 = 927 Hz (Bb5)
 	  interpretation : au dela de cette F, il y a moins de sample dans spectre que de bins FFT, donc perte d'info
@@ -82,8 +82,9 @@ float k1;	// coeff d'interpolation cote is1
 
 class spectro {
 public :
-unsigned int fftsize;		// en samples
+unsigned int fftsize2D;		// en samples
 unsigned int fftstride;		// en samples
+unsigned int fftsize1D;		// en samples
 double window_avg;		// moyenne de window[]
 int window_type;		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
 unsigned short * spectre2D;	// spectre W * H binxels, resample en log, pret a palettiser
@@ -103,7 +104,7 @@ unsigned int qthread;		// nombre de threads
 short * src1;			// audio a transformer
 short * src2; 			// second canal si on veut transformer de la stereo sur un spectrogramme
 float k;			// facteur d'echelle en vue conversion en u16
-float window[FFTSIZEMAX];	// fenetre pre-calculee
+float window[FFTSIZEHUGE];	// fenetre pre-calculee
 logpoint log_resamp[HMAX];	// parametres precalcules pour re-echantillonnage log
 double relog_opp;		// echelle spectre re-echantillonne en OPP (Octave Per Point) << 1
 double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
@@ -114,7 +115,7 @@ fftwf_plan plan[QTH];		// les plan FFTW
 unsigned int umax_part[QTH];	// valeur max mise dans spectre2D[] par chaque thread
 
 // constructeur
-spectro() : fftsize(8192), fftstride(1024), window_type(1), spectre2D(NULL), allocatedWH(0), umax(0),
+spectro() : fftsize2D(8192), fftstride(1024), fftsize1D(8192), window_type(1), spectre2D(NULL), allocatedWH(0), umax(0),
 	pal(NULL), bpst(9), octaves(7), midi0(28), wav_peak(32767.0), qthread(1), src1(0), src2(0) {
 	for	( int i = 0; i < QTH ; ++i )
 		{
@@ -127,20 +128,21 @@ spectro() : fftsize(8192), fftstride(1024), window_type(1), spectre2D(NULL), all
 // methodes
 
 // FFT window functions
-// precalcul de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
-double window_precalc( int ft_window );
+// precalcul de fenetre selon window_type
+double window_precalc( unsigned int fft_size );
 void window_dump();
 // FFTW3 functions
 int alloc_fft_inout_bufs();
 // log spectrum functions
 double log_fis( double fid );
-void log_resamp_precalc( unsigned int fsamp );
+void log_resamp_precalc( unsigned int fsamp, unsigned int fft_size );
 void log_resamp_dump();
 int alloc_WH();
 // top actions
 int init2D( unsigned int fsamp, unsigned int qsamples );
 int compute2D( short * srcA, short * srcB = NULL );	// calcul spectre2D complet W x H
-int compute1D( unsigned int fsamp, unsigned int isamp, unsigned int local_fftsize );	// spectre1D
+int init1D( unsigned int fsamp );
+int compute1D( unsigned int isamp_center, unsigned int qsamp );// spectre1D
 // conversion en style GDK pixbuf
 // N.B. spectro ne connait pas GDK mais est compatible avec le style
 void spectre2rgb( unsigned char * RGBdata, int RGBstride, int channels );

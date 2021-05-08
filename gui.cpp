@@ -292,6 +292,7 @@ glo->iplayp = M;
 if	( glo->pro.Lspek.spectre2D )
 	{
 	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );
+	glo->para.panneau.bandes[0]->fullN();
 	glo->para.panneau.force_repaint = 1;
 	}
 }
@@ -299,7 +300,29 @@ if	( glo->pro.Lspek.spectre2D )
 static void select_call_back( double M0, double N0, double M1, double N1, void * vglo )
 {
 printf("select M0 N0 M1 N1 : %g %g %g %g, dM = %g\n", M0, N0, M1, N1, fabs(M1-M0) );
-// glostru * glo = (glostru *)vglo;
+glostru * glo = (glostru *)vglo;
+if	( glo->pro.Lspek.src1 )
+	{
+	glo->parametrize();
+	unsigned int size = (unsigned int)(round(fabs(M1-M0)));
+	int i;
+	for	( i = ( sizeof(glo->para.huge_fftsize) / sizeof(unsigned int) ) - 1; i >= 0; --i )
+		{
+		if	( glo->para.huge_fftsize[i] <= size )
+			break;
+		}
+	if	( i < 0 )
+		i = 0;
+	glo->pro.Lspek.fftsize1D = glo->para.huge_fftsize[i];
+	if	( glo->pro.Lspek.init1D( glo->pro.af->fsamp ) )
+		gasp("echec spectro::init1D");
+	if	( glo->pro.Lspek.compute1D( int(round(0.5*(M0+M1))), glo->pro.Lbuf.size ) )
+		gasp("echec spectro::compute1D");
+	glo->pro.auto_layout2( &glo->para.panneau, -1 ); 
+	glo->para.panneau.bandes[0]->fullN();
+	glo->para.panneau.force_repaint = 1;
+	fflush(stdout);
+	}
 }
 
 static void key_call_back( int v, void * vglo )
@@ -428,12 +451,12 @@ if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont p
 	unsigned int ifftsize = gtk_combo_box_get_active( GTK_COMBO_BOX(para.cfsiz) );
 	if	( ifftsize >= ( sizeof(para.small_fftsize) / sizeof(unsigned int) ) )
 		ifftsize = 0;
-	pro.Lspek.fftsize = para.small_fftsize[ifftsize];
+	pro.Lspek.fftsize2D = para.small_fftsize[ifftsize];
 	unsigned int stride   = atoi( gtk_entry_get_text( GTK_ENTRY(para.estri) ) ); 
-	if	( stride < ( pro.Lspek.fftsize / 16 ) )
-		stride = ( pro.Lspek.fftsize / 16 );
-	if	( stride > pro.Lspek.fftsize )
-		stride = pro.Lspek.fftsize;
+	if	( stride < ( pro.Lspek.fftsize2D / 16 ) )
+		stride = ( pro.Lspek.fftsize2D / 16 );
+	if	( stride > pro.Lspek.fftsize2D )
+		stride = pro.Lspek.fftsize2D;
 	pro.Lspek.fftstride   = stride;
 	if	( option_threads > QTH )
 		option_threads = QTH;
@@ -446,7 +469,7 @@ if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont p
 	pro.Lspek.qthread     = option_threads;
 
 	pro.Rspek.window_type = pro.Lspek.window_type;
-	pro.Rspek.fftsize     = pro.Lspek.fftsize;
+	pro.Rspek.fftsize2D   = pro.Lspek.fftsize2D;
 	pro.Rspek.fftstride   = pro.Lspek.fftstride;
 	pro.Rspek.bpst        = pro.Lspek.bpst;
 	pro.Rspek.qthread     = option_threads;

@@ -192,7 +192,7 @@ if	( ( Lspek.spectre2D ) || ( ( Rspek.spectre2D ) && ( qspek > 1 ) ) )
 printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 // N.B. les parametres en commentaire sont supposes avoir ete injectes avant l'appel
 // -- parametres FFT
-// Lspek.fftsize = 8192;
+// Lspek.fftsize2D = 8192;
 // Lspek.fftstride = 1024;
 // Lspek.window_type = 1;
 // Lspek.qthread;
@@ -203,7 +203,7 @@ Lspek.midi0 = 28;		// E1 = mi grave de la basse
 Lspek.pal = mutpal;		// palette commune
 if	( qspek >= 2 )
 	{
-	// Rspek.fftsize = 8192;
+	// Rspek.fftsize2D = 8192;
 	// Rspek.fftstride = 1024;
 	// Rspek.window_type = 1;
 	// Rspek.qthread = 1;
@@ -217,7 +217,7 @@ if	( qspek >= 2 )
 retval = Lspek.init2D( af->fsamp, Lbuf.size );
 if	( retval )
 	gasp("erreur init2D L spectro %d", retval );
-printf("ready L spek, FFT %u/%u, window type %d, avg %g\n\n", Lspek.fftsize, Lspek.fftstride, Lspek.window_type, Lspek.window_avg ); fflush(stdout);
+printf("ready L spek, FFT %u/%u, window type %d, avg %g\n\n", Lspek.fftsize2D, Lspek.fftstride, Lspek.window_type, Lspek.window_avg ); fflush(stdout);
 if	( qspek >= 2 )
 	{
 	retval = Rspek.init2D( af->fsamp, Rbuf.size );
@@ -415,7 +415,7 @@ if	( ib < panneau->bandes.size() )
 	{
 	laySL = (layer_rgb *)panneau->bandes[ib]->courbes[0];
 	laySL->set_km( 1.0 / (double)Lspek.fftstride );	// M est en samples, U en FFT-runs
-	laySL->set_m0( 0.5 * (double)(Lspek.fftsize-Lspek.fftstride ) );
+	laySL->set_m0( 0.5 * (double)(Lspek.fftsize2D-Lspek.fftstride ) );
 	laySL->set_kn( (double)Lspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
 								// la midinote correspondant au bas du spectre2D
 	laySL->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
@@ -426,7 +426,7 @@ if	( ib < panneau->bandes.size() )
 	{
 	laySR = (layer_rgb *)panneau->bandes[ib]->courbes[0];
 	laySR->set_km( 1.0 / (double)Rspek.fftstride );	// M est en samples, U en FFT-runs
-	laySR->set_m0( 0.5 * (double)(Rspek.fftsize-Rspek.fftstride ) );
+	laySR->set_m0( 0.5 * (double)(Rspek.fftsize2D-Rspek.fftstride ) );
 	laySR->set_kn( (double)Rspek.bpst );			// N est en MIDI-note (demi-tons), V est en bins
 								// la midinote correspondant au bas du spectre2D
 	laySR->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
@@ -464,9 +464,6 @@ if	( panneau->bandes.size() == 0 )
 	// creer un layer
 	curcour = new layer_u<unsigned short>;
 	curbande->add_layer( curcour, "Lin" );
-	curcour->fgcolor.dR = 0.9;
-	curcour->fgcolor.dG = 0.0;
-	curcour->fgcolor.dB = 0.2;
 	panneau->full_valid = 0;
 	printf("end hard layout 2, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 	}	// fin de la partie non-repetable
@@ -474,20 +471,37 @@ if	( panneau->bandes.size() == 0 )
 	{
 	layer_u<unsigned short> * layL;
 	layL = (layer_u<unsigned short> *)panneau->bandes[0]->courbes[0];
-	layL->set_kn( 1.0 );	// amplitude normalisee a +-1
+	if	( time_curs >= 0 )
+		{
+		layL->fgcolor.dR = 0.9;
+		layL->fgcolor.dG = 0.0;
+		layL->fgcolor.dB = 0.2;
+		}
+	else	{
+		layL->fgcolor.dR = 0.0;
+		layL->fgcolor.dG = 0.1;
+		layL->fgcolor.dB = 0.9;
+		}
+	layL->set_kn( 1.0 );
 	layL->set_n0( 0.0 );
 	layL->set_km( (double)Lspek.bpst );		// M est en MIDI-note (demi-tons), U est en bins
 							// la midinote correspondant au bas du spectre2D
 	layL->set_m0( (double)Lspek.midi0);  // + 0.5/(double)Lspek.bpst ); PAS de recentrage de 0.5 bins
-	// prise en compte de la position du curseur temporel (time_curs, en samples)
-	int time_m0 = ( Lspek.fftsize - Lspek.fftstride ) / 2; // c'est le m0 du spectrogramme
-	int ibin = ( time_curs - time_m0 ) / (int)Lspek.fftstride; 	// division entiere (ou floor)
-	// bornage sur [0,W-1] ==> robustesse vs time_curs
-	if	( ibin < 0 ) ibin = 0;
-	if	( ibin > (int)( Lspek.W - 1 ) ) ibin = Lspek.W - 1;
-	// printf("time_curs = %d ==> ibin = %d/%d\n", time_curs, ibin, Lspek.W ); fflush(stdout);
-	// aller piquer une colonne du spectrogramme
-	layL->V = Lspek.spectre2D + ( ibin * Lspek.H ); 
+	if	( time_curs >= 0 )
+		{			// le cas du spectre1D "ponctuel" extrait du spectrogramme existant
+		// prise en compte de la position du curseur temporel (time_curs, en samples)
+		int time_m0 = ( Lspek.fftsize2D - Lspek.fftstride ) / 2; // c'est le m0 du spectrogramme
+		int ibin = ( time_curs - time_m0 ) / (int)Lspek.fftstride; 	// division entiere (ou floor)
+		// bornage sur [0,W-1] ==> robustesse vs time_curs
+		if	( ibin < 0 ) ibin = 0;
+		if	( ibin > (int)( Lspek.W - 1 ) ) ibin = Lspek.W - 1;
+		// printf("time_curs = %d ==> ibin = %d/%d\n", time_curs, ibin, Lspek.W ); fflush(stdout);
+		// aller piquer une colonne du spectrogramme
+		layL->V = Lspek.spectre2D + ( ibin * Lspek.H ); 
+		}
+	else	{			// le cas du spectre1D calcule a la demande
+		layL->V = Lspek.spectre1D;
+		}
 	// H est le nombre de "bins" apres passage en echelle log
 	layL->qu = Lspek.H;
 	layL->scan();

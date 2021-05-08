@@ -12,10 +12,10 @@
 // precalcul de fenetre pour FFT type raised cosine
 // couvre les classiques 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
 // rend la moyenne
-double spectro::window_precalc( int ft_window )
+double spectro::window_precalc( unsigned int fft_size )
 {
 double a0, a1, a2, a3, moy;
-switch	( ft_window )
+switch	( window_type )
 	{
 	case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
 	case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
@@ -24,8 +24,8 @@ switch	( ft_window )
 	default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
 	}
 moy = 0.0;
-double m = M_PI / fftsize;	// on doit diviser par ffftsize ou (fftsize-1) ??????
-for	( unsigned int i = 0; i < fftsize; ++i )
+double m = M_PI / fft_size;	// on doit diviser par fftsize ou (fftsize-1) ??????
+for	( unsigned int i = 0; i < fft_size; ++i )
 	{
         window[i] = a0
 		- a1 * cos( 2 * m * i )
@@ -33,12 +33,12 @@ for	( unsigned int i = 0; i < fftsize; ++i )
 		- a3 * cos( 6 * m * i );
 	moy += window[i];
 	}
-return ( moy / fftsize );
+return ( moy / fft_size );
 }
 
 void spectro::window_dump()
 {
-for	( unsigned int i = 0; i < fftsize; ++i )
+for	( unsigned int i = 0; i < fftsize2D; ++i )
 	printf("%g\n", window[i] );
 }
 
@@ -46,20 +46,18 @@ for	( unsigned int i = 0; i < fftsize; ++i )
 
 // allouer les buffers pour la fft
 // on alloue large, selon FFTSIZEMAX, pour pouvoir changer fftsize a chaud
+// pour i=0 on alloue FFTSIZEHUGE pour les besoins de spectre1D
 // fftw3 recommande d'utiliser leur fonction fftwf_malloc() plutot que malloc() ou []
 // c'est la raison pour laquelle on ne les a pas mis en statique
 int spectro::alloc_fft_inout_bufs()
 {
-// verifications preliminaires
-if	( fftsize > FFTSIZEMAX )	return -1;
-if	( fftstride < 32 )		return -2;
 unsigned int size, i = 0;
 // allouer buffer pour entree fft
 for	( i = 0; i < qthread; ++i )
 	{
 	if	( fftinbuf[i] == NULL )
 		{
-		size = FFTSIZEMAX;
+		size = ( i ? FFTSIZEMAX : FFTSIZEHUGE );
 		fftinbuf[i] = (float *)fftwf_malloc( size * sizeof(float) );	// pour reel float
 		if	( fftinbuf[i] == NULL )
 			return -20;
@@ -68,7 +66,7 @@ for	( i = 0; i < qthread; ++i )
 	// allouer buffer pour sortie fft
 	if	( fftoutbuf[i] == NULL )
 		{
-		size = ( (FFTSIZEMAX/2) + 1 ) * 2;
+		size = ( i ? (FFTSIZEMAX+2) : (FFTSIZEHUGE+2) );	// ( (FFTSIZEMAX/2) + 1 ) * 2;
 		fftoutbuf[i] = (float *)fftwf_malloc( size * sizeof(float) );	// pour complex float
 		if	( fftoutbuf[i] == NULL )
 			return -21;
@@ -87,7 +85,7 @@ return( relog_fbase * exp2( relog_opp * fid ) );
 
 // precalcul des points de resampling pour convertir le spectre en echelle log
 // remplir log_resamp en fonction de relog_opp et relog_fbase
-void spectro::log_resamp_precalc( unsigned int fsamp )
+void spectro::log_resamp_precalc( unsigned int fsamp, unsigned int fft_size )
 {
 int id;		// index destination, dans le spectre resample
 int iis0, iis1;	// indexes source bruts
@@ -98,7 +96,7 @@ double fis;	// index source fractionnaire median, correspondant à id
 // les parametres internes pour le resampling log
 relog_opp = 1.0 / (double)( bpst * 12 );
 relog_fbase = midi2Hz( midi0 ) ;			// en Hz
-relog_fbase /= ( (double)fsamp / (double)fftsize );	// en pitch spectro
+relog_fbase /= ( (double)fsamp / (double)fft_size );	// en pitch spectro
 
 fis0 = log_fis( -0.5 );		// pour id = 0
 for	( id = 0; id < (int)H; ++id )
@@ -106,7 +104,7 @@ for	( id = 0; id < (int)H; ++id )
 	fis1 = log_fis( double(id) + 0.5 );
 	iis0 = 1 + (int)floor( fis0 );		// exclusive ceiling
 	iis1 = (int)floor( fis1 );		// inclusive floor
-	if	( iis1 >= (int)fftsize )
+	if	( iis1 >= (int)fft_size )
 		{ log_resamp[id].decimflag = -1; break; }	// internal error
 	ndec = ( iis1 - iis0 ) + 1;
 	if	( ndec >= 1 )
@@ -183,8 +181,10 @@ int spectro::init2D( unsigned int fsamp, unsigned int qsamples )
 unsigned int retval;
 
 //** bornage robuste des parametres
-if	( fftsize > FFTSIZEMAX )
-	fftsize = FFTSIZEMAX;
+if	( fftsize2D > FFTSIZEMAX )
+	fftsize2D = FFTSIZEMAX;
+if	( fftstride < 32 )
+	fftstride = 32;		// surtout pour eviter fftstride=0
 if	( ( bpst & 1 ) == 0 )
 	bpst |= 1;
 if	( bpst > BPSTMAX )
@@ -197,12 +197,12 @@ if	( qthread > QTH )
 	qthread = QTH;
 
 //** precalculs
-W = ( ( qsamples - fftsize ) / fftstride ) + 1;		// le nombre de fenetres fft
+W = ( ( qsamples - fftsize2D ) / fftstride ) + 1;		// le nombre de fenetres fft
 H = octaves * 12 * bpst;				// le nombre de frequences apres resamp
 
-window_avg = window_precalc( window_type );
+window_avg = window_precalc( fftsize2D );
 // window_dump();
-log_resamp_precalc( fsamp );
+log_resamp_precalc( fsamp, fftsize2D );
 
 //** allocations memoire
 // preparer les buffers specifiques pour runs fftw3
@@ -219,11 +219,47 @@ for	( unsigned int i = 0; i < qthread; ++i )
 	{
 	if	( plan[i] )
 		fftwf_destroy_plan(plan[i]);
-	plan[i] = fftwf_plan_dft_r2c_1d( fftsize, fftinbuf[i], (fftwf_complex*)fftoutbuf[i], FFTW_MEASURE );
+	plan[i] = fftwf_plan_dft_r2c_1d( fftsize2D, fftinbuf[i], (fftwf_complex*)fftoutbuf[i], FFTW_MEASURE );
 	if	( plan[i] == NULL )
 		return -30;
 	}
 
+return 0;
+}
+
+// enchaine toutes les initialisations
+int spectro::init1D( unsigned int fsamp )
+{
+//** bornage robuste des parametres
+if	( fftsize1D > FFTSIZEHUGE )
+	fftsize1D = FFTSIZEHUGE;
+if	( ( bpst & 1 ) == 0 )
+	bpst |= 1;
+if	( bpst > BPSTMAX )
+	bpst = BPSTMAX;
+if	( bpst < 1 )
+	bpst = 1;
+if	( octaves > OCTAMAX )
+	octaves = OCTAMAX;
+
+//** precalculs
+H = octaves * 12 * bpst;				// le nombre de frequences apres resamp
+
+window_avg = window_precalc( fftsize1D );
+// window_dump();
+log_resamp_precalc( fsamp, fftsize1D );
+
+//** allocations memoire
+// preparer les buffers specifiques pour runs fftw3
+if	( ( fftinbuf[0] == NULL ) || ( fftoutbuf[0] == NULL ) )
+	return -1;
+
+//** preparer le plan de travail de fftw3
+if	( plan[0] )
+	fftwf_destroy_plan(plan[0]);
+plan[0] = fftwf_plan_dft_r2c_1d( fftsize1D, fftinbuf[0], (fftwf_complex*)fftoutbuf[0], FFTW_MEASURE );
+if	( plan[0] == NULL )
+	return -30;
 return 0;
 }
 
@@ -251,21 +287,21 @@ for	( unsigned int icol = id; icol < ceci->W; icol += ceci->qthread )
 	a = icol * ceci->fftstride;
 	if	( ceci->src2 )
 		{
-		for	( j = 0; j < ceci->fftsize; ++j )
+		for	( j = 0; j < ceci->fftsize2D; ++j )
 			{
 			fftin[j] = ( (float)ceci->src1[a] + (float)ceci->src2[a] ) * ceci->window[j];
 			++a;
 			}
 		}
 	else	{
-		for	( j = 0; j < ceci->fftsize; ++j )
+		for	( j = 0; j < ceci->fftsize2D; ++j )
 			fftin[j] = (float)ceci->src1[a++] * ceci->window[j];
 		}
 	// fft de fftin vers fftout
 	fftwf_execute( ceci->plan[id] );
 	// calcul magnitudes sur place (fftout)
 	a = 0;
-	for	( j = 0; j <= ( ceci->fftsize / 2 ); ++j )
+	for	( j = 0; j <= ( ceci->fftsize2D / 2 ); ++j )
 		{
 		fftout[j] = hypotf( fftout[a], fftout[a+1] );
 		a += 2;
@@ -316,10 +352,10 @@ this->src1 = srcA;
 this->src2 = srcB;
 
 // facteur d'echelle en vue conversion en u16
-// un signal sinus d'amplitude max sur une frequence multiple de fsamp/fftsize atteint le plafond
+// un signal sinus d'amplitude max sur une frequence multiple de fsamp/fftsize2D atteint le plafond
 // un signal carre peut depasser - c'est un cas theorique (alors on observe un visuel de "solarise")
 // N.B. il n'est pas necessaire de normaliser les WAV, il suffit de renseigner wav_peak
-k = (2.0/(float)fftsize);	// correction DFT classique, selon JLN, pour signal sinus
+k = (2.0/(float)fftsize2D);	// correction DFT classique, selon JLN, pour signal sinus
 k /= window_avg;		// correction fenetre
 k /= wav_peak;		// 1.0 si wav en float normalisee, 32767.0 si audio 16 bits, ou adapte 
 k *= 65535.0;
@@ -362,6 +398,89 @@ for	( unsigned i = 0; i < qthread; ++i )
 printf("max binxel umax %u/65535\n", umax );
 return 0;
 }
+
+// calcul d'un spectre1D ponctuel (1 seul run)
+// ne fonctionne que si spectrogramme 2D a deja ete parametre et calcule sur src1[]
+int spectro::compute1D( unsigned int isamp_center, unsigned int qsamp )
+{
+// variables locales
+float * fftin;		// buffer pour entree fft reelle
+float * fftout;		// buffer pour sortie fft complexe
+unsigned int a, j;
+unsigned short u;
+
+fftin =  fftinbuf[0];	// on utilise les buffers du thread zero
+fftout = fftoutbuf[0];
+
+// bornage
+if	( qsamp < fftsize1D )
+	return -1;
+if	( isamp_center < (fftsize1D/2) )
+	isamp_center = fftsize1D/2;		// fftsize1D est pair, bien sur
+if	( ( isamp_center + (fftsize1D/2) ) > qsamp )
+	isamp_center = qsamp - (fftsize1D/2);
+
+printf("ready to compute spectre 1D fftsize1D=%u, @[%u,%u]\n",
+	fftsize1D, isamp_center - (fftsize1D/2), isamp_center + (fftsize1D/2) ); fflush(stdout);
+// copie des samples sur fftin avec fenetrage et monoisation si necessaire
+a = isamp_center - (fftsize1D/2);
+if	( src2 )
+	{
+	for	( j = 0; j < fftsize1D; ++j )
+		{
+		fftin[j] = ( (float)src1[a] + (float)src2[a] ) * window[j];
+		++a;
+		}
+	}
+else	{
+	for	( j = 0; j < fftsize1D; ++j )
+		fftin[j] = (float)src1[a++] * window[j];
+	}
+
+// fft de fftin vers fftout
+fftwf_execute( plan[0] );
+
+// calcul magnitudes sur place (fftout)
+a = 0;
+for	( j = 0; j <= ( fftsize1D / 2 ); ++j )
+	{
+	fftout[j] = hypotf( fftout[a], fftout[a+1] );
+	a += 2;
+	}
+// resampling log, de fftout vers fftin
+logpoint *p; float peak;
+for	( j = 0; j < H; ++j )
+	{
+	p = &(log_resamp[j]);
+	if	( p->decimflag == 1 )	// decimation par valeur pic
+		{
+		peak = 0.0;
+		for	( a = p->is0; a <= (unsigned int)p->is1; ++a )
+			{
+			if	( fftout[a] > peak )
+				peak = fftout[a];
+			}
+		}
+	else if	( p->decimflag == 0 )	// interpolation lineaire
+		{
+		peak = fftout[p->is0] * p->k0 + fftout[p->is1] * p->k1;
+		}
+	else	peak = 0.0;
+	fftin[j] = peak;
+	}
+k = (2.0/(float)fftsize1D);	// correction DFT classique, selon JLN, pour signal sinus
+k /= window_avg;		// correction fenetre
+k /= wav_peak;		// 1.0 si wav en float normalisee, 32767.0 si audio 16 bits, ou adapte 
+k *= 65535.0;
+// conversion en u16 avec application du facteur d'echelle k
+for	( j = 0; j < H; ++j )
+	{
+	u = (unsigned short)( k * fftin[j] );
+	spectre1D[j] = u;
+	}
+return 0;
+}
+
 
 // conversion spectre2D en style GDK pixbuf, en utilisant la palette connue du spectro
 // N.B. spectro ne connait pas GDK mais est compatible avec la disposition pixbuf
@@ -440,108 +559,6 @@ for	( int i = 0; i < QTH; i++ )
 		{ fftwf_destroy_plan(plan[i]); plan[i] = NULL; }
 // fftwf_cleanup();	// pas ici, c'est commun a tous les spectros
 printf("spectres and fft cleaned\n"); fflush(stdout);
-}
-
-// calcul d'un spectre1D ponctuel (1 seul run)
-// ne fonctionne que si spectrogramme 2D a deja ete parametre et calcule sur src1[]
-int spectro::compute1D( unsigned int fsamp, unsigned int isamp0, unsigned int local_fftsize )
-{
-
-// variables locales
-float * fftin;		// buffer pour entree fft reelle
-float * fftout;		// buffer pour sortie fft complexe
-unsigned int a, j;
-unsigned short u;
-
-fftin =  fftinbuf[0];	// on utilise les buffers du thread zero
-fftout = fftoutbuf[0];
-fftsize = local_fftsize;
-
-// initialisation : sequence similaire a spectro::init2D(),
-// sauf ce qui concerne fftstride, calcul W et alloc de spectre2D
-// les parametres sont conserves sauf fftsize ==> on recalcule tout ce qui depend de fftsize
-
-window_avg = window_precalc( window_type );
-
-// alloc_fft();	<== alloc des buffers fft et plan : on decompose
-if	( fftsize > FFTSIZEHUGE )
-	return -1;	
-if	( ( fftin == NULL ) || (fftout == NULL ) ) 
-	return -2;	// plutot qu'allouer on verifie juste
-
-if	( plan[0] )
-	fftwf_destroy_plan(plan[0]);
-plan[0] = fftwf_plan_dft_r2c_1d( fftsize, fftin, (fftwf_complex*)fftout, FFTW_MEASURE );
-if	( plan[0] == NULL )
-	return -3;
-printf("FFTW plan ready, size %u\n", fftsize ); fflush(stdout);
-
-
-// H = octaves * 12 * bpst;			<-- sans changement
-
-log_resamp_precalc( fsamp );	// passe Ok
-
-// alloc_WH();		// neant, spectre1D est alloue statiquement
-	
-// fin spectro::init2D()
-
-// copie des samples sur fftin avec fenetrage et monoisation si necessaire
-a = isamp0;
-if	( src2 )
-	{
-	for	( j = 0; j < fftsize; ++j )
-		{
-		fftin[j] = ( (float)src1[a] + (float)src2[a] ) * window[j];
-		++a;
-		}
-	}
-else	{
-	for	( j = 0; j < fftsize; ++j )
-		fftin[j] = (float)src1[a++] * window[j];
-	}
-
-// fft de fftin vers fftout
-fftwf_execute( plan[0] );
-
-// calcul magnitudes sur place (fftout)
-a = 0;
-for	( j = 0; j <= ( fftsize / 2 ); ++j )
-	{
-	fftout[j] = hypotf( fftout[a], fftout[a+1] );
-	a += 2;
-	}
-// resampling log, de fftout vers fftin
-logpoint *p; float peak;
-for	( j = 0; j < H; ++j )
-	{
-	p = &(log_resamp[j]);
-	if	( p->decimflag == 1 )	// decimation par valeur pic
-		{
-		peak = 0.0;
-		for	( a = p->is0; a <= (unsigned int)p->is1; ++a )
-			{
-			if	( fftout[a] > peak )
-				peak = fftout[a];
-			}
-		}
-	else if	( p->decimflag == 0 )	// interpolation lineaire
-		{
-		peak = fftout[p->is0] * p->k0 + fftout[p->is1] * p->k1;
-		}
-	else	peak = 0.0;
-	fftin[j] = peak;
-	}
-k = (2.0/(float)fftsize);	// correction DFT classique, selon JLN, pour signal sinus
-k /= window_avg;		// correction fenetre
-k /= wav_peak;		// 1.0 si wav en float normalisee, 32767.0 si audio 16 bits, ou adapte 
-k *= 65535.0;
-// conversion en u16 avec application du facteur d'echelle k
-for	( j = 0; j < H; ++j )
-	{
-	u = (unsigned short)( k * fftin[j] );
-	spectre1D[j] = u;
-	}
-return 0;
 }
 
 
