@@ -22,7 +22,7 @@ int audiofile_process();
 //int wave_process();
 //int mp3_process();
 
-int spectrum_compute2D( int force_mono );
+int spectrum_compute2D( int force_mono, int opt_lin );
 
 // la partie du process en relation avec jluplot
 
@@ -31,7 +31,7 @@ void prep_layout_W( gpanel * panneau );
 int connect_layout_W( gpanel * panneau );
 
 // layout pour les spectres
-void auto_layout_S( gpanel * panneau );
+void auto_layout_S( gpanel * panneau, int opt_lin );
 void auto_layout2( gpanel * panneau, int time_curs );
 
 // adapte la palette a la limite iend et l'applique a tous les spectres

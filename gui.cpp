@@ -91,7 +91,8 @@ else	{			// play silence
 		((short *)outbuf)[i]   = 0;
 		}
 	// petite experience de debug pour verifier que c'est bien notre FRAMES_PER_BUFFER
-	glo->iplay = -framesPerBuffer;
+	// glo->iplay = -framesPerBuffer;
+	glo->iplay = -1;
 	}
 return 0;
 }
@@ -143,7 +144,7 @@ if	( err != paNoError )
 const PaStreamInfo* PaInfo = Pa_GetStreamInfo( glo->stream );
 if	( PaInfo == NULL )
 	{ Pa_Terminate(); gasp("NULL PaStreamInfo");  }
-// printf("output latency : %g vs %g s\n", PaInfo->outputLatency, mylatency );
+printf("output latency : %g vs %g s\n", PaInfo->outputLatency, mylatency );
 
 err = Pa_StartStream( glo->stream );
 if	( err != paNoError )
@@ -370,25 +371,27 @@ switch	( v )
 		fflush(stdout);
 		break;
 	//
-	case 'F' :
-		GtkWidget *dialog;
-		dialog = gtk_file_chooser_dialog_new ("Ouvrir WAV ou MP3", GTK_WINDOW(glo->wmain),
-			GTK_FILE_CHOOSER_ACTION_OPEN,
-			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL );
-		gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER (dialog), "." );
-		if	( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+	case 'P' :
+		const char * fnam = "full_spectre2D.png";
+		if	( glo->pro.Lpix )
 			{
-			char * fnam;
-			fnam = gtk_file_chooser_get_filename( GTK_FILE_CHOOSER (dialog) );
-			printf("chosen: %s\n", fnam ); fflush(stdout);
-			glo->wavisualize( fnam );
-			if	( glo->option_spectrogramme )
-				glo->spectrographize();
-			g_free( fnam );
+			GdkPixbuf * flipped;
+			flipped = gdk_pixbuf_flip ( glo->pro.Lpix, false );
+			if  	( gdk_pixbuf_save( flipped, fnam, "png", NULL, NULL ) )
+				printf("Ok ecriture spectrogramme %s\n", fnam );
+			else	printf("oops, echec ecriture %s\n", fnam );
+			g_object_unref( flipped );
+			if	( glo->pro.Rpix )
+				{
+				fnam = "full_spectre2D_alt.png";
+				flipped = gdk_pixbuf_flip ( glo->pro.Rpix, false );
+				if  	( gdk_pixbuf_save( flipped, fnam, "png", NULL, NULL ) )
+					printf("Ok ecriture spectrogramme %s\n", fnam );
+				else	printf("oops, echec ecriture %s\n", fnam );
+				g_object_unref( flipped );
+				}
+			fflush(stdout);
 			}
-		else	gasp("audio already loaded");
-		gtk_widget_destroy (dialog);
 		break;
 	}
 }
@@ -431,11 +434,11 @@ if	( ( this->pro.Lbuf.size ) && ( this->panneau.bandes.size() >= 1 ) )
 	{
 	int retval;
 	parametrize();
-	retval = this->pro.spectrum_compute2D( this->option_monospec );
+	retval = this->pro.spectrum_compute2D( this->option_monospec, this->option_linspec );
 	if	( retval )
 		gasp("echec spectrum, erreur %d", retval );
 	fflush(stdout);
-	this->pro.auto_layout_S( &this->panneau );
+	this->pro.auto_layout_S( &this->panneau, this->option_linspec );
 	this->pro.auto_layout2( &this->para.panneau, this->iplayp ); 
 	fflush(stdout);
 	this->panneau.init_flags = 0;
@@ -648,6 +651,7 @@ glo->option_spectrogramme = 0;	// -S // calcul de spectrogrammes 2D
 glo->option_monospec = 0;	// -m // spectrogrammes 2D sur L+R si stereo
 glo->option_noaudio = 0;	// -N // no audio output (for debug)
 glo->option_threads = 1;	// -T // 1 a QTH threads (en plus du principal)
+glo->option_linspec = 0;	// -i // spectrogramme 2D lineaire plutot que log (implique -m)
 const char * fnam = NULL;
 
 // 	parsage CLI
@@ -662,6 +666,7 @@ if	( ( val = lepar->get( 'S' ) ) )	glo->option_spectrogramme = 1;
 if	( ( val = lepar->get( 'm' ) ) )	glo->option_monospec = 1;
 if	( ( val = lepar->get( 'N' ) ) )	glo->option_noaudio = 1;
 if	( ( val = lepar->get( 'T' ) ) )	glo->option_threads = atoi( val );
+if	( ( val = lepar->get( 'i' ) ) )	{ glo->option_linspec = 1; glo->option_monospec = 1; }
 if	( ( val = lepar->get( 'h' ) ) )
 	{
 	printf( "options :\n"
@@ -672,7 +677,9 @@ if	( ( val = lepar->get( 'h' ) ) )
 	"-S	  : calcul spectrogramme a l'ouverture\n"
 	"-m	  : spectrogramme toujours mono\n"
 	"-N	  : no audio output\n"
-	"-T <n>   : threads pour FFT ( 1 a %u )\n", QTH );
+	"-T <n>   : threads pour FFT ( 1 a %u )\n"
+	"-i       : spectrogramme 2D lineaire plutot que log (implique -m)"
+	, QTH );
 	return 0;
 	}
 fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 

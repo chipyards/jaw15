@@ -99,7 +99,7 @@ unsigned int octaves;		// hauteur du spectre exprimee en octaves a partir de mid
 int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
 double wav_peak;		// pour facteur d'echelle avant conversion du spectre en u16
 unsigned int qthread;		// nombre de threads
-
+int disable_log;		// create linear spectre2D instead of log "melody range" spectre2D 
 // pourrait etre private, sauf que les threads doivent y acceder
 short * src1;			// audio a transformer
 short * src2; 			// second canal si on veut transformer de la stereo sur un spectrogramme
@@ -116,7 +116,7 @@ unsigned int umax_part[QTH];	// valeur max mise dans spectre2D[] par chaque thre
 
 // constructeur
 spectro() : fftsize2D(8192), fftstride(1024), fftsize1D(8192), window_type(1), spectre2D(NULL), allocatedWH(0), umax(0),
-	pal(NULL), bpst(9), octaves(7), midi0(28), wav_peak(32767.0), qthread(1), src1(0), src2(0) {
+	pal(NULL), bpst(9), octaves(6), midi0(28), wav_peak(32767.0), qthread(1), disable_log(0), src1(NULL), src2(NULL) {
 	for	( int i = 0; i < QTH ; ++i )
 		{
 		fftinbuf[i] = NULL;

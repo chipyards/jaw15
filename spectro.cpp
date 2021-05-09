@@ -198,7 +198,12 @@ if	( qthread > QTH )
 
 //** precalculs
 W = ( ( qsamples - fftsize2D ) / fftstride ) + 1;		// le nombre de fenetres fft
-H = octaves * 12 * bpst;				// le nombre de frequences apres resamp
+if	( disable_log )
+	{
+	unsigned int ftop = 3000;	// frequ. max arbitraire mais < fsamp / 2
+	H = ( ftop * fftsize2D ) / fsamp;
+	}
+else	H = octaves * 12 * bpst;				// le nombre de frequences apres resamp
 
 window_avg = window_precalc( fftsize2D );
 // window_dump();
@@ -306,26 +311,33 @@ for	( unsigned int icol = id; icol < ceci->W; icol += ceci->qthread )
 		fftout[j] = hypotf( fftout[a], fftout[a+1] );
 		a += 2;
 		}
-	// resampling log, de fftout vers fftin
-	logpoint *p; float peak;
-	for	( j = 0; j < ceci->H; ++j )
+	if	( ceci->disable_log )
 		{
-		p = &(ceci->log_resamp[j]);
-		if	( p->decimflag == 1 )	// decimation par valeur pic
+		for	( j = 0; j < ceci->H; ++j )
+			fftin[j] = fftout[j];
+		}
+	else	{
+		// resampling log, de fftout vers fftin
+		logpoint *p; float peak;
+		for	( j = 0; j < ceci->H; ++j )
 			{
-			peak = 0.0;
-			for	( a = p->is0; a <= (unsigned int)p->is1; ++a )
+			p = &(ceci->log_resamp[j]);
+			if	( p->decimflag == 1 )	// decimation par valeur pic
 				{
-				if	( fftout[a] > peak )
-					peak = fftout[a];
+				peak = 0.0;
+				for	( a = p->is0; a <= (unsigned int)p->is1; ++a )
+					{
+					if	( fftout[a] > peak )
+						peak = fftout[a];
+					}
 				}
+			else if	( p->decimflag == 0 )	// interpolation lineaire
+				{
+				peak = fftout[p->is0] * p->k0 + fftout[p->is1] * p->k1;
+				}
+			else	peak = 0.0;
+			fftin[j] = peak;
 			}
-		else if	( p->decimflag == 0 )	// interpolation lineaire
-			{
-			peak = fftout[p->is0] * p->k0 + fftout[p->is1] * p->k1;
-			}
-		else	peak = 0.0;
-		fftin[j] = peak;
 		}
 	// conversion en u16 avec application du facteur d'echelle k, pour palettisation ulterieure
 	a = icol * ceci->H;
@@ -502,7 +514,10 @@ unsigned char * palR = pal;
 unsigned char * palG = palR + 65536;
 unsigned char * palB = palG + 65536;
 int midinote;
-const char * blacknotes = "010100101010";	// midinote = 0 est un Do
+const char * blacknotes;
+if	( disable_log )
+	blacknotes = "000000000000";
+else	blacknotes = "010100101010";	// midinote = 0 est un Do
 for	( y = 0; y < H; y++ )
 	{
 	destadr = y * RGBstride;

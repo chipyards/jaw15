@@ -174,7 +174,7 @@ return 0;
 }
 
 // calculs spectrogramme dans l'objet process
-int process::spectrum_compute2D( int force_mono )
+int process::spectrum_compute2D( int force_mono, int opt_lin )
 {
 int retval, qspek;
 
@@ -182,6 +182,9 @@ int retval, qspek;
 if	( force_mono )
 	qspek = 1;
 else	qspek = af->qchan;
+
+if	( opt_lin )
+	{ qspek = 2; force_mono = 1; } 
 
 if	( ( Lspek.spectre2D ) || ( ( Rspek.spectre2D ) && ( qspek > 1 ) ) )
 	{
@@ -198,7 +201,7 @@ printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 // Lspek.qthread;
 // -- parametres conversion LOG
 // Lspek.bpst = 9;		// binxel-per-semi-tone : resolution spectro log
-Lspek.octaves = 7;		// 7 octaves
+Lspek.octaves = 6;		// 7 octaves
 Lspek.midi0 = 28;		// E1 = mi grave de la basse
 Lspek.pal = mutpal;		// palette commune
 if	( qspek >= 2 )
@@ -208,9 +211,11 @@ if	( qspek >= 2 )
 	// Rspek.window_type = 1;
 	// Rspek.qthread = 1;
 	// Rspek.bpst = 9;
-	Rspek.octaves = 7;
+	Rspek.octaves = 6;
 	Rspek.midi0 = 28;
 	Rspek.pal = mutpal;
+	if	( opt_lin )
+		Rspek.disable_log = 1;
 	}
 
 // init2D
@@ -220,7 +225,7 @@ if	( retval )
 printf("ready L spek, FFT %u/%u, window type %d, avg %g\n\n", Lspek.fftsize2D, Lspek.fftstride, Lspek.window_type, Lspek.window_avg ); fflush(stdout);
 if	( qspek >= 2 )
 	{
-	retval = Rspek.init2D( af->fsamp, Rbuf.size );
+	retval = Rspek.init2D( af->fsamp, ( opt_lin ? Lbuf.size : Rbuf.size ) );
 	if	( retval )
 		gasp("erreur init2D R spectro %d", retval );
 	printf("ready R spek\n"); fflush(stdout);
@@ -230,22 +235,36 @@ if	( qspek >= 2 )
 printf("start calcul spectre2D sur %d threads\n", Lspek.qthread ); fflush(stdout);
 if	( af->qchan == 1 )
 	{
-	Lspek.wav_peak = 32767.0;
+	Lspek.wav_peak = 32767.0;		// spectre2D mono sur WAV stereo
 	Lspek.compute2D( Lbuf.data );
+	if	( opt_lin )
+		{				// un second spectre2D sur Lbuf, mais en lin
+		Rspek.wav_peak = 32767.0;
+		Rspek.compute2D( Lbuf.data );
+		}
 	}
 else if	( af->qchan == 2 )
 	{
-	if	( qspek == 1 )	// spectre2D mono sur WAV stereo
+	if	( qspek == 1 )			// spectre2D mono sur WAV stereo
 		{
 		Lspek.wav_peak = 65534.0;
 		Lspek.compute2D( Lbuf.data, Rbuf.data );
 		}
 	else if	( qspek == 2 )
 		{
-		Lspek.wav_peak = 32767.0;
-		Lspek.compute2D( Lbuf.data );
-		Rspek.wav_peak = 32767.0;
-		Rspek.compute2D( Rbuf.data );
+		if	( opt_lin )
+			{			// deux spectre2D mono sur WAV stereo, dont 1 lin
+			Lspek.wav_peak = 65534.0;
+			Lspek.compute2D( Lbuf.data, Rbuf.data );
+			Rspek.wav_peak = 65534.0;
+			Rspek.compute2D( Lbuf.data, Rbuf.data );
+			}
+		else	{			// spectre2D stereo sur WAV stereo
+			Lspek.wav_peak = 32767.0;
+			Lspek.compute2D( Lbuf.data );
+			Rspek.wav_peak = 32767.0;
+			Rspek.compute2D( Rbuf.data );
+			}
 		}
 	else	gasp("pas de spek pour fft");
 	}
@@ -356,7 +375,7 @@ return 0;
 
 
 // layout pour spectrogrammes
-void process::auto_layout_S( gpanel * panneau )
+void process::auto_layout_S( gpanel * panneau, int opt_lin )
 {
 if	( Lspek.spectre2D == NULL )
 	return;
@@ -420,6 +439,8 @@ if	( ib < panneau->bandes.size() )
 								// la midinote correspondant au bas du spectre2D
 	laySL->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
 	laySL->spectropix = Lpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
+	if	( opt_lin )
+		panneau->bandes[ib]->Ylabel = "midi";
 	}
 ++ib;
 if	( ib < panneau->bandes.size() )
@@ -431,6 +452,12 @@ if	( ib < panneau->bandes.size() )
 								// la midinote correspondant au bas du spectre2D
 	laySR->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
 	laySR->spectropix = Rpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
+	if	( opt_lin )
+		{
+		panneau->bandes[ib]->Ylabel = "Hz";
+		laySR->set_kn( double(Rspek.fftsize2D) / double(af->fsamp) );
+		laySR->set_n0( 0.0 );
+		}
 	}
 printf("end soft layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
 }
