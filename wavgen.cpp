@@ -24,28 +24,45 @@ void gasp( const char *fmt, ... )
 }
 /* ---------------------------------------------------------------- */
 
-// generation signal sinus frequence fixe
-void gen_fix_f( wavio *d, double f, int duree )
+// generation signal sinus frequence fixe f, ou avec vibrato de frequence fv
+// la modulation de frequence est "logarithmique" (en fait exponentielle)
+void gen_fix_f( wavio *d, double f, double fv, int duree )
 {
 // parametres de generation
 double amplitude = 1.0;
 
 // variables temporaires
 short frame[2];		// left et right...
-unsigned int writcnt, i;
-double phi, v;
+unsigned int writcnt, i, j;
+double phi0, phi1, phiv;	// phase ch0, ch1, lfo
+double v0, v1, vv;		// valeur instantannee ch0, ch1, lfo
+double vamp;			// amplitude lfo en semitones
+double kf;			// coeff instantanne de variation de freq.
 
 d->realpfr = d->fsamp * duree;	// nombre de frames
 d->WAVwriteHeader();
 
 amplitude *= 32767.0;
-phi = 0.0; 
+phi0 = 0.0; phi1 = 0.0; phiv = 0.0;
+vamp = 1;
+
 for	( i = 0; i < d->realpfr; ++i )
 	{
-	v = amplitude * sin( phi );
-	frame[0] = (short int)round(v);
-	frame[1] = frame[0];
-	phi += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
+	v0 = amplitude * sin( phi0 );	// avec vibrato
+	v1 = amplitude * sin( phi1 );	// sans vibrato, pour reference
+	frame[0] = (short int)round(v0);
+	frame[1] = (short int)round(v1);
+	phi1 += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
+	if	( fv == 0.0 )
+		phi0 += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
+	else	{
+		j = i / ( 2 * d->fsamp );	// temps en unites de 2 secondes
+		vamp = double(j) / 4;		// increment 1/4 de demi-ton ==> 2 tons en 32s
+		vv = vamp * cos( phiv );	// LFO : oscillateur de vibrato
+		kf = pow( 2.0, vv / 12.0 );
+		phi0 += ( ( f * kf * 2.0 * M_PI ) / (double)d->fsamp );
+		phiv += ( ( fv * 2.0 * M_PI ) / (double)d->fsamp );
+		}
 	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
 	if	( writcnt != ( d->qchan * sizeof(short) ) )
 		gasp("erreur ecriture disque (plein?)");
@@ -234,7 +251,7 @@ if	( argc < 4 )
 	printf(	"usage :\n"
 		"  bal. log : wavgen L <fichier_dest> <duree>\n"
 		"  bal. lin : wavgen I <fichier_dest> <duree>\n"
-		"  sin. fix : wavgen F <fichier_dest> <frequ>\n"
+		"  sin. fix : wavgen F <fichier_dest> <frequ> {<freq. vibrato>}\n"
 		"  tri. fix : wavgen T <fichier_dest> <frequ>\n"
 		"  gamme tp : wavgen G <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
 		"  quartes  : wavgen Q <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
@@ -268,7 +285,9 @@ switch	( opt )
 		break;
 	case 'I' : bal_f_lin( &d, (int)strtod( argv[3], NULL ) );
 		break;
-	case 'F' : gen_fix_f( &d, strtod( argv[3], NULL ), 20 );
+	case 'F' : if	( argc == 5 )
+			gen_fix_f( &d, strtod( argv[3], NULL ), strtod( argv[4], NULL ), 32 );
+		   else	gen_fix_f( &d, strtod( argv[3], NULL ), 0, 20 );
 		break;
 	case 'T' : gen_tri_f( &d, strtod( argv[3], NULL ), 20 );
 		break;

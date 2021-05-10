@@ -23,8 +23,8 @@ switch	( window_type )
 	case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
 	default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
 	}
-moy = 0.0;
-double m = M_PI / fft_size;	// on doit diviser par fftsize ou (fftsize-1) ??????
+moy = 0.0;			// on doit diviser par fftsize ( non par (fftsize-1) ), alors 
+double m = M_PI / fft_size;	// le dernier echantillon n'est pas egal au premier mais au second, c'est normal
 for	( unsigned int i = 0; i < fft_size; ++i )
 	{
         window[i] = a0
