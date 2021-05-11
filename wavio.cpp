@@ -166,7 +166,18 @@ return retval;
 }
 
 void wavio::afclose()
-{ if ( hand >= 0 ) close( hand ); };
+{
+if	( hand >= 0 )
+	{
+	if	( writing )
+		{	// il faut rembobiner et mettre a jour le header
+		lseek( hand, 0, SEEK_SET );
+		// chucksize et filesize seront calcules par WAVwriteHeader en fonction de realpfr
+		WAVwriteHeader();
+		}
+	close( hand );
+	}
+};
 
 static void writelong( unsigned char *buf, unsigned int l )
 {
@@ -191,7 +202,7 @@ unsigned char buf[16]; long filesize, chucksize;
 
 this->block = this->qchan * this->monosamplesize;
 this->bpsec = this->fsamp * this->block;
-chucksize = this->estpfr * this->block;
+chucksize = this->realpfr * this->block;
 filesize = chucksize + 36;
 
 if ( write( this->hand, "RIFF", 4 ) != 4 ) gulp();
@@ -214,6 +225,7 @@ if ( write( this->hand, buf, 16 ) != 16 ) gulp();
 if ( write( this->hand, "data", 4 ) != 4 ) gulp();
 writelong( buf, chucksize );
 if ( write( this->hand, buf, 4 ) != 4 ) gulp();
+writing = 1;	// pour afclose()
 }
 
 /* --------------------------------------- traitement erreur fatale */

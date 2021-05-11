@@ -14,9 +14,10 @@ int hand;		// file handle
 unsigned int type;	// 1 = signed short int, 3 = float
 unsigned int bpsec;	// bytes par seconde
 unsigned int block;	// bytes par frame
+int writing;		// flag d'ecriture pour afclose()
 
 // constructeur
-wavio() : audiofile(), hand(-1) {};
+wavio() : audiofile(), hand(-1), type(1), writing(0) {};
 
 // methodes bas niveau (legacy)
 int WAVreadHeader();
@@ -25,7 +26,7 @@ void WAVwriteHeader();
 // methodes d'interface heritee d'audiofile
 int read_head( const char * fnam );
 int read_data_p( void * pcmbuf, unsigned int qpfr );
-void afclose();
+void afclose();		// OBLIGATOIRE en cas d'ecriture
 };
 
 #ifndef O_BINARY

@@ -17,14 +17,17 @@ unsigned int monosamplesize;	// 2 for 16-bit audio
 unsigned int qchan;		// 1 ou 2
 unsigned int fsamp;		// sample rate
 unsigned int estpfr;	// taille estimee  (PCM frames)
-unsigned int realpfr;	// taille apres lecture
+unsigned int realpfr;	// taille apres lecture, mis a jour par read_data_p()
 
 // constructeur
 audiofile() :
 monosamplesize(2), qchan(1), fsamp(44100), estpfr(0), realpfr(0) {};
 
 // methodes
+
+// retourne 0 si Ok
 virtual int read_head( const char * fnam ) = 0;
+// retourne le nombre de pcm frames lus ( 0 si fini, <0 si err )
 virtual int read_data_p( void * pcmbuf, unsigned int qpfr ) = 0;
 virtual void afclose() = 0;
 };

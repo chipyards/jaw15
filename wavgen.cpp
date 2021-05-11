@@ -302,7 +302,11 @@ switch	( opt )
 		break;
 	}
 
-close( d.hand );
+// cloture du travail
+// close( d.hand ); NOOOON ne pas faire cela
+d.afclose();	// chucksize et filesize seront calcules par WAVwriteHeader en fonction de d.realpfr
+ 
+printf("audio file closed, %d frames\n", d.realpfr );
 return 0;
 }
 
