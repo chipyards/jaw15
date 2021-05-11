@@ -18,6 +18,7 @@ using namespace std;
 #include "autobuf.h"
 #include "wavio.h"
 #include "mp3in.h"
+#include "MIDI/midirender.h"
 #include "process.h"
 
 #include "param.h"

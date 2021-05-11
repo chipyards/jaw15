@@ -23,6 +23,7 @@ using namespace std;
 #include "autobuf.h"
 #include "wavio.h"
 #include "mp3in.h"
+#include "MIDI/midirender.h"
 #include "fftw3.h"
 #include "spectro.h"
 #include "process.h"
@@ -36,10 +37,13 @@ using namespace std;
 int process::audiofile_process()
 {
 int retval;
-int mp3flag = 0;
+int mp3flag = 0, midiflag = 0;
 
 retval = strlen( wnam );
-mp3flag = ( wnam[retval-1] == '3' );
+if	( retval < 4 )
+	return -1;
+mp3flag  = ( wnam[retval-1] == '3' );
+midiflag = ( wnam[retval-2] == 'i' );
 
 printf("ouverture %s %s en lecture\n", (mp3flag?"MP3":"WAV"), wnam ); fflush(stdout);
 
@@ -54,6 +58,18 @@ if	( mp3flag )
 		fflush(stdout); return -1;
 		}
 	printf("recommended buffer %d bytes\n", (int)m3.outblock );
+	}
+else if	( midiflag )
+	{
+	sf2file = "F:\\MEDIA\\SF2\\GM\\GeneralUser1.471.sf2";
+	af = (audiofile *)&mid;
+	mid.flusyn.sf2file = sf2file;
+	retval = mid.read_head( wnam );
+	if	( retval )
+		{
+		printf("error midi read_head: %d\n", retval );
+		fflush(stdout); return -1;
+		}
 	}
 else	{
 	af = (audiofile *)&wavp;

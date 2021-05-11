@@ -26,14 +26,14 @@ endif
 SOURCESC = modpop3.c $(ADEV)
 SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp \
     JLUP/layer_rgb.cpp \
-    spectro.cpp process.cpp gui.cpp param.cpp wavio.cpp mp3in.cpp
+    spectro.cpp process.cpp gui.cpp param.cpp wavio.cpp mp3in.cpp MIDI/fluid.cpp
 HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
     JLUP/layer_rgb.h JLUP/layer_lod.h JLUP/layer_u.h JLUP/strip_x_midi.h \
-    modpop3.h pa_devs.h process.h gui.h spectro.h autobuf.h audiofile.h wavio.h param.h mp3in.h cli_parse.h
+    modpop3.h pa_devs.h process.h gui.h spectro.h autobuf.h param.h audiofile.h wavio.h mp3in.h MIDI/fluid.h MIDI/midirender.h cli_parse.h
 
 OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
     layer_rgb.o \
-    spectro.o process.o gui.o param.o wavio.o mp3in.o
+    spectro.o process.o gui.o param.o wavio.o mp3in.o fluid.o
 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
 
@@ -51,6 +51,7 @@ LIBS= -L$(GTKBASE)/lib \
 -lpangocairo-1.0 \
 -lpangowin32-1.0 \
 -lmpg123 \
+-lfluidsynth \
 -L. -lfftw3f-3 \
 $(ALIB)
 
@@ -98,8 +99,7 @@ param.o : param.cpp ${HEADERS}
 	gcc $(INCS) -c param.cpp
 mp3in.o : mp3in.cpp ${HEADERS}
 	gcc $(INCS) -c mp3in.cpp
-wavio.o : wavio.cpp ${HEADERS}
-	gcc $(INCS) -c wavio.cpp
-
+fluid.o : MIDI/fluid.cpp ${HEADERS}
+	gcc $(INCS) -c MIDI/fluid.cpp
 # dependances
 modpop3.o : ${HEADERS}

@@ -1,9 +1,11 @@
 class process {
 public:
-char wnam[256];		// fichiers audio
+char wnam[256];		// fichier audio
+const char * sf2file;	// fichier soundfont pour fuidsynth
 wavio wavp;		// objet pour lecture wav
 mp3in m3;		// objet pour lecture mp3
-audiofile * af;		// pointeur sur wavp ou m3
+midirender mid;		// objet pour lecture midi et render immediat
+audiofile * af;		// pointeur sur wavp ou m3 ou mid
 autobuf <short> Lbuf;	// audio brut sl16
 autobuf <short> Rbuf;
 GdkPixbuf * Lpix;	// spectre sous forme de pixbuf
@@ -13,14 +15,12 @@ spectro Rspek;		// un spectrographe
 unsigned char mutpal[PALSIZE];	// la palette 16 bits --> RGB
 
 // constucteur
-process() : Lpix(NULL), Rpix(NULL) {};
+process() : sf2file(""), Lpix(NULL), Rpix(NULL) { wnam[0] = 0; };
 
 // methodes
 // la partie du process qui traite en memoire les wavs et le spectre
 
-int audiofile_process();
-//int wave_process();
-//int mp3_process();
+int audiofile_process();	// wav ou mp3 ou mid
 
 int spectrum_compute2D( int force_mono, int opt_lin );
 
