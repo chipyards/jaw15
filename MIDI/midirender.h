@@ -42,7 +42,12 @@ int read_head( const char * fnam ) {
 	retval = lesong->load( fnam );
 	if	( retval ) return retval;
 	printf("just read %s\n", fnam );	fflush(stdout);
-	lesong->dump( stdout );			fflush(stdout);
+	// lesong->dump( stdout );		fflush(stdout);
+	lesong->merge();
+	lesong->apply_tempo();
+	lesong->apply_tempo_u();
+	lesong->check();			fflush(stdout);
+	lesong->dump2( stdout );		fflush(stdout);
 
 	retval = flusyn.init( fsamp );	// le fsamp d'audiofile
 	if	( retval ) return retval;

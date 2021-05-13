@@ -4,21 +4,49 @@
 #include "midi_event.h"
 
 /*
-- la classe song stocke en memoire un morceau de musique, tel qu'on peut lire ou ecrire dans une midi-file
+INTRO
+
+- la classe song represente en memoire un morceau de musique, tel qu'on peut lire ou ecrire dans une midi-file
   l'essentiel de l'info est dans une collection de tracks.
 
-- la classe track contient essentiellement des events.
+- la classe track contient essentiellement des events
+
+VECTEURS D'EVENTS
+
+- chaque track represente ses events au moyen de 2 vecteurs:
+	events[] : les events possiblement pas dans l'ordre
+	events_tri[] : les indices des events, garantis dans l'ordre
+  N.B. pour le moment la methode de tri n'existe pas - les events sont toujours crees dans l'ordre
+  mais deja la methode song::check() verifie l'ordre dans events_tri[] puis dans events_merged[]
+
+- la classe song contient un vecteur d'events REDONDANT events_merged[] construit par la methode song::merge()
+  (interet controverse, mais en attendant cela marche.)
+  La methode merge() s'appuie sur les tableaux events_tri des tracks.
+
+MIDI FILES
 
 - la classe mf_in represente un fichier midi en cours de lecture, mais ce n'est pas elle qui effectue le job.
   Elle fournit juste des données et de methodes utilisees par song::load() qui itere track::load()
+  Attention : la methode song::load() remplit les vecteurs events_tri[] mais pas events_merged[].
 
 - la classe mf_out represente un fichier midi en cours d'ecriture, mais ce n'est pas elle qui effectue le job.
   Elle fournit juste des données et de methodes utilisees par song::save()
 
+TIMING
 
+- chaque event a 3 timestamps
+	int mf_timestamp;	// midifile timestamp en midi ticks
+	int ms_timestamp;	// millisecond timestamp apres application du tempo (via 1 ou plusieurs tempo events)
+	int us_timestamp;	// microsecond timestamp   "       "        "   "
+  ms_timestamp et us_timestamp sont redondants, un seul des deux devrait subsister a terme.
+  Leurs valeurs sont mises a jour par song::apply_tempo() et song::apply_tempo_u() respectivement (apres merge).
 
+DUMP
 
-
+- song::dump()
+	produit une representation reversible, au depart destine a etre compatible avec les progs MF2T/T2MF de Piet van Oostrum
+- song::dump2()
+	ajoute pour chaque event des infos detaillees de timing y compris hh:mn:ss et bars/beats 
 */
 
 // un fichier midi en cours de lecture
@@ -103,9 +131,9 @@ class song;
 class track {
 public :
 song * parent;
-vector <midi_event> events;			// les events, eventuellement dans le desordre
+vector <midi_event> events;		// les events, eventuellement dans le desordre
 vector <int> events_tri;		// acces aux events tries
-vector <midi_event_ext> event_exts;		// bytes des sysex et meta-events
+vector <midi_event_ext> event_exts;	// bytes des sysex et meta-events
 int flags;
 // methodes
 void load( mf_in * mst, song * chanson );
