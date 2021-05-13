@@ -1,3 +1,4 @@
+#include <math.h>
 #include <gtk/gtk.h>
 #include <mpg123.h>
 

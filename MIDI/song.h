@@ -1,0 +1,169 @@
+#ifndef SONG_H
+#define SONG_H
+
+#include "midi_event.h"
+
+/*
+- la classe song stocke en memoire un morceau de musique, tel qu'on peut lire ou ecrire dans une midi-file
+  l'essentiel de l'info est dans une collection de tracks.
+
+- la classe track contient essentiellement des events.
+
+- la classe mf_in represente un fichier midi en cours de lecture, mais ce n'est pas elle qui effectue le job.
+  Elle fournit juste des données et de methodes utilisees par song::load() qui itere track::load()
+
+- la classe mf_out represente un fichier midi en cours d'ecriture, mais ce n'est pas elle qui effectue le job.
+  Elle fournit juste des données et de methodes utilisees par song::save()
+
+
+
+
+
+*/
+
+// un fichier midi en cours de lecture
+class mf_in {
+public :
+int toberead;	// number of bytes of current chuck remaining
+int totalread;	// total number of bytes already read
+FILE * fil;
+// constructeur
+mf_in() : totalread(0), fil(NULL) {};
+// destructeur
+~mf_in() { if ( fil ) fclose( fil ); };
+// methodes
+int mopen( const char * fnam );
+int mgetc();
+int readvarinum();			// readvarinum - read a varying-length number
+int read_big_endian( int n );		// lire un nombre de n bytes en big-endian
+void chkfourcc( const char * fcc );	// lire et verifier un fourcc
+};
+
+// un fichier midi en cours d'ecriture
+class mf_out {
+public :
+vector <unsigned char> data;		// le fichier entier en RAM
+int cur_chunk_pos;			// position du 1er byte du chunk MTrk courant dans mf_data
+unsigned int current_time;
+// constructeur
+mf_out() : current_time(0) {};
+// methodes
+void mputc( int c ) {
+	data.push_back( (unsigned char)c );
+	}
+void writevarinum( unsigned int v );		// write a varying-length number
+void write_time( unsigned int v );	// ecrire le temps relatif et mettre a jour le temps absolu
+void write_big_endian( int v, int n );	// ecrire un nombre de n bytes en big-endian
+void writefourcc( const char * fcc );	// ecrire un fourcc
+void write_chunk_size();		// mettre a jour la taille du chunk
+void commit( const char * fnam );	// sauver sur disk
+};
+
+// classe derivee pour l'ecriture
+class wevent : public midi_event {
+public :
+// methodes
+int write( mf_out * mf );	// ecrire un event dans un fichier midi, rend iext comme dump()
+};
+
+// classe derivee pour l'ecriture de l'extension d'un event t.q. sysex ou meta-event avec plus de 4 bytes de data
+class wevent_ext : public midi_event_ext {
+public :
+void write( mf_out * mf );		// ecrire un event etendu (en binaire, peu importe le type)
+};
+
+// time signature = definition mesure
+// utilisee pour afficher (eventuellement) bars et beats
+class timesig {
+public :
+int bpbar;	// numerateur = beats per bar
+int mf_tpb;	// midifile ticks per beat
+int mf_timestamp;	// midifile timestamp de l'event generateur
+// constructeur
+timesig( int t, int division, int numerateur=4, int denominateur=4, int thirtysecondnotes_per_midiquarter=8 ) {
+  mf_timestamp = t;
+  bpbar = numerateur;
+/* valeur du beat en ticks : le calcul logique serait :
+	valeur de la 32 nd en ticks : v  = division / thirtysecondnotes_per_midiquarter;
+	valeur de la whole en ticks : v *= 32;
+	valeur du beat en ticks     : v /= denominateur;
+   on change l'ordre des operations pour tout faire en int :
+*/
+  // valeur de la whole note en ticks (normalement c'est division * 4 )
+  mf_tpb  = division * 32;
+  mf_tpb /= thirtysecondnotes_per_midiquarter;	// normalement c'est 8
+  // valeur du beat en ticks
+  mf_tpb /= denominateur;
+  };
+};
+
+class song;
+
+// piste (pouvant contenir de multiples canaux)
+class track {
+public :
+song * parent;
+vector <midi_event> events;			// les events, eventuellement dans le desordre
+vector <int> events_tri;		// acces aux events tries
+vector <midi_event_ext> event_exts;		// bytes des sysex et meta-events
+int flags;
+// methodes
+void load( mf_in * mst, song * chanson );
+void post_rec();			// post-recording process sur une track juste enregistree
+void dump( FILE * fil );
+};
+
+// morceau
+class song {
+public :
+int format;
+int division;
+double pulsation;	// t.q. le coeff de conversion mf_t --> ms_t est pulsation * tempo
+vector <track> tracks;
+vector <midi_event *> events_merged;
+vector <timesig> timesigs;		// les time signatures telles que 4/4, 6/8, 5/4...
+
+// constructeur
+song() : division(384), pulsation( 1.0 / (1000.0 * (double)division ) ) { /* tracks.reserve(1024); */ };
+
+// methodes
+int load( const char * fnam );
+int merge();			// mettre a jour events_merged
+void set_cadence( double k );	// duree relative d'execution (defaut 1.0)
+void apply_tempo();		// base sur events_merged
+void apply_tempo_u();		// base sur events_merged
+int is_fresh_recorded();	// si oui ms_t = mf_t
+
+int mft2mst( int mf_timestamp );	// conversion timestamp ponctuelle
+int mft2mst0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle
+    double ms_t = pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
+    return( evt->ms_timestamp + (int)ms_t );
+    };
+int mst2mft( int ms_timestamp );	// conversion timestamp ponctuelle inverse
+int mst2mft0( int ms_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle inverse
+    double mf_t = double( ms_timestamp - evt->ms_timestamp ) / (pulsation * (double)evt->vel);
+    return( evt->mf_timestamp + (int)ceil(mf_t) );
+    };
+
+int mft2ust( int mf_timestamp );	// conversion timestamp ponctuelle
+int mft2ust0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle
+    double us_t = 1000.0 * pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
+    return( evt->us_timestamp + (int)us_t );
+    };
+int ust2mft( int us_timestamp );	// conversion timestamp ponctuelle inverse
+int ust2mft0( int us_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle inverse
+    double mf_t = double( us_timestamp - evt->us_timestamp ) / (1000.0 * pulsation * (double)evt->vel);
+    return( evt->mf_timestamp + (int)ceil(mf_t) );
+    };
+
+void bar_n_beat( midi_event * ev, int * bar, int * beat );	// calcul bar et beat
+void bar_n_beat( midi_event * ev, int * bar, double * beat );	// calcul bar et beat
+int find( int ms_time );	// rend un index dans events_merged
+int add_new_track();		// ajouter track vierge
+void check();
+void dump( FILE * fil );	// dump par tracks compatible MF2T
+void dump2( FILE * fil );	// dummp merged + tempo applied
+
+int save( const char * fnam );
+};
+#endif

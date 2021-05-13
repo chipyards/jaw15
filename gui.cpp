@@ -286,8 +286,9 @@ glo->para.show();
 
 static void clic_call_back( double M, double N, void * vglo )
 {
-// printf("clic M N %g %g\n", M, N );
 glostru * glo = (glostru *)vglo;
+// printf("clic M N %g %g\n", M, N );
+printf("cursor at %g seconds\n", M / double(glo->pro.af->fsamp) );
 glo->iplayp = M;
 // normalement idle_call va detecter si le curseur n'est pas au bon endroit et va le retracer
 // spectre "ponctuel"
@@ -301,8 +302,9 @@ if	( glo->pro.Lspek.spectre2D )
 
 static void select_call_back( double M0, double N0, double M1, double N1, void * vglo )
 {
-printf("select M0 N0 M1 N1 : %g %g %g %g, dM = %g\n", M0, N0, M1, N1, fabs(M1-M0) );
 glostru * glo = (glostru *)vglo;
+// printf("select M0 N0 M1 N1 : %g %g %g %g, dM = %g\n", M0, N0, M1, N1, fabs(M1-M0) );
+printf("selected %g seconds\n", fabs(M1-M0) / double(glo->pro.af->fsamp) );
 if	( glo->pro.Lspek.src1 )
 	{
 	glo->parametrize();
@@ -323,8 +325,8 @@ if	( glo->pro.Lspek.src1 )
 	glo->pro.auto_layout2( &glo->para.panneau, -1 ); 
 	glo->para.panneau.bandes[0]->fullN();
 	glo->para.panneau.force_repaint = 1;
-	fflush(stdout);
 	}
+fflush(stdout);
 }
 
 static void key_call_back( int v, void * vglo )

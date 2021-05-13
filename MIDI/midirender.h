@@ -7,11 +7,13 @@
 
 #include "../audiofile.h"
 #include "fluid.h"
+#include "song.h"
 
 
 class midirender : public audiofile {
 public:
 fluid flusyn;
+song * lesong;
 
 // constructeur
 midirender() : audiofile() {};
@@ -36,6 +38,12 @@ int midiprocess() {
 // methodes d'interface heritee d'audiofile
 int read_head( const char * fnam ) {
 	int retval;
+	lesong = new song();
+	retval = lesong->load( fnam );
+	if	( retval ) return retval;
+	printf("just read %s\n", fnam );	fflush(stdout);
+	lesong->dump( stdout );			fflush(stdout);
+
 	retval = flusyn.init( fsamp );	// le fsamp d'audiofile
 	if	( retval ) return retval;
 	retval = flusyn.load_sf2();	// selon flusyn.sf2file
@@ -44,6 +52,7 @@ int read_head( const char * fnam ) {
 	qchan = 2;			// toujours stereo
 	estpfr = 0;
 	flusyn.set_gain( 2.0 );
+
 	return 0;
 	};
 
