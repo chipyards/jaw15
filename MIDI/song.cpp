@@ -276,7 +276,7 @@ for	( it = 0; it < tracks.size(); ++it )
 	else	next_ie.push_back( -1 );
 // scrutation
 int it_sel;	// index de la track selectionnee pour fournir le prochain event
-int mintime;	// timestamp du prochain event
+unsigned int mintime;	// timestamp du plus proche prochain event
 midi_event * e, * e_sel;
 while	(1)
 	{
@@ -442,7 +442,7 @@ return cnt;
 
 // traduction ponctuelle de mf_timestamp (midi ticks) en ms (milliseconds)
 // basee sur la track 0 qui doit contenir au moins un tempo event a l'instant 0
-int song::mft2mst( int mf_timestamp )
+int song::mft2mst( unsigned int mf_timestamp )
 {
 if	( tracks.size() < 1 )
 	return -2;
@@ -474,7 +474,7 @@ return( mft2mst0( mf_timestamp, ev ) );
 // return( ev->ms_timestamp + (int)ms_t );
 }
 
-int song::mft2ust( int mf_timestamp )
+int song::mft2ust( unsigned int mf_timestamp )
 {
 if	( tracks.size() < 1 )
 	return -2;
@@ -624,7 +624,7 @@ else	printf("ERREUR merged %d vs %d events\n", events_merged.size(), tot );
 // verif chronologie mf per track
 for	( it = 0; it < tracks.size(); ++it )
 	{
-	int mf_t = -1;
+	unsigned int mf_t = 0;
 	for	( ie = 0; ie < tracks[it].events_tri.size(); ++ie )
 		{
 		ev = &tracks[it].events[ie];
@@ -636,7 +636,7 @@ for	( it = 0; it < tracks.size(); ++it )
 	}
 
 // verif chronologie mf globale
-int mf_t = -1;
+unsigned int mf_t = 0;
 for	( ie = 0; ie < events_merged.size(); ++ie )
 	{
 	if	( events_merged[ie]->mf_timestamp < mf_t )

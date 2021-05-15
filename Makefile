@@ -25,7 +25,7 @@ endif
 # listes
 SOURCESC = modpop3.c $(ADEV)
 SOURCESCPP = JLUP/gluplot.cpp JLUP/jluplot.cpp JLUP/layer_rgb.cpp \
-    spectro.cpp process.cpp gui.cpp param.cpp wavio.cpp mp3in.cpp MIDI/fluid.cpp MIDI/song.cpp
+    spectro.cpp process.cpp gui.cpp param.cpp wavio.cpp mp3in.cpp MIDI/fluid.cpp MIDI/midirender.cpp MIDI/song.cpp
 HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
     JLUP/layer_rgb.h JLUP/layer_lod.h JLUP/layer_u.h JLUP/strip_x_midi.h \
     modpop3.h pa_devs.h process.h gui.h cli_parse.h spectro.h autobuf.h param.h audiofile.h wavio.h mp3in.h \
@@ -33,7 +33,7 @@ HEADERS = JLUP/gluplot.h JLUP/jluplot.h \
 
 OBJS= $(SOURCESC:.c=.o) gluplot.o jluplot.o \
     layer_rgb.o \
-    spectro.o process.o gui.o param.o wavio.o mp3in.o fluid.o song.o
+    spectro.o process.o gui.o param.o wavio.o mp3in.o fluid.o midirender.o song.o
 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
 
@@ -101,6 +101,8 @@ mp3in.o : mp3in.cpp ${HEADERS}
 	gcc $(INCS) -c mp3in.cpp
 fluid.o : MIDI/fluid.cpp ${HEADERS}
 	gcc $(INCS) -c MIDI/fluid.cpp
+midirender.o : MIDI/midirender.cpp ${HEADERS}
+	gcc $(INCS) -c MIDI/midirender.cpp
 song.o : MIDI/fluid.cpp ${HEADERS}
 	gcc $(INCS) -c MIDI/song.cpp
 # dependances

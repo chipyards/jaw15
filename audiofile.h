@@ -27,7 +27,7 @@ monosamplesize(2), qchan(1), fsamp(44100), estpfr(0), realpfr(0) {};
 
 // retourne 0 si Ok
 virtual int read_head( const char * fnam ) = 0;
-// retourne le nombre de pcm frames lus ( 0 si fini, <0 si err )
+// retourne le nombre de pcm frames lus : <= qpfr, 0 si fini, <0 si err
 virtual int read_data_p( void * pcmbuf, unsigned int qpfr ) = 0;
 virtual void afclose() = 0;
 };

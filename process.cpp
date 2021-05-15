@@ -150,7 +150,7 @@ if	( af->qchan == 2 )
 				Rbuf.data[j++] = pcmbuf[i+1];
 				}
 			}
-		} while ( retval == (int)qpfr );
+		} while ( retval > 0 );
 	Lbuf.size = Rbuf.size = af->realpfr;
 	}
 	{			// boucle mono
@@ -169,7 +169,7 @@ if	( af->qchan == 2 )
 				Lbuf.data[j++]  = pcmbuf[i];
 				}
 			}
-		} while ( retval == (int)qpfr );
+		} while ( retval > 0 );
 	Lbuf.size = af->realpfr;
 	}
 if	( j != af->realpfr )	// cela ne peut pas arriver, cette verif est parano

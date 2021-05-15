@@ -6,7 +6,7 @@ class midi_event {
 public :
 int ms_timestamp;	// millisecond timestamp
 int us_timestamp;	// microsecond timestamp
-int mf_timestamp;	// midifile timestamp (variable tempo)
+unsigned int mf_timestamp;	// midifile timestamp ABSOLU (en ticks de duree variable selon tempo)
 int midistatus;	// le canal est zeroed, sauf pour F7 et FF
 int channel;
 int midinote;	// ou controller number ou type de meta-event
@@ -14,7 +14,14 @@ int vel;	// ou valeur de controle
 int flags;
 int iext;	// index d'extension : note off (si note on) ou string (si meta-event) ou -1 si rien
 
-// methode
+// methodes
+
+int playable() {
+	if	( ( midistatus & 0xF0 ) == 0xF0 )
+		return 0;
+	return 1;
+	};
+
 int dump( FILE * fil )
 {
 fprintf( fil, "%d ", mf_timestamp );

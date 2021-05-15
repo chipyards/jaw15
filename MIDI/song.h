@@ -39,7 +39,13 @@ TIMING
 	int ms_timestamp;	// millisecond timestamp apres application du tempo (via 1 ou plusieurs tempo events)
 	int us_timestamp;	// microsecond timestamp   "       "        "   "
   ms_timestamp et us_timestamp sont redondants, un seul des deux devrait subsister a terme.
+	- la motivation de ms_timestamp est la compatibilite avec portmidi qui prend des millisecondes
+	- la motivation de us_timestamp est de moderer l'effet de cumulation des erreurs d'arrondi sur les tempo events
+	  cette moderation pourrait etre encore meilleure avec un timestamp en double...
+	- pour local synth (fluid, FM ou brisky) un timestamp en samples serait confortable, sans plus
   Leurs valeurs sont mises a jour par song::apply_tempo() et song::apply_tempo_u() respectivement (apres merge).
+  Ce choix d'unite n'a aucune incidence sur l'ordre d'execution des events (merge est effectue avant, sur la base
+  des midi timestamps)
 
 DUMP
 
@@ -72,7 +78,7 @@ class mf_out {
 public :
 vector <unsigned char> data;		// le fichier entier en RAM
 int cur_chunk_pos;			// position du 1er byte du chunk MTrk courant dans mf_data
-unsigned int current_time;
+unsigned int current_time;		// en quoi ???
 // constructeur
 mf_out() : current_time(0) {};
 // methodes
@@ -162,7 +168,7 @@ void apply_tempo();		// base sur events_merged
 void apply_tempo_u();		// base sur events_merged
 int is_fresh_recorded();	// si oui ms_t = mf_t
 
-int mft2mst( int mf_timestamp );	// conversion timestamp ponctuelle
+int mft2mst( unsigned int mf_timestamp );	// conversion timestamp ponctuelle
 int mft2mst0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle
     double ms_t = pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
     return( evt->ms_timestamp + (int)ms_t );
@@ -173,7 +179,7 @@ int mst2mft0( int ms_timestamp, midi_event * evt ) {	// conversion timestamp pon
     return( evt->mf_timestamp + (int)ceil(mf_t) );
     };
 
-int mft2ust( int mf_timestamp );	// conversion timestamp ponctuelle
+int mft2ust( unsigned int mf_timestamp );	// conversion timestamp ponctuelle
 int mft2ust0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle
     double us_t = 1000.0 * pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
     return( evt->us_timestamp + (int)us_t );
