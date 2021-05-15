@@ -70,6 +70,7 @@ else if	( midiflag )
 		printf("error midi read_head: %d\n", retval );
 		fflush(stdout); return -1;
 		}
+	mid.flusyn.set_gain( 1.0 );
 	}
 else	{
 	af = (audiofile *)&wavp;

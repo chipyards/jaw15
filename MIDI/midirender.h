@@ -16,8 +16,7 @@ fluid flusyn;
 song * lesong;
 
 int next_evi;	// next playable event index (in lesong->events_merged)
-		// -1 if not playing or end-of-song
-// int next_pfr;	// next event's timestamp in pcm frames, devant realpfr
+		// -1 if not playing or beyond end-of-song
 
 // constructeur
 midirender() : audiofile(), next_evi(-1) {};

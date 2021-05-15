@@ -99,6 +99,8 @@ param.o : param.cpp ${HEADERS}
 	gcc $(INCS) -c param.cpp
 mp3in.o : mp3in.cpp ${HEADERS}
 	gcc $(INCS) -c mp3in.cpp
+wavio.o : wavio.cpp ${HEADERS}
+	gcc $(INCS) -c wavio.cpp
 fluid.o : MIDI/fluid.cpp ${HEADERS}
 	gcc $(INCS) -c MIDI/fluid.cpp
 midirender.o : MIDI/midirender.cpp ${HEADERS}

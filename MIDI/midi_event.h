@@ -9,7 +9,7 @@ int us_timestamp;	// microsecond timestamp
 unsigned int mf_timestamp;	// midifile timestamp ABSOLU (en ticks de duree variable selon tempo)
 int midistatus;	// le canal est zeroed, sauf pour F7 et FF
 int channel;
-int midinote;	// ou controller number ou type de meta-event
+int midinote;	// ou controller number ou program number ou channel-after-touch value ou type de meta-event 
 int vel;	// ou valeur de controle
 int flags;
 int iext;	// index d'extension : note off (si note on) ou string (si meta-event) ou -1 si rien
@@ -39,7 +39,7 @@ switch( midistatus )
 		break;
 	case 0xD0 : fprintf( fil, "ChPr ch=%d v=%d\n", channel+1, midinote );	// channel pressure = channel after touch
 		break;
-	case 0xE0 : fprintf( fil, "Pb ch=%d v=%d\n", channel+1, vel );		// pitch bend
+	case 0xE0 : fprintf( fil, "Pb ch=%d v=%d\n", channel+1, vel );		// pitch bend (vel sur 14 bits => pas de midinote)
 		break;
 	case 0xFF :
 	switch	( midinote )
