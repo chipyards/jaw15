@@ -42,6 +42,7 @@ TIMING
 	- la motivation de ms_timestamp est la compatibilite avec portmidi qui prend des millisecondes
 	- la motivation de us_timestamp est de moderer l'effet de cumulation des erreurs d'arrondi sur les tempo events
 	  cette moderation pourrait etre encore meilleure avec un timestamp en double...
+	  une autre motivation serait le fait que la us est l'unite officielle de tempo dans la spec midifile (us/quarter_note).
 	- pour local synth (fluid, FM ou brisky) un timestamp en samples serait confortable, sans plus
   Leurs valeurs sont mises a jour par song::apply_tempo() et song::apply_tempo_u() respectivement (apres merge).
   Ce choix d'unite n'a aucune incidence sur l'ordre d'execution des events (merge est effectue avant, sur la base
@@ -178,24 +179,25 @@ unsigned int get_duration_us() {	// apres apply_tempo_u !
     return 0;
     };
 
-int mft2mst( unsigned int mf_timestamp );	// conversion timestamp ponctuelle
-int mft2mst0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle
+// formules de conversion (utiles seulement en cas de modification du song à chaud)
+int mft2mst( unsigned int mf_timestamp );	// conversion timestamp ponctuelle absolue
+int mft2mst0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle relative
     double ms_t = pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
     return( evt->ms_timestamp + (int)ms_t );
     };
-int mst2mft( int ms_timestamp );	// conversion timestamp ponctuelle inverse
-int mst2mft0( int ms_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle inverse
+int mst2mft( int ms_timestamp );
+int mst2mft0( int ms_timestamp, midi_event * evt ) {
     double mf_t = double( ms_timestamp - evt->ms_timestamp ) / (pulsation * (double)evt->vel);
     return( evt->mf_timestamp + (int)ceil(mf_t) );
     };
 
-int mft2ust( unsigned int mf_timestamp );	// conversion timestamp ponctuelle
-int mft2ust0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle
+int mft2ust( unsigned int mf_timestamp );
+int mft2ust0( int mf_timestamp, midi_event * evt ) {
     double us_t = 1000.0 * pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
     return( evt->us_timestamp + (int)us_t );
     };
-int ust2mft( int us_timestamp );	// conversion timestamp ponctuelle inverse
-int ust2mft0( int us_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle inverse
+int ust2mft( int us_timestamp );
+int ust2mft0( int us_timestamp, midi_event * evt ) {
     double mf_t = double( us_timestamp - evt->us_timestamp ) / (1000.0 * pulsation * (double)evt->vel);
     return( evt->mf_timestamp + (int)ceil(mf_t) );
     };
@@ -204,7 +206,7 @@ void bar_n_beat( midi_event * ev, int * bar, int * beat );	// calcul bar et beat
 void bar_n_beat( midi_event * ev, int * bar, double * beat );	// calcul bar et beat
 int find( int ms_time );	// rend un index dans events_merged
 int add_new_track();		// ajouter track vierge
-void check();
+int check( int verbose );	// retour 0 si ok
 void dump( FILE * fil );	// dump par tracks compatible MF2T
 void dump2( FILE * fil );	// dummp merged + tempo applied
 

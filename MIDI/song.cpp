@@ -437,9 +437,6 @@ for	( ie = 0; ie < (int)tr0->events_tri.size(); ++ie )
 return cnt;
 }
 
-// traduction ponctuelle de ms (milliseconds) en mf_timestamp (midi ticks)
-// basee sur la track 0 qui doit contenir au moins un tempo event a l'instant 0
-
 // traduction ponctuelle de mf_timestamp (midi ticks) en ms (milliseconds)
 // basee sur la track 0 qui doit contenir au moins un tempo event a l'instant 0
 int song::mft2mst( unsigned int mf_timestamp )
@@ -447,7 +444,8 @@ int song::mft2mst( unsigned int mf_timestamp )
 if	( tracks.size() < 1 )
 	return -2;
 // premiere etape : savoir dans quel segment de la fonction PWL on est.
-// le segment sera designe par l'index du tempo event dans la track 0
+// c'est a dire quel est le tempo event anterieur le plus proche
+// (on considere seulement les tempo-events de la track 0)
 int iseg, iseg_old;
 midi_event * ev;
 track * tr0 = &tracks[0];
@@ -467,25 +465,20 @@ while	( iseg < (int)tr0->events_tri.size() )
 	}
 if	( iseg_old < 0 )
 	return -1;
-// deuxieme etape : effectuer le calcul (ici maniere lourde)
+// deuxieme etape : effectuer le calcul relatif au tempo-event choisi
 ev = &tr0->events[ tr0->events_tri[ iseg_old ] ];
 return( mft2mst0( mf_timestamp, ev ) );
-// double ms_t = pulsation * (double)ev->vel * double( mf_timestamp - ev->mf_timestamp );
-// return( ev->ms_timestamp + (int)ms_t );
 }
 
 int song::mft2ust( unsigned int mf_timestamp )
 {
 if	( tracks.size() < 1 )
 	return -2;
-// premiere etape : savoir dans quel segment de la fonction PWL on est.
-// le segment sera designe par l'index du tempo event dans la track 0
+// premiere etape
 int iseg, iseg_old;
 midi_event * ev;
 track * tr0 = &tracks[0];
 iseg = 0; iseg_old = -1;
-// securite : on n'aura iseg_old >= 0 que si il existe au moins un tempo event
-// anterieur a mf_timestamp
 while	( iseg < (int)tr0->events_tri.size() )
 	{
 	ev = &tr0->events[ tr0->events_tri[ iseg ] ];
@@ -499,25 +492,22 @@ while	( iseg < (int)tr0->events_tri.size() )
 	}
 if	( iseg_old < 0 )
 	return -1;
-// deuxieme etape : effectuer le calcul (ici maniere lourde)
+// deuxieme etape
 ev = &tr0->events[ tr0->events_tri[ iseg_old ] ];
 return( mft2ust0( mf_timestamp, ev ) );
-// double ms_t = pulsation * (double)ev->vel * double( mf_timestamp - ev->mf_timestamp );
-// return( ev->ms_timestamp + (int)ms_t );
 }
 
+// traduction ponctuelle de ms (milliseconds) en mf_timestamp (midi ticks)
+// basee sur la track 0 qui doit contenir au moins un tempo event a l'instant 0
 int song::mst2mft( int ms_timestamp )
 {
 if	( tracks.size() < 1 )
 	return -2;
-// premiere etape : savoir dans quel segment de la fonction PWL on est.
-// le segment sera designe par l'index du tempo event dans la track 0
+// premiere etape
 int iseg, iseg_old;
 midi_event * ev;
 track * tr0 = &tracks[0];
 iseg = 0; iseg_old = -1;
-// securite : on n'aura iseg_old >= 0 que si il existe au moins un tempo event
-// anterieur a ms_timestamp
 while	( iseg < (int)tr0->events_tri.size() )
 	{
 	ev = &tr0->events[ tr0->events_tri[ iseg ] ];
@@ -531,25 +521,20 @@ while	( iseg < (int)tr0->events_tri.size() )
 	}
 if	( iseg_old < 0 )
 	return -1;
-// deuxieme etape : effectuer le calcul (ici maniere lourde)
+// deuxieme etape
 ev = &tr0->events[ tr0->events_tri[ iseg_old ] ];
 return( mst2mft0( ms_timestamp, ev ) );
-// double mf_t = double( ms_timestamp - ev->ms_timestamp ) / (pulsation * (double)ev->vel);
-// return( ev->mf_timestamp + (int)ceil(mf_t) );
 }
 
 int song::ust2mft( int us_timestamp )
 {
 if	( tracks.size() < 1 )
 	return -2;
-// premiere etape : savoir dans quel segment de la fonction PWL on est.
-// le segment sera designe par l'index du tempo event dans la track 0
+// premiere etape
 int iseg, iseg_old;
 midi_event * ev;
 track * tr0 = &tracks[0];
 iseg = 0; iseg_old = -1;
-// securite : on n'aura iseg_old >= 0 que si il existe au moins un tempo event
-// anterieur a us_timestamp
 while	( iseg < (int)tr0->events_tri.size() )
 	{
 	ev = &tr0->events[ tr0->events_tri[ iseg ] ];
@@ -563,11 +548,9 @@ while	( iseg < (int)tr0->events_tri.size() )
 	}
 if	( iseg_old < 0 )
 	return -1;
-// deuxieme etape : effectuer le calcul (ici maniere lourde)
+// deuxieme etape
 ev = &tr0->events[ tr0->events_tri[ iseg_old ] ];
 return( ust2mft0( us_timestamp, ev ) );
-// double mf_t = double( ms_timestamp - ev->ms_timestamp ) / (pulsation * (double)ev->vel);
-// return( ev->mf_timestamp + (int)ceil(mf_t) );
 }
 
 // post processing apres enregistrement
@@ -599,9 +582,10 @@ else	{
 printf("end post_rec\n");
 }
 
-void song::check()
+// check apres merge et apply_tempo, rend le nombre d'erreurs
+int song::check( int verbose )
 {
-unsigned int it, s0, s, ie;
+unsigned int it, s0, s, ie, retval=0;
 midi_event * ev;
 
 printf( "----- CHECK : format %d, %d tracks, division=%d\n", format, tracks.size(), division );
@@ -613,13 +597,13 @@ for	( it = 0; it < tracks.size(); ++it )
 	s0 = tracks[it].events.size();
 	s  = tracks[it].events_tri.size();
 	if	( s0 == s )
-		printf("track %d : %d events\n", it, s  );
-	else	printf("ERREUR track %d : %d events # %d events tries\n", it, s0, s  );
+		{ if ( verbose ) printf("track %d : %d events\n", it, s  ); }
+	else	{ retval++; printf("ERREUR track %d : %d events # %d events tries\n", it, s0, s  ); }
 	tot += s;
 	}
 if	( (int)events_merged.size() == tot )
-	printf("total merged ok %d events\n", tot );
-else	printf("ERREUR merged %d vs %d events\n", events_merged.size(), tot );
+	{ if ( verbose ) printf("total merged ok %d events\n", tot ); }
+else	{ retval++; printf("ERREUR merged %d vs %d events\n", events_merged.size(), tot ); }
 
 // verif chronologie mf per track
 for	( it = 0; it < tracks.size(); ++it )
@@ -629,59 +613,65 @@ for	( it = 0; it < tracks.size(); ++it )
 		{
 		ev = &tracks[it].events[ie];
 		if	( ev->mf_timestamp < mf_t )
-			printf("err chronologie mf event %d.%d : %d < %d\n", it, ie, ev->mf_timestamp, mf_t );
+			{ retval++; printf("err chronologie mf event %d.%d : %d < %d\n", it, ie, ev->mf_timestamp, mf_t ); }
 		mf_t = ev->mf_timestamp;
 		}
-	printf("chronogie mf timestamp verifiee, trk %d, fin @ %d ticks\n", it, mf_t );
+	{ if ( verbose ) printf("chronogie mf timestamp verifiee, trk %d, fin @ %d ticks\n", it, mf_t ); }
 	}
 
 // verif chronologie mf globale
-unsigned int mf_t = 0;
+int mf_t = -1;
 for	( ie = 0; ie < events_merged.size(); ++ie )
 	{
-	if	( events_merged[ie]->mf_timestamp < mf_t )
-		printf("err chronologie mf event %d : %d < %d\n", ie, events_merged[ie]->mf_timestamp, mf_t );
+	if	( (int)events_merged[ie]->mf_timestamp < mf_t )
+		{ retval++; printf("err chronologie mf event %d : %d < %d\n", ie, events_merged[ie]->mf_timestamp, mf_t ); }
 	mf_t = events_merged[ie]->mf_timestamp;
 	}
-printf("chronogie mf timestamp verifiee (apres merge) fin @ %d ticks\n", mf_t );
+{ if ( verbose ) printf("chronogie mf timestamp verifiee (apres merge) fin @ %d ticks\n", mf_t ); }
 
 // verif chronologie ms globale
 int ms_t = -1;
 for	( ie = 0; ie < events_merged.size(); ++ie )
 	{
 	if	( events_merged[ie]->ms_timestamp < ms_t )
-		printf("err chronologie ms event %d : %d < %d\n", ie, events_merged[ie]->ms_timestamp, ms_t );
+		{ retval++; printf("err chronologie ms event %d : %d < %d\n", ie, events_merged[ie]->ms_timestamp, ms_t ); }
 	ms_t = events_merged[ie]->ms_timestamp;
 	}
-printf("chronogie ms timestamp verifiee, fin @ %d ms\n", ms_t);
+{ if ( verbose ) printf("chronogie ms timestamp verifiee, fin @ %d ms\n", ms_t); }
 // verif chronologie us globale
 int us_t = -1;
 for	( ie = 0; ie < events_merged.size(); ++ie )
 	{
 	if	( events_merged[ie]->us_timestamp < us_t )
-		printf("err chronologie us event %d : %d < %d\n", ie, events_merged[ie]->us_timestamp, us_t );
+		{ retval++; printf("err chronologie us event %d : %d < %d\n", ie, events_merged[ie]->us_timestamp, us_t ); }
 	us_t = events_merged[ie]->us_timestamp;
 	}
-printf("chronogie us timestamp verifiee, fin @ %d us\n", us_t);
+{ if ( verbose ) printf("chronogie us timestamp verifiee, fin @ %d us\n", us_t); }
 // listing patch changes
-for	( ie = 0; ie < events_merged.size(); ++ie )
+if	( verbose )
 	{
-	ev = events_merged[ie];
-	if	( ev->midistatus == 0xC0 )
-		printf("  program change @ %8d ticks (%8d ms) : ch %d, prog %d\n", ev->mf_timestamp, ev->ms_timestamp,
-			ev->channel, ev->midinote );
+	for	( ie = 0; ie < events_merged.size(); ++ie )
+		{
+		ev = events_merged[ie];
+		if	( ev->midistatus == 0xC0 )
+			printf("  program change @ %8d ticks (%8d ms) : ch %d, prog %d\n", ev->mf_timestamp, ev->ms_timestamp,
+				ev->channel, ev->midinote );
+		}
 	}
-// listing tempo events
+// counting tempo events
 tot = 0;
 for	( ie = 0; ie < events_merged.size(); ++ie )
 	{
 	ev = events_merged[ie];
 	if	( ( ev->midistatus == 0xFF ) && ( ev->midinote == 0x51 ) )
 		{
-		printf("  tempo event    @ %8d ticks (%8d ms) : tempo = %d\n",
-			ev->mf_timestamp, ev->ms_timestamp, ev->vel );
-		printf("  tempo event    @ %8d ticks (%9d us) : tempo = %d\n",
-			ev->mf_timestamp, ev->us_timestamp, ev->vel );
+		if	( verbose )
+			{
+			printf("  tempo event    @ %8d ticks (%8d ms) : tempo = %d\n",
+				ev->mf_timestamp, ev->ms_timestamp, ev->vel );
+			printf("  tempo event    @ %8d ticks (%9d us) : tempo = %d\n",
+				ev->mf_timestamp, ev->us_timestamp, ev->vel );
+			}
 		++tot;
 		}
 	}
@@ -697,60 +687,73 @@ if	( tracks.size() )
 		}
 	}
 if	( tot == tot2 )
-	printf("vu %d tempo events tous dans track 0\n", tot );
-else	printf("ATTENTION %d tempo events dont %d dans track 0\n", tot, tot2 );
+	{ printf("vu %d tempo events tous dans track 0\n", tot ); }
+else	{ retval++; printf("ATTENTION %d tempo events dont %d HORS track 0\n", tot, tot - tot2 ); }
 // listing time sig events
-for	( ie = 0; ie < events_merged.size(); ++ie )
+if	( verbose )
 	{
-	ev = events_merged[ie];
-	if	( ( ev->midistatus == 0xFF ) && ( ev->midinote == 0x58 ) )
+	for	( ie = 0; ie < events_merged.size(); ++ie )
 		{
-		char * bytes = ((char *)(&ev->vel));
-		printf("  time sig event @ %8d ticks (%8d ms) : %d/%d, metr=%d, %d 32nd/Midi_Q\n",
-			ev->mf_timestamp, ev->ms_timestamp, bytes[3], 1<<bytes[2], bytes[1], bytes[0] );
+		ev = events_merged[ie];
+		if	( ( ev->midistatus == 0xFF ) && ( ev->midinote == 0x58 ) )
+			{
+			char * bytes = ((char *)(&ev->vel));
+			printf("  time sig event @ %8d ticks (%8d ms) : %d/%d, metr=%d, %d 32nd/Midi_Q\n",
+				ev->mf_timestamp, ev->ms_timestamp, bytes[3], 1<<bytes[2], bytes[1], bytes[0] );
+			}
 		}
-	}
-// listing time sig compiled events
-for	( ie = 0; ie < timesigs.size(); ++ie )
-	{
-	printf("  time sig       @ %8d ticks : %d beats/bar, %d ticks each\n",
-			timesigs[ie].mf_timestamp, timesigs[ie].bpbar, timesigs[ie].mf_tpb );
+	// listing time sig compiled events
+	for	( ie = 0; ie < timesigs.size(); ++ie )
+		{
+		printf("  time sig       @ %8d ticks : %d beats/bar, %d ticks each\n",
+				timesigs[ie].mf_timestamp, timesigs[ie].bpbar, timesigs[ie].mf_tpb );
+		}
 	}
 // re-calcul timing pour validation de la fonction mft2ust()
-int dev, devmin, devmax;
-// printf("recalcul apply_tempo begin\n");
-tot = 0; devmin = 0x7FFFFFFF; devmax = -devmin;
-for	( ie = 0; ie < events_merged.size(); ++ie )
+if	( verbose )
 	{
-	ev = events_merged[ie];
-	us_t = mft2ust( ev->mf_timestamp );
-	dev = us_t - ev->us_timestamp;
-	if	( dev != 0 )
+	int dev, devmin, devmax;
+	// printf("recalcul apply_tempo begin\n");
+	tot = 0; devmin = 0x7FFFFFFF; devmax = -devmin;
+	for	( ie = 0; ie < events_merged.size(); ++ie )
 		{
-		// printf("err recalcul us_t : event %d : %d vs %d\n", ie, us_t, ev->us_timestamp );
-		++tot;
+		ev = events_merged[ie];
+		us_t = mft2ust( ev->mf_timestamp );
+		if	( us_t < 0 )
+			break;
+		dev = us_t - ev->us_timestamp;
+		if	( dev != 0 )
+			{
+			// printf("err recalcul us_t : event %d : %d vs %d\n", ie, us_t, ev->us_timestamp );
+			++tot;
+			}
+		if	( dev > devmax ) devmax = dev;
+		if	( dev < devmin ) devmin = dev;
 		}
-	if	( dev > devmax ) devmax = dev;
-	if	( dev < devmin ) devmin = dev;
-	}
-printf("recalcul apply_tempo done %d <= dev <= %d, %d errs\n", devmin, devmax, tot );
-// re-calcul timing pour validation de la fonction mft2ust()
-// printf("recalcul deply tempo begin\n");
-tot = 0; devmin = 0x7FFFFFFF; devmax = -devmin;
-for	( ie = 0; ie < events_merged.size(); ++ie )
-	{
-	ev = events_merged[ie];
-	mf_t = ust2mft( ev->us_timestamp );
-	dev = mf_t - ev->mf_timestamp;
-	if	( dev != 0 )
+	if	( us_t >= 0 )
+		printf("recalcul apply_tempo done %d <= dev <= %d, %d errs\n", devmin, devmax, tot );
+	// printf("recalcul deply tempo begin\n");
+	tot = 0; devmin = 0x7FFFFFFF; devmax = -devmin;
+	for	( ie = 0; ie < events_merged.size(); ++ie )
 		{
-		// printf("err recalcul mf_t : event %d : %d vs %d\n", ie, mf_t, ev->mf_timestamp );
-		++tot;
+		ev = events_merged[ie];
+		mf_t = ust2mft( ev->us_timestamp );
+		if	( mf_t < 0 )
+			break;
+		dev = mf_t - ev->mf_timestamp;
+		if	( dev != 0 )
+			{
+			// printf("err recalcul mf_t : event %d : %d vs %d\n", ie, mf_t, ev->mf_timestamp );
+			++tot;
+			}
+		if	( dev > devmax ) devmax = dev;
+		if	( dev < devmin ) devmin = dev;
 		}
-	if	( dev > devmax ) devmax = dev;
-	if	( dev < devmin ) devmin = dev;
+	if	(  mf_t >= 0 )
+		printf("recalcul deply_tempo done %d <= dev <= %d, %d errs\n", devmin, devmax, tot );
 	}
-printf("recalcul deply_tempo done %d <= dev <= %d, %d errs\n", devmin, devmax, tot );
+printf( "----- CHECK : %d (%s)\n", retval, (retval?"BAD":"Good") );	fflush(stdout);
+return retval;
 }
 
 // recherche d'un event pour un instant donné (dichotomie)

@@ -22,7 +22,8 @@ printf("just read %s\n", fnam );	fflush(stdout);
 lesong->merge();
 lesong->apply_tempo();
 lesong->apply_tempo_u();	// experimental
-lesong->check();			fflush(stdout);
+retval = lesong->check( verbose );
+if	( retval ) return retval;
 // lesong->dump2( stdout );		fflush(stdout);
 estpfr = ( lesong->get_duration_ms() * (fsamp/100) ) / 10 + 1;
 realpfr = 0;

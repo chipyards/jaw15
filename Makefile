@@ -105,7 +105,7 @@ fluid.o : MIDI/fluid.cpp ${HEADERS}
 	gcc $(INCS) -c MIDI/fluid.cpp
 midirender.o : MIDI/midirender.cpp ${HEADERS}
 	gcc $(INCS) -c MIDI/midirender.cpp
-song.o : MIDI/fluid.cpp ${HEADERS}
+song.o : MIDI/song.cpp ${HEADERS}
 	gcc $(INCS) -c MIDI/song.cpp
 # dependances
 modpop3.o : ${HEADERS}
