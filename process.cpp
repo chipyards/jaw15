@@ -70,7 +70,11 @@ else if	( midiflag )
 		printf("error midi read_head: %d\n", retval );
 		fflush(stdout); return -1;
 		}
-	mid.flusyn.set_gain( 1.0 );
+	// automatic gain adjust
+	double lemax = mid.pre_render();
+	printf("max signal = %g\n", lemax ); fflush(stdout);
+	if	( lemax > 0.0 )
+		mid.flusyn.set_gain( 1.0 / lemax );
 	}
 else	{
 	af = (audiofile *)&wavp;
@@ -181,7 +185,7 @@ if	( ( mp3flag ) && ( retval < 0 ) )
 	printf("error mp3 read_data: %s\n", m3.errfunc );
 	}
 
-printf("decoded PCM frames %u vs %u estimated\n", (unsigned int)af->realpfr, (unsigned int)af->estpfr );
+printf("decoded PCM frames %u vs %u estimated\n", af->realpfr, af->estpfr );
 
 af->afclose();
 

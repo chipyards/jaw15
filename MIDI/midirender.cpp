@@ -6,10 +6,8 @@ using namespace std;
 
 #include "midirender.h"
 
-
-
-
 // ouverture midifile et copie entiere en RAM dans l'objet lesong
+// effectue chargement SF2 selon flusyn.sf2file
 // retour 0 si Ok
 int midirender::read_head( const char * fnam, int verbose )
 {
@@ -27,11 +25,13 @@ lesong->apply_tempo_u();	// experimental
 lesong->check();			fflush(stdout);
 // lesong->dump2( stdout );		fflush(stdout);
 estpfr = ( lesong->get_duration_ms() * (fsamp/100) ) / 10 + 1;
+realpfr = 0;
 
 retval = flusyn.init( fsamp, verbose );	// le fsamp d'audiofile
 if	( retval ) return retval;
 retval = flusyn.load_sf2();	// selon flusyn.sf2file
 if	( retval ) return retval;
+
 monosamplesize = 2;		// pour le moment seult s16...
 qchan = 2;			// toujours stereo
 next_evi = 0;			// start play
@@ -49,7 +49,8 @@ if	( ( next_evi < 0 ) || ( next_evi >= (int)lesong->events_merged.size() ) )
 	return 0;
 unsigned int next_pfr, current_mf_time;
 midi_event * curev;
-short * shbuf = (short *)pcmbuf;
+float * shbuf32 = (float *)pcmbuf;
+short * shbuf16 = (short *)pcmbuf;
 // de l'appel precedent a read_data_p() on herite de next_evi qui pointe sur un event pas encore joue
 totalcnt = 0;
 curev = lesong->events_merged[next_evi];
@@ -63,9 +64,12 @@ while	( totalcnt < qpfr )
 		cnt = ( qpfr - totalcnt );	// prochain event est hors de la fenetre
 	// ecouler du temps
 	if	( cnt > 0 )
-		{	// demander cnt frames au synthe, en stereo entrelacee 16 bits dans 1 seul buffer
-		fluid_synth_write_s16( flusyn.synth, cnt, shbuf, 0, 2, shbuf, 1, 2 );
-		totalcnt += cnt; realpfr += cnt; shbuf += ( cnt * 2 );
+		{
+		// demander cnt frames au synthe, en stereo entrelacee 16 ou 32 bits dans 1 seul buffer
+		if	( monosamplesize == 4 )
+			{ fluid_synth_write_float( flusyn.synth, cnt, shbuf32, 0, 2, shbuf32, 1, 2 ); shbuf32 += ( cnt * 2 ); }
+		else	{ fluid_synth_write_s16(   flusyn.synth, cnt, shbuf16, 0, 2, shbuf16, 1, 2 ); shbuf16 += ( cnt * 2 ); }
+		totalcnt += cnt; realpfr += cnt; 
 		// printf("wrote %d to t=%d pfr = %g s\n", cnt, realpfr, double(realpfr) / 44100.0 );  fflush(stdout); 
 		}
 	if	( totalcnt == qpfr )		// N.B. totalcnt > qpfr est impossible, ok ?
@@ -140,4 +144,33 @@ switch( ev->midistatus )
 		break;
 	}
 fflush( stdout );
+}
+
+// pre-render en float pour evaluer l'amplitude max ( apres read_head() )
+double midirender::pre_render()
+{
+unsigned int qpfr = 2048; 
+float tmpbuf[qpfr*qchan];
+int saved_monosamplesize = monosamplesize;
+monosamplesize = 4;
+double amp, maxamp = 0.0;
+int retval;
+
+do	{
+	retval = read_data_p( (void *)tmpbuf, qpfr );
+	for	( int i = 0; i < ( retval * 2 ); ++i )
+		{
+		amp = fabs( double(tmpbuf[i]) );
+		if	( amp > maxamp )
+			maxamp = amp;
+		}
+	} while ( retval > 0 );
+
+printf("pre-rendered PCM frames %u vs %u estimated\n", realpfr, estpfr ); fflush(stdout);
+
+realpfr = 0;	// ne pas oublier d'avouer qu'on a rien rendu !
+monosamplesize = saved_monosamplesize;	// remettre comme c'etait
+next_evi = 0;				// sans rien oublier
+
+return maxamp;
 }
