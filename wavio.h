@@ -24,7 +24,7 @@ int WAVreadHeader();
 void WAVwriteHeader();
 
 // methodes d'interface heritee d'audiofile
-int read_head( const char * fnam );
+int read_head( const char * fnam, int verbose );
 int read_data_p( void * pcmbuf, unsigned int qpfr );
 void afclose();		// OBLIGATOIRE en cas d'ecriture
 };

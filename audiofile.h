@@ -1,7 +1,7 @@
 #ifndef AUDIOFILE_H
 #define AUDIOFILE_H
 
-// lecture d'un fichier wav ou mp3, en 2 etapes
+// lecture d'un fichier wav ou mp3 ou midi, en 2 etapes
 //	- lecture des parametres
 //	- iteration sur la lecture des audio samples
 // N.B. la methodes read_data_p rend des samples entrelaces dans le cas d'un clip stereo
@@ -26,7 +26,7 @@ monosamplesize(2), qchan(1), fsamp(44100), estpfr(0), realpfr(0) {};
 // methodes
 
 // retourne 0 si Ok
-virtual int read_head( const char * fnam ) = 0;
+virtual int read_head( const char * fnam, int verbose ) = 0;
 // retourne le nombre de pcm frames lus : <= qpfr, 0 si fini, <0 si err
 virtual int read_data_p( void * pcmbuf, unsigned int qpfr ) = 0;
 virtual void afclose() = 0;

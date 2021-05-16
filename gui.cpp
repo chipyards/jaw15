@@ -412,7 +412,7 @@ pro.clean_spectros();
 panneau.dump();
 // charger fichier
 int retval;
-retval = this->pro.audiofile_process();
+retval = this->pro.audiofile_process( this->option_verbose );
 if	( retval )
 	{
 	printf("echec lecture %s, erreur audiofile_process %d\n", this->pro.wnam, retval );
@@ -655,10 +655,11 @@ glo->option_monospec = 0;	// -m // spectrogrammes 2D sur L+R si stereo
 glo->option_noaudio = 0;	// -N // no audio output (for debug)
 glo->option_threads = 1;	// -T // 1 a QTH threads (en plus du principal)
 glo->option_linspec = 0;	// -i // spectrogramme 2D lineaire plutot que log (implique -m)
+glo->option_verbose = 0;	// -v // verbosite
 const char * fnam = NULL;
 
 // 	parsage CLI
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LdpT" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LdpTv" );
 // le parsage est fait, on recupere les args !
 const char * val;
 if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
@@ -670,6 +671,7 @@ if	( ( val = lepar->get( 'm' ) ) )	glo->option_monospec = 1;
 if	( ( val = lepar->get( 'N' ) ) )	glo->option_noaudio = 1;
 if	( ( val = lepar->get( 'T' ) ) )	glo->option_threads = atoi( val );
 if	( ( val = lepar->get( 'i' ) ) )	{ glo->option_linspec = 1; glo->option_monospec = 1; }
+if	( ( val = lepar->get( 'v' ) ) )	glo->option_verbose = atoi( val );
 if	( ( val = lepar->get( 'h' ) ) )
 	{
 	printf( "options :\n"
@@ -681,7 +683,8 @@ if	( ( val = lepar->get( 'h' ) ) )
 	"-m	  : spectrogramme toujours mono\n"
 	"-N	  : no audio output\n"
 	"-T <n>   : threads pour FFT ( 1 a %u )\n"
-	"-i       : spectrogramme 2D lineaire plutot que log (implique -m)"
+	"-i       : spectrogramme 2D lineaire plutot que log (implique -m)\n"
+	"-v <n>   : verbosite ( 1 a 4 )\n"
 	, QTH );
 	return 0;
 	}

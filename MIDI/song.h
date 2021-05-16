@@ -150,7 +150,7 @@ void dump( FILE * fil );
 // morceau
 class song {
 public :
-int format;
+int format;		// 0=single track, 1=normal (concurrent tracks), 2=patterns
 int division;
 double pulsation;	// t.q. le coeff de conversion mf_t --> ms_t est pulsation * tempo
 vector <track> tracks;
@@ -167,6 +167,16 @@ void set_cadence( double k );	// duree relative d'execution (defaut 1.0)
 void apply_tempo();		// base sur events_merged
 void apply_tempo_u();		// base sur events_merged
 int is_fresh_recorded();	// si oui ms_t = mf_t
+unsigned int get_duration_ms() {	// apres apply_tempo !
+    if	( events_merged.size() )
+	return ( events_merged[events_merged.size()-1]->ms_timestamp );
+    return 0;
+    };
+unsigned int get_duration_us() {	// apres apply_tempo_u !
+    if	( events_merged.size() )
+	return ( events_merged[events_merged.size()-1]->us_timestamp );
+    return 0;
+    };
 
 int mft2mst( unsigned int mf_timestamp );	// conversion timestamp ponctuelle
 int mft2mst0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp ponctuelle

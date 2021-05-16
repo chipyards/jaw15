@@ -9,11 +9,13 @@ using namespace std;
 
 
 
-// ouverture midifile et copie entiere en RAM dans l'obet lesong
+// ouverture midifile et copie entiere en RAM dans l'objet lesong
 // retour 0 si Ok
-int midirender::read_head( const char * fnam )
+int midirender::read_head( const char * fnam, int verbose )
 {
 int retval;
+if	( lesong )
+	{ delete lesong; lesong = NULL; }
 lesong = new song();
 retval = lesong->load( fnam );
 if	( retval ) return retval;
@@ -21,17 +23,17 @@ printf("just read %s\n", fnam );	fflush(stdout);
 // lesong->dump( stdout );		fflush(stdout);
 lesong->merge();
 lesong->apply_tempo();
-lesong->apply_tempo_u();
+lesong->apply_tempo_u();	// experimental
 lesong->check();			fflush(stdout);
 // lesong->dump2( stdout );		fflush(stdout);
+estpfr = ( lesong->get_duration_ms() * (fsamp/100) ) / 10 + 1;
 
-retval = flusyn.init( fsamp );	// le fsamp d'audiofile
+retval = flusyn.init( fsamp, verbose );	// le fsamp d'audiofile
 if	( retval ) return retval;
 retval = flusyn.load_sf2();	// selon flusyn.sf2file
 if	( retval ) return retval;
 monosamplesize = 2;		// pour le moment seult s16...
 qchan = 2;			// toujours stereo
-estpfr = 0;
 next_evi = 0;			// start play
 return 0;
 };

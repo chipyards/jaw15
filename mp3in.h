@@ -20,16 +20,15 @@ unsigned int estpfr;	// taille estimee  (PCM frames)
 unsigned int realpfr;	// taille apres lecture
 */
 mpg123_handle *mhand;
-int verbose;	// valeurs utiles 2, 3, 4
 const char * errfunc;	// (une idee de JLN)
 // parametres du mp3
 size_t outblock;	// taille de buffer recommandee (bytes)
 
 // constructeur
-mp3in() : audiofile(), mhand(NULL), verbose(3), errfunc("") {};
+mp3in() : audiofile(), mhand(NULL), errfunc("") {};
 
 // methodes
-int read_head( const char * fnam );	// renseigne les parametres
+int read_head( const char * fnam, int verbose );	// renseigne les parametres
 int read_data_p( void * pcmbuf, unsigned int qpfr ); // remplit 1 buffer
 void afclose() { if ( mhand ) { mpg123_close(mhand); mpg123_delete(mhand); mpg123_exit();} };
 // int read_data_b( void * pcmbuf, size_t qpcmbuf ); // remplit 1 buffer

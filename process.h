@@ -20,7 +20,7 @@ process() : sf2file(""), Lpix(NULL), Rpix(NULL) { wnam[0] = 0; };
 // methodes
 // la partie du process qui traite en memoire les wavs et le spectre
 
-int audiofile_process();	// wav ou mp3 ou mid
+int audiofile_process( int verbose = 0 );	// wav ou mp3 ou mid
 
 int spectrum_compute2D( int force_mono, int opt_lin );
 

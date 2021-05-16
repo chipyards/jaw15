@@ -14,7 +14,7 @@ int sfont_id;
 fluid() : settings(NULL), synth(NULL), sf2file(""), sfont_id(-1) {};
 
 // methodes
-int init( int fsamp );	// return 0 si ok
+int init( int fsamp, int verbose = 0 );	// return 0 si ok
 int load_sf2();		// return 0 si ok
 
 // parameter methods

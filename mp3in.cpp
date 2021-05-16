@@ -19,7 +19,7 @@ gcc -Wall -o mp3in.exe mp3in.cpp -lmpg123
 
 #include "mp3in.h"
 
-int mp3in::read_head( const char * fnam )
+int mp3in::read_head( const char * fnam, int verbose )
 {
 int encoding;
 int retval;
@@ -36,7 +36,7 @@ retval = mpg123_param( mhand, MPG123_RESYNC_LIMIT, -1, 0 );
 if	( retval != MPG123_OK )
 	{ errfunc = "param resync"; return retval; }
 
-retval = mpg123_param( mhand, MPG123_VERBOSE, verbose, 0 );
+retval = mpg123_param( mhand, MPG123_VERBOSE, verbose, 0 );	// valeurs utiles 2, 3, 4
 if	( retval != MPG123_OK )
 	{ errfunc = "param verb"; return retval; }
 

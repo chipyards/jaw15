@@ -16,7 +16,7 @@ https://www.fluidsynth.org/api/
 #include "fluid.h"
 
 // en cas de reiteration cette fonction preserve les settings mais re-cree le synth
-int fluid::init( int fsamp )
+int fluid::init( int fsamp, int verbose )
 {
 // Create the settings.
 if	( settings == NULL )
@@ -25,8 +25,9 @@ if	( settings == NULL )
 // certains settings ne peuvent pas etre changes apres demarrage du synth
 // il faut les fixer maintenant
 fluid_settings_setnum(settings, "synth.sample-rate", (double)fsamp );
-fluid_settings_setint(settings, "synth.verbose", 1 );
+fluid_settings_setint(settings, "synth.verbose", (verbose?1:0) );
 fluid_settings_setint(settings, "synth.cpu-cores", 4 );
+// le gain peut etre change, mais il faut une valeur initiale
 fluid_settings_setnum(settings, "synth.gain", 1.0 );
 
 /* Create the synthesizer. */

@@ -388,7 +388,7 @@ double mul = 1000.0 * pulsation * tempo;	// le 1000 est provizoar
 int    ref_mf_t = 0;	// date en mf ticks du dernier tempo event
 double ref_us_t = 0.0;	// date en us du dernier tempo event
 double us_t;
-printf("apply guided tempo\n");
+printf("apply guided us tempo\n");
 for	( ie = 0; ie < events_merged.size(); ++ie )
 	{
 	ev = events_merged[ie];

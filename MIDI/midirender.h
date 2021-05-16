@@ -19,14 +19,14 @@ int next_evi;	// next playable event index (in lesong->events_merged)
 		// -1 if not playing or beyond end-of-song
 
 // constructeur
-midirender() : audiofile(), next_evi(-1) {};
+midirender() : audiofile(), lesong(NULL), next_evi(-1) {};
 
 // methodes
 
 void send_event( midi_event * ev );
 
 // methodes d'interface heritee d'audiofile
-int read_head( const char * fnam );
+int read_head( const char * fnam, int verbose );
 
 int read_data_p( void * pcmbuf, unsigned int qpfr );
 

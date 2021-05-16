@@ -145,7 +145,7 @@ if	( factsize != 0 )
 return 0;
 }
 
-int wavio::read_head( const char * fnam )
+int wavio::read_head( const char * fnam, int verbose )
 {
 hand = open( fnam, O_RDONLY | O_BINARY );
 if	( hand == -1 )

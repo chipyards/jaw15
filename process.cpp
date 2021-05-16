@@ -34,7 +34,7 @@ using namespace std;
 
 // allocation memoire et lecture WAV ou MP3 16 bits entier en memoire
 // donnees stockées dans les buffers de l'objet process
-int process::audiofile_process()
+int process::audiofile_process( int verbose )
 {
 int retval;
 int mp3flag = 0, midiflag = 0;
@@ -43,7 +43,7 @@ retval = strlen( wnam );
 if	( retval < 4 )
 	return -1;
 mp3flag  = ( wnam[retval-1] == '3' );
-midiflag = ( wnam[retval-2] == 'i' );
+midiflag = ( ( wnam[retval-2] == 'i' ) || ( wnam[retval-2] == 'I' ) );
 
 printf("ouverture %s %s en lecture\n", (mp3flag?"MP3":"WAV"), wnam ); fflush(stdout);
 
@@ -51,7 +51,7 @@ printf("ouverture %s %s en lecture\n", (mp3flag?"MP3":"WAV"), wnam ); fflush(std
 if	( mp3flag )
 	{
 	af = (audiofile *)&m3;
-	retval = m3.read_head( wnam );
+	retval = m3.read_head( wnam, verbose );
 	if	( retval )
 		{
 		printf("error read_head: %s : %s\n", m3.errfunc, mpg123_plain_strerror(retval) );
@@ -64,7 +64,7 @@ else if	( midiflag )
 	sf2file = "F:\\STUDIO\\MIDI\\SF2\\GM\\GeneralUser1.471.sf2";
 	af = (audiofile *)&mid;
 	mid.flusyn.sf2file = sf2file;
-	retval = mid.read_head( wnam );
+	retval = mid.read_head( wnam, verbose );
 	if	( retval )
 		{
 		printf("error midi read_head: %d\n", retval );
@@ -74,7 +74,7 @@ else if	( midiflag )
 	}
 else	{
 	af = (audiofile *)&wavp;
-	retval = wavp.read_head( wnam );
+	retval = wavp.read_head( wnam, verbose );
 	if	( retval )
 		{
 		if	( retval == -1 )
