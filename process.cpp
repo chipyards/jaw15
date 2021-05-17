@@ -194,6 +194,61 @@ fflush(stdout); fflush(stderr);
 return 0;
 }
 
+// sauver Lbuf(0), ou Rbuf(1), ou Lbuf et Rbuf en stereo (2) ou mono (3)
+int process::wavfile_save( const char * fnam, int mode )
+{
+int retval;
+unsigned int qpfr, i, j;
+short pcmbuf[QRAW*2];
+wavio neww;
+
+neww.qchan   = ((mode==2)?2:1);
+neww.fsamp   = af->fsamp;
+neww.realpfr = Lbuf.size;
+neww.monosamplesize = 2;
+neww.type = 1;
+
+retval = neww.write_head( fnam );	// remet realpfr a zero apres l'avoir ecrit
+if	( retval )
+	return retval;
+
+neww.realpfr = 0; j = 0;
+while	( neww.realpfr < Lbuf.size )
+	{
+	qpfr = ((mode==1)?Rbuf.size:Lbuf.size) - neww.realpfr;
+	if	( qpfr > QRAW )
+		qpfr = QRAW;
+	switch	( mode )
+		{
+		case 0:	for	( i = 0; i < qpfr; i++ )
+				pcmbuf[i] = Lbuf.data[j++];
+			break;
+		case 1:	for	( i = 0; i < qpfr; i++ )
+				pcmbuf[i] = Rbuf.data[j++];
+			break;
+		case 2:	for	( i = 0; i < (qpfr*2); i += 2 )
+				{
+				pcmbuf[i]   = Lbuf.data[j];
+				pcmbuf[i+1] = Rbuf.data[j++];
+				}
+			break;
+		case 3:	for	( i = 0; i < qpfr; i++ )
+				{
+				pcmbuf[i] = ( Lbuf.data[j] + Rbuf.data[j] ) / 2;
+				j++;
+				}
+			break;
+		}
+	retval = neww.write_data_p( pcmbuf, qpfr );
+	if	( retval < 0 )
+		return retval;
+	}
+neww.afclose();
+printf("finished writing %s, mode %d\n", fnam, mode ); fflush(stdout);
+return 0;
+}
+
+
 // calculs spectrogramme dans l'objet process
 int process::spectrum_compute2D( int force_mono, int opt_lin )
 {

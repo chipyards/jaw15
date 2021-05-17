@@ -174,6 +174,7 @@ if	( hand >= 0 )
 		lseek( hand, 0, SEEK_SET );
 		// chucksize et filesize seront calcules par WAVwriteHeader en fonction de realpfr
 		WAVwriteHeader();
+		writing = 0;
 		}
 	close( hand );
 	}
@@ -228,6 +229,52 @@ if ( write( this->hand, buf, 4 ) != 4 ) gulp();
 writing = 1;	// pour afclose()
 }
 
+int wavio::write_head( const char * fnam )
+{
+hand = open( fnam, O_RDWR | O_BINARY | O_CREAT | O_TRUNC, 0666 );
+if	( hand == -1 )
+	return -1;
+WAVwriteHeader();
+realpfr = 0;	// realpfr a servi pour le header, mais celui-ci pourra etre refait
+writing = 1;	// pour que afclose() refasse le header
+return 0;
+}
+
+/* retourne <0 si erreur, 0 si plus rien a ecrire 
+// l'ecriture est limitee a estpfr pcm frames.
+// si la taille n'est pas connue a l'avance, mettre une valeur enorme pour estpfr
+// et mettre writing a 1 avant afclose()
+int wavio::write_data_p( void * pcmbuf, unsigned int qpfr )
+{
+unsigned int retval;
+if	( estpfr == 0 )
+	return 0;
+if	( qpfr > estpfr )
+	qpfr = estpfr;
+qpfr *= ( monosamplesize * qchan );
+retval = write( hand, pcmbuf, qpfr );
+if	( retval != qpfr )
+	return -1;
+retval /= ( monosamplesize * qchan );
+estpfr -= retval; 
+return retval;
+} */
+
+// retourne <0 si erreur, ajoute la quantite ecrite a realpfr
+// c'est a l'application de decider quand terminer l'ecriture 
+// afclose() va automatiquement re-ecrire le header en tenant compte de realpfr
+// (on peut disabler cela en remettant writing a zero apres write_head())
+int wavio::write_data_p( void * pcmbuf, unsigned int qpfr )
+{
+unsigned int retval;
+qpfr *= ( monosamplesize * qchan );
+retval = write( hand, pcmbuf, qpfr );
+if	( retval != qpfr )
+	return -1;
+retval /= ( monosamplesize * qchan );
+realpfr += retval; 
+return retval;
+}
 /* --------------------------------------- traitement erreur fatale */
 
 /*

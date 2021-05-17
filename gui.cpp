@@ -334,14 +334,17 @@ static void key_call_back( int v, void * vglo )
 glostru * glo = (glostru *)vglo;
 switch	( v )
 	{
-	case GDK_KEY_KP_0 :
-	case '0' : glo->panneau.toggle_vis( 0, 0 ); break;
-	case GDK_KEY_KP_1 :
-	case '1' : glo->panneau.toggle_vis( 0, 1 ); break;
-	case GDK_KEY_KP_2 :
-	case '2' : glo->panneau.toggle_vis( 1, 0 ); break;
-	case GDK_KEY_KP_3 :
-	case '3' : glo->panneau.toggle_vis( 2, 0 ); break;
+	case GDK_KEY_KP_0 : glo->panneau.toggle_vis( 0, 0 ); break;
+	case GDK_KEY_KP_1 : glo->panneau.toggle_vis( 0, 1 ); break;
+	case GDK_KEY_KP_2 : glo->panneau.toggle_vis( 1, 0 ); break;
+	case GDK_KEY_KP_3 : glo->panneau.toggle_vis( 2, 0 ); break;
+
+	case '0' :
+	case '1' : 
+	case '2' : 
+	case '3' : 
+		glo->pro.wavfile_save( "pipo.wav", v - '0' );
+		break;
 	case ' ' :
 		play_pause_call( NULL, glo );
 		break;
@@ -464,22 +467,22 @@ if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont p
 	if	( stride > pro.Lspek.fftsize2D )
 		stride = pro.Lspek.fftsize2D;
 	pro.Lspek.fftstride   = stride;
-	if	( option_threads > QTH )
-		option_threads = QTH;
-	if	( option_threads < 1 )
-		option_threads = 1;
 	char tbuf[16];
 	snprintf( tbuf, sizeof(tbuf), "%u", stride );
 	gtk_entry_set_text( GTK_ENTRY(para.estri), tbuf );
 	pro.Lspek.bpst        = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON(para.bbpst) );
-	pro.Lspek.qthread     = option_threads;
-
-	pro.Rspek.window_type = pro.Lspek.window_type;
-	pro.Rspek.fftsize2D   = pro.Lspek.fftsize2D;
-	pro.Rspek.fftstride   = pro.Lspek.fftstride;
-	pro.Rspek.bpst        = pro.Lspek.bpst;
-	pro.Rspek.qthread     = option_threads;
 	}
+// parametres qui ne dependent pas des widgets de para
+if	( option_threads > QTH )
+	option_threads = QTH;
+if	( option_threads < 1 )
+	option_threads = 1;
+pro.Lspek.qthread     = option_threads;
+pro.Rspek.window_type = pro.Lspek.window_type;
+pro.Rspek.fftsize2D   = pro.Lspek.fftsize2D;
+pro.Rspek.fftstride   = pro.Lspek.fftstride;
+pro.Rspek.bpst        = pro.Lspek.bpst;
+pro.Rspek.qthread     = option_threads;
 }
 
 /** ============================ context menus ======================= */

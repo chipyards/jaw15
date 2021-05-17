@@ -27,6 +27,10 @@ void WAVwriteHeader();
 int read_head( const char * fnam, int verbose );
 int read_data_p( void * pcmbuf, unsigned int qpfr );
 void afclose();		// OBLIGATOIRE en cas d'ecriture
+// methodes ajoutees
+int write_head( const char * fnam );
+int write_data_p( void * pcmbuf, unsigned int qpfr );
+
 };
 
 #ifndef O_BINARY
