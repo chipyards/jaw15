@@ -2,9 +2,9 @@ class process {
 public:
 char wnam[256];		// fichier audio
 const char * sf2file;	// fichier soundfont pour fuidsynth
-wavio wavp;		// objet pour lecture wav
-mp3in m3;		// objet pour lecture mp3
-midirender mid;		// objet pour lecture midi et render immediat
+wavio wavp;		// objet audiofile pour lecture wav
+mp3in m3;		// objet audiofile pour lecture mp3
+midirender mid;		// objet audiofile pour lecture midi et render immediat
 audiofile * af;		// pointeur sur wavp ou m3 ou mid
 autobuf <short> Lbuf;	// audio brut sl16
 autobuf <short> Rbuf;
@@ -18,10 +18,12 @@ unsigned char mutpal[PALSIZE];	// la palette 16 bits --> RGB
 process() : sf2file(""), Lpix(NULL), Rpix(NULL) { wnam[0] = 0; };
 
 // methodes
-// la partie du process qui traite en memoire les wavs et le spectre
+// la partie du process qui traite en memoire les wavs, midis, et le spectre
 
-int audiofile_process( int verbose = 0 );	// wav ou mp3 ou mid
-int wavfile_save( const char * fnam, int mode ); // sauve Lbuf ou Lbuf et Rbuf
+int audiofile_process( int verbose = 0 );		// wav ou mp3 ou mid
+int wavfile_save( const char * fnam, int mode );	// sauve Lbuf ou Rbuf ou Lbuf et Rbuf
+int midifile_save( const char * fnam );			// sauve mid.lesong s'il existe
+int mididump_save( const char * fnam, int mode );	// dumpe mid.lesong s'il existe
 
 int spectrum_compute2D( int force_mono, int opt_lin );
 

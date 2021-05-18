@@ -345,6 +345,15 @@ switch	( v )
 	case '3' : 
 		glo->pro.wavfile_save( "pipo.wav", v - '0' );
 		break;
+	case 'M' :
+		glo->pro.midifile_save( "pipo.mid" );
+		break;
+	case 'W' :
+		glo->pro.mididump_save( "pipo.txt", 1 );
+		break;
+	case 'D' :
+		glo->pro.mididump_save( "pipo.txt", 2 );
+		break;
 	case ' ' :
 		play_pause_call( NULL, glo );
 		break;
@@ -358,11 +367,6 @@ switch	( v )
 		glo->panneau.dump();
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		glo->para.panneau.dump();
-		fflush(stdout);
-		break;
-	case 'D' :
-		if	( glo->pro.Lspek.spectre2D )
-			glo->pro.Lspek.log_resamp_dump();
 		fflush(stdout);
 		break;
 	case GDK_KEY_F1 :

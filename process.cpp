@@ -244,7 +244,42 @@ while	( neww.realpfr < Lbuf.size )
 		return retval;
 	}
 neww.afclose();
-printf("finished writing %s, mode %d\n", fnam, mode ); fflush(stdout);
+printf("finished writing WAV %s, mode %d\n", fnam, mode ); fflush(stdout);
+return 0;
+}
+
+int process::midifile_save( const char * fnam )
+{
+if	( mid.lesong )
+	{
+	if	( mid.lesong->tracks.size() )
+		{
+		int retval = mid.lesong->save( fnam );
+		if	( retval )
+			return retval;
+		printf("finished writing MIDI %s\n", fnam ); fflush(stdout);
+		}
+	}
+return 0;
+}
+
+int process::mididump_save( const char * fnam, int mode )
+{
+if	( mid.lesong )
+	{
+	if	( mid.lesong->tracks.size() )
+		{
+		FILE * dumpfil;
+		dumpfil = fopen( fnam, "w" );
+		if	( dumpfil == NULL )
+			return -1;
+		if	( mode == 2 )
+			mid.lesong->dump2( dumpfil );
+		else	mid.lesong->dump( dumpfil );
+		fclose( dumpfil );
+		printf("finished writing DUMP %s\n", fnam ); fflush(stdout);
+		}
+	}
 return 0;
 }
 
