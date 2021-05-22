@@ -27,11 +27,16 @@ Implementation :
 	  drawab ( drawab == NULL ==> B2 ) - normalement pas d'impact sur le resultat visuel
 
 Callback :
-	- l'application peut enregistrer 2 callbacks :
-		- clic_call_back : pour interpreter les clics sur le panel
-		  N.B. sont deja interceptes pour zoom et pan : wheel, right drag, left drag + spacebar
-		- key_call_back : pour les actions clavier
-		  N.B. 'f' est deja interceptee pour full zoom XY
+	- l'application peut enregistrer 4 callbacks :
+		- early_clic_call_back : pour interpreter immediatement les clics sur un layer
+		  (ne distingue pas clic de drag)
+		- clic_call_back : pour interpreter les clics sur un layer, au moment du release
+		  (ne repond pas au drag)
+		- select_call_back : pour interpreter les drags sur un layer, au moment du release
+		  (ne repond pas au simple clic))
+		- key_call_back : pour les actions clavier sur le panel
+	  N.B. les actions clic et drag du right mouse button sont deja interceptees pour menus et zooms
+	  N.B. 'f' est deja interceptee pour full zoom XY
 
 Concepts :
 	- "ecran" ou "drawing area" : zone de frame buffer, visualisee en direct ou via un frame buffer cache
@@ -185,7 +190,8 @@ int force_repaint;	// zero pour dessin cumulatif en single-buffer
 double xcursor;		// position demandee pour le curseur tempporel, abcisse en pixels
 double xdirty;		// region polluee par le curseur temporel, abcisse en pixels
 // variables
-void (*clic_call_back)(double,double,void*);			// pointeur callback pour clic sur courbe
+void (*early_clic_call_back)(double,double,void*);		// pointeur callback pour clic sur courbe (any clic)
+void (*clic_call_back)(double,double,void*);			// pointeur callback pour clic sur courbe (no drag)
 void (*select_call_back)(double,double,double,double,void*);	// pointeur callback pour drag sur courbe
 void (*key_call_back)(int,void*);				// pointeur callback pour touche clavier
 void * call_back_data;			// pointeur a passer aux callbacks
@@ -196,7 +202,8 @@ int selected_key;	// touche couramment pressee
 gpanel() : larea(NULL), laregion(NULL), drawpad(NULL), offcai(NULL), drawab(NULL), gc(NULL),
 	smenu_x( NULL ), gmenu(NULL),	
 	init_flags(0), offscreen_flag(1), force_repaint(1), xcursor(-1.0), xdirty(-1.0),
-	clic_call_back(NULL), select_call_back(NULL), key_call_back(NULL), selected_strip(0), selected_key(0)	
+	early_clic_call_back(NULL), clic_call_back(NULL), select_call_back(NULL), key_call_back(NULL),
+	selected_strip(0), selected_key(0)	
 	{};
 
 // methodes
@@ -235,9 +242,14 @@ void pdf_ok_call();
 GtkWidget * mksmenu( const char * title );
 GtkWidget * mkgmenu();
 static void smenu_set_title( GtkWidget * lemenu, const char *titre );
-void clic_callback_register( void (*fon)(double,double,void*), void * data );
-void select_callback_register( void (*fon)(double,double,double,double,void*), void * data );
-void key_callback_register( void (*fon)(int,void*), void * data );
+void early_clic_callback_register( void (*fon)(double,double,void*), void * data ) {
+	early_clic_call_back = fon; call_back_data = data; };
+void clic_callback_register( void (*fon)(double,double,void*), void * data ) {
+	clic_call_back = fon; call_back_data = data; };
+void select_callback_register( void (*fon)(double,double,double,double,void*), void * data ) {
+	select_call_back = fon; call_back_data = data; };
+void key_callback_register( void (*fon)(int,void*), void * data ) {
+	key_call_back = fon; call_back_data = data; };
 // dev utility
 void dump() {
 	panel::dump();

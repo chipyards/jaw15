@@ -265,21 +265,6 @@ if	( gmenu == NULL )
 gtk_widget_set_double_buffered( larea, FALSE );
 }
 
-void gpanel::clic_callback_register( void (*fon)(double,double,void*), void * data )
-{
-clic_call_back = fon; call_back_data = data;
-}
-
-void gpanel::select_callback_register( void (*fon)(double,double,double,double,void*), void * data )
-{
-select_call_back = fon; call_back_data = data;
-}
-
-void gpanel::key_callback_register( void (*fon)(int,void*), void * data )
-{
-key_call_back = fon; call_back_data = data;
-}
-
 // methode automatique, alloue ou re-alloue le pad s'il est trop petit
 // prend soin aussi de son cairo persistant
 void gpanel::drawpad_resize()
@@ -773,6 +758,16 @@ if	( event->type == GDK_BUTTON_PRESS )
 		if	( selected_key == ' ' )
 			drag.mode = pan;
 		else	drag.mode = select_zone;
+		if	( early_clic_call_back )
+			{
+			int istrip; double M, N;
+			istrip = clicMN( x, y, &M, &N );
+			if	( ( istrip >= 0 ) && ( ( istrip & CLIC_MARGE ) == 0 ) )
+				{				// seulement sur layer
+				selected_strip = istrip;
+				early_clic_call_back( M, N, call_back_data );
+				}
+			}
 		}
 	else if	( event->button == 3 )
 		{
@@ -788,13 +783,13 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 		istrip = clicMN( x, y, &M, &N );
 		if	( event->button == 1 )
 			{
-			char utbuf[32];	// buffer pour scientout
-			char vtbuf[32];	// buffer pour scientout
+			// char utbuf[32];	// buffer pour scientout
+			// char vtbuf[32];	// buffer pour scientout
 			if	( istrip >= 0 )
 				{
 				if	( istrip & CLIC_MARGE_INF )
 					{
-					scientout( utbuf, M, 0.002 * tdq );
+					// scientout( utbuf, M, 0.002 * tdq );
 					// printf("clic marge inf M = %s\n", utbuf );
 					}
 				else if	( istrip & CLIC_MARGE_GAUCHE )
@@ -802,8 +797,8 @@ else if	( event->type == GDK_BUTTON_RELEASE )
 					// printf("clic marge gauche strip %d\n", istrip & ~CLIC_MARGE );
 					}
 				else	{	// clic dans une courbe
-					scientout( utbuf, M, 0.002 * tdq ); // ce coeff 0.002 suggere une resolution 500 fois plus fine que le tick, Ok ?
-					scientout( vtbuf, N, 0.002 * bandes[istrip]->tdr );
+					// scientout( utbuf, M, 0.002 * tdq ); // ce coeff 0.002 suggere une resolution 500 fois plus fine que le tick, Ok ?
+					// scientout( vtbuf, N, 0.002 * bandes[istrip]->tdr );
 					// printf("clic strip %d [%s:%s]\n", istrip, utbuf, vtbuf ); fflush(stdout);
 					if	( clic_call_back )
 						clic_call_back( M, N, call_back_data );

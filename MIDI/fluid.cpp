@@ -33,12 +33,13 @@ fluid_settings_setnum( settings, "synth.gain", 1.0 );
 /* Create the synthesizer. */
 if	( synth )
 	{
-	delete_fluid_synth( synth );
+	delete_fluid_synth( synth );	// semble deleter les fonts aussi
 	synth = NULL;
 	}
 synth = new_fluid_synth( settings );
 if	( synth == NULL )
 	return -1;
+// ici on n'a pas de font chargee. Ce n'est pas fatal mais le synthe est muet.
 return 0;
 }
 

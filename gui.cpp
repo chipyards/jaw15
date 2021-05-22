@@ -307,6 +307,40 @@ glo->para.show();
 
 /** ============================ GLUPLOT call backs =============== */
 
+// clic sur spectre2D
+static void early_clic_call_back( double M, double N, void * vglo )
+{
+glostru * glo = (glostru *)vglo;
+// printf("clic M N %g %g\n", M, N ); fflush(stdout);
+if	( ( N >= 21.0 ) && ( N <= 108.0 ) )	// est-on sur une midinote ?
+	{
+	double mn = round(N);
+	if	( fabs(N-mn) < 0.3 ) // tolerance +- 0.3 = 60% de l'espace autour du point ideal
+		{
+		int note = int(mn);
+		if	( glo->local_synth.synth )
+			fluid_synth_noteon( glo->local_synth.synth, 0, note, 127 );
+		}
+	}
+}
+
+// clic sur spectre1D
+static void early_clic_call_back2( double M, double N, void * vglo )
+{
+glostru * glo = (glostru *)vglo;
+// printf("clic M N %g %g\n", M, N ); fflush(stdout);
+if	( ( M >= 21.0 ) && ( M <= 108.0 ) )	// est-on sur une midinote ?
+	{
+	double mn = round(M);
+	if	( fabs(M-mn) < 0.3 ) // tolerance +- 0.3 = 60% de l'espace autour du point ideal
+		{
+		int note = int(mn);
+		if	( glo->local_synth.synth )
+			fluid_synth_noteon( glo->local_synth.synth, 0, note, 127 );
+		}
+	}
+}
+
 static void clic_call_back( double M, double N, void * vglo )
 {
 glostru * glo = (glostru *)vglo;
@@ -318,6 +352,7 @@ glo->iplayp = M;
 if	( glo->pro.Lspek.spectre2D )
 	{
 	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );
+	glo->para.panneau.early_clic_callback_register( early_clic_call_back2, (void *)glo );
 	glo->para.panneau.bandes[0]->fullN();
 	glo->para.panneau.force_repaint = 1;
 	}
@@ -758,6 +793,7 @@ if	( fnam )
 	if	( glo->option_spectrogramme )
 		glo->spectrographize();
 	}
+glo->panneau.early_clic_callback_register( early_clic_call_back, (void *)glo );
 glo->panneau.clic_callback_register( clic_call_back, (void *)glo );
 glo->panneau.select_callback_register( select_call_back, (void *)glo );
 glo->panneau.key_callback_register( key_call_back, (void *)glo );
