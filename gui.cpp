@@ -89,11 +89,19 @@ if	( glo->iplay >= 0 )
 else	{			// play silence
 	for	( i = 0; i < samplesPerBuffer; i++ )
 		{
-		((short *)outbuf)[i]   = 0;
+		((short *)outbuf)[i]   = 0;		// ou alors memset
 		}
 	// petite experience de debug pour verifier que c'est bien notre FRAMES_PER_BUFFER
 	// glo->iplay = -framesPerBuffer;
-	glo->iplay = -1;
+	}
+if	( glo->local_synth.synth )
+	{
+	short synbuf[FRAMES_PER_BUFFER*2];
+	fluid_synth_write_s16( glo->local_synth.synth, framesPerBuffer, synbuf, 0, 2, synbuf, 1, 2 );
+	for	( i = 0; i < samplesPerBuffer; i++ )
+		{
+		((short *)outbuf)[i] += synbuf[i];	// ou alors memcpy...
+		}
 	}
 return 0;
 }
@@ -162,6 +170,21 @@ Pa_Terminate();
 }
 #endif
 
+// demarrage du synthe local
+static int local_synth_start( glostru * glo, const char * sf2file )
+{
+int retval;
+retval = glo->local_synth.init( CODEC_FREQ, glo->option_verbose );
+if	( retval ) return retval;
+glo->local_synth.sf2file = sf2file;
+retval = glo->local_synth.load_sf2();	// selon sf2file
+if	( retval ) return retval;
+//glo->local_synth.bank_select( 0, 0 );
+//glo->local_synth.program_change( 0, 0 );	// zero-based, subtract 1 from https://en.wikipedia.org/wiki/General_MIDI
+glo->local_synth.noteon( 0, 60, 127 );	// C4 sur piano
+glo->local_synth.noteon( 0, 70, 127 );	// C4 sur piano
+return 0;
+}
 
 /** ============================ GTK call backs ======================= */
 static int idle_call( glostru * glo )
@@ -373,7 +396,7 @@ switch	( v )
 		printf("F key hit\n"); fflush(stdout);
 		break;
 	//
-	case 'v' :
+	case 'v' :	// debug : test des flags realized, visible, notebook page
 		printf("sarea realized=%d, visible=%d, main visible=%d\n",
 			gtk_widget_get_realized(glo->para.sarea), gtk_widget_get_visible(glo->para.sarea),
 			gtk_widget_get_visible(glo->para.wmain) );
@@ -381,10 +404,10 @@ switch	( v )
 		fflush(stdout);
 		break;
 	//
-	case 'P' :
-		const char * fnam = "full_spectre2D.png";
+	case 'P' :	// sauver les pixbufs de spectre 2D entiers
 		if	( glo->pro.Lpix )
 			{
+			const char * fnam = "full_spectre2D.png";
 			GdkPixbuf * flipped;
 			flipped = gdk_pixbuf_flip ( glo->pro.Lpix, false );
 			if  	( gdk_pixbuf_save( flipped, fnam, "png", NULL, NULL ) )
@@ -400,6 +423,20 @@ switch	( v )
 				else	printf("oops, echec ecriture %s\n", fnam );
 				g_object_unref( flipped );
 				}
+			fflush(stdout);
+			}
+		break;
+	case 'L' :	// demarrer le synthe Local temps-reel
+		if	( glo->local_synth.synth )
+			{
+			delete_fluid_synth( glo->local_synth.synth );
+			glo->local_synth.synth = NULL;
+			printf("Local synth switched OFF\n" ); fflush(stdout);
+			}
+		else	{
+			if	( local_synth_start( glo, glo->sf2file ) )
+				printf("error starting local_synth\n");
+			else	printf("Local synth switched ON\n" );
 			fflush(stdout);
 			}
 		break;
@@ -663,10 +700,11 @@ glo->option_noaudio = 0;	// -N // no audio output (for debug)
 glo->option_threads = 1;	// -T // 1 a QTH threads (en plus du principal)
 glo->option_linspec = 0;	// -i // spectrogramme 2D lineaire plutot que log (implique -m)
 glo->option_verbose = 0;	// -v // verbosite
+glo->sf2file = DEFAULT_SF2;	// -f // SoundFont file
 const char * fnam = NULL;
 
 // 	parsage CLI
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LdpTv" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LdpTvf" );
 // le parsage est fait, on recupere les args !
 const char * val;
 if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
@@ -679,6 +717,7 @@ if	( ( val = lepar->get( 'N' ) ) )	glo->option_noaudio = 1;
 if	( ( val = lepar->get( 'T' ) ) )	glo->option_threads = atoi( val );
 if	( ( val = lepar->get( 'i' ) ) )	{ glo->option_linspec = 1; glo->option_monospec = 1; }
 if	( ( val = lepar->get( 'v' ) ) )	glo->option_verbose = atoi( val );
+if	( ( val = lepar->get( 'f' ) ) )	glo->sf2file = val;
 if	( ( val = lepar->get( 'h' ) ) )
 	{
 	printf( "options :\n"
@@ -692,6 +731,7 @@ if	( ( val = lepar->get( 'h' ) ) )
 	"-T <n>   : threads pour FFT ( 1 a %u )\n"
 	"-i       : spectrogramme 2D lineaire plutot que log (implique -m)\n"
 	"-v <n>   : verbosite ( 1 a 4 )\n"
+	"-f <sf2> : choix soundfont\n"
 	, QTH );
 	return 0;
 	}
@@ -707,6 +747,9 @@ if	( solB == 1 )
 	printf("Sol. B1\n");
 	}
 else	printf("Sol. B2\n");
+
+glo->local_synth.sf2file = glo->sf2file;
+glo->pro.mid.flusyn.sf2file = glo->sf2file;
 
 // traitement fichier donnees audio, wav ou mp3
 if	( fnam )

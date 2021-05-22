@@ -61,9 +61,7 @@ if	( mp3flag )
 	}
 else if	( midiflag )
 	{
-	sf2file = "F:\\STUDIO\\MIDI\\SF2\\GM\\GeneralUser1.471.sf2";
 	af = (audiofile *)&mid;
-	mid.flusyn.sf2file = sf2file;
 	retval = mid.read_head( wnam, verbose );
 	if	( retval )
 		{

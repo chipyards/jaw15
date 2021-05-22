@@ -3,10 +3,36 @@ La classe spectro cree une representation intermediaire du spectrogramme d'un pa
 sous forme d'un buffer 'spectre2D' de valeurs de 16 bits, destinees a servir d'index dans une LUT pour donner du RGB.
 Elle peut aussi creer un spectre1D "local".
 
-Le procede, inspire de Sonic Visualizer, utilise la FFT suivie d'une conversion log de l'axe F ( spectro::compute2D() ).
+Le procede, inspire de Sonic Visualizer, utilise 3 etapes :
+1) fenetrage et FFT
+2) resampling = conversion log de l'axe F ( spectro::compute2D() )
+3) colorisation = conversion en RGB (spectro::spectre2rgb()) directement dans un GDK pixbuf
+   (actuellement la colorisation traite spectre2D entier)
 
-Ensuite la conversion en RGB ou colorisation peut se faire avec spectro::spectre2rgb(), possiblement directement
-dans un GDK pixbuf (actuellement la colorisation traite spectre2D entier)
+1) FFT 
+
+ Basee sur FFTW en float
+
+2) Resampling LOG
+
+On ne resample pas un spectre comme on resample une photo, en particulier en cas de decimation
+on garde la valeur max car on s'interesse a des pics.
+Voici comment fonctionne le resampling de JAW04b, au moins aussi bon que Sonic Visualizer :
+- on definit une fonction continue is = f(id) a base de exp2 (is = indice source, id = indice dest)
+- pour chaque valeur entiere de id (dans la hauteur du spectre desire), on :
+	- calcule fis0 = f(id-0.5) et fis1 = f(id+0.5) soit l'emprise de id dans l'espace is
+	- on cherche combien de valeurs entieres de is sont incluses dans cette emprise, pour cela
+	  on calcule is0 = ceiling(fis0) et is1 = floor(fis1) (un ceiling exclusif, pas celui de libc)
+	- le nombre de valeurs entieres de is est ndec = is1 - is0 + 1
+	- si ndec >= 1 on decime de is0 a is1 inclus, en prenant le max des valeurs de spectre dans cet intervalle
+	  (le pic dominant)
+	- si ndec == 0 on n'a aucune valeurs entieres de is dans l'emprise, on ne peut y voir aucun pic.
+	  Pour un look plus smooth du spectre, on va interpoler lineairement entre les 2 valeurs entieres de is
+	  qui encadrent l'emprise. Ce sont is1 et is0, mais dans l'ordre inverse (is0 > is1) alors on les permute.
+	  On calcule fis = f(id), on doit avoir is0 < fis < is1 et is1 = is0 + 1
+	  puis les 2 coeffs d'interpolation : k1 = fract(fis-is0) et k0 = fract(is1-fis) = 1 - k1
+	
+3) Spectre 2D : exploitation
 
 Le buffer spectre2D represente un ruban de hauteur H et longueur W
 	- H est le nombre de "bins" apres passage en echelle log, on le fixe arbitrairement

@@ -24,11 +24,11 @@ if	( settings == NULL )
 
 // certains settings ne peuvent pas etre changes apres demarrage du synth
 // il faut les fixer maintenant
-fluid_settings_setnum(settings, "synth.sample-rate", (double)fsamp );
-fluid_settings_setint(settings, "synth.verbose", (verbose?1:0) );
-fluid_settings_setint(settings, "synth.cpu-cores", 4 );
+fluid_settings_setnum( settings, "synth.sample-rate", (double)fsamp );
+fluid_settings_setint( settings, "synth.verbose", (verbose?1:0) );
+fluid_settings_setint( settings, "synth.cpu-cores", 4 );
 // le gain peut etre change, mais il faut une valeur initiale
-fluid_settings_setnum(settings, "synth.gain", 1.0 );
+fluid_settings_setnum( settings, "synth.gain", 1.0 );
 
 /* Create the synthesizer. */
 if	( synth )
@@ -50,6 +50,10 @@ int fluid::load_sf2()
 sfont_id = fluid_synth_sfload( synth, sf2file, 1 );
 if	( sfont_id < 0 )
 	return sfont_id;
+int verbose = 0;
+fluid_settings_getint( settings, "synth.verbose", &verbose );
+if	( verbose )
+	{ printf("loaded \"%s\" as font #%d\n", sf2file, sfont_id ); fflush(stdout); }
 return 0;
 }
 

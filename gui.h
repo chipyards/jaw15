@@ -12,6 +12,7 @@
    o : option
  */
 
+#define DEFAULT_SF2 "F:\\STUDIO\\MIDI\\SF2\\GM\\GeneralUser1.471.sf2"
 
 class glostru {
 public :
@@ -48,12 +49,15 @@ int option_noaudio;
 unsigned int option_threads;
 int option_linspec;
 int option_verbose;
+const char * sf2file;
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
+fluid local_synth;	// synthe local, pour temps-reel
 
 // constructeur
 glostru() : para(this), iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000),
-	option_spectrogramme(0), option_monospec(0), option_noaudio(0), option_linspec(0), option_verbose(0) {};
+	option_spectrogramme(0), option_monospec(0), option_noaudio(0), option_linspec(0), option_verbose(0),
+	sf2file(DEFAULT_SF2) {};
 
 // methodes
 void wavisualize( const char * fnam );	// chargement et layout d'un fichier audio
