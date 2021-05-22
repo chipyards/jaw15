@@ -358,10 +358,22 @@ glo->iplayp = M;
 if	( glo->pro.Lspek.spectre2D )
 	{
 	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );
-	//glo->para.panneau.early_clic_callback_register( early_clic_call_back2, (void *)glo );
 	glo->para.panneau.bandes[0]->fullN();
 	glo->para.panneau.force_repaint = 1;
 	}
+if	( ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->para.bc2p) ) ) &&
+	  ( glo->local_synth.synth )
+	)
+	fluid_synth_all_notes_off( glo->local_synth.synth, 0 );
+}
+
+static void clic_call_back2( double M, double N, void * vglo )
+{
+glostru * glo = (glostru *)vglo;
+if	( ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->para.bc2p) ) ) &&
+	  ( glo->local_synth.synth )
+	)
+	fluid_synth_all_notes_off( glo->local_synth.synth, 0 );
 }
 
 static void select_call_back( double M0, double N0, double M1, double N1, void * vglo )
@@ -529,6 +541,7 @@ if	( ( this->pro.Lbuf.size ) && ( this->panneau.bandes.size() >= 1 ) )
 	this->pro.auto_layout_S( &this->panneau, this->option_linspec );
 	this->pro.auto_layout2( &this->para.panneau, this->iplayp );
  	para.panneau.early_clic_callback_register( early_clic_call_back2, (void *)this );
+ 	para.panneau.clic_callback_register( clic_call_back2, (void *)this );
 	fflush(stdout);
 	this->panneau.init_flags = 0;
 	}
