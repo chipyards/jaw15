@@ -15,6 +15,7 @@ GtkWidget * nmain;	// notebook principal
         GtkWidget * cfsiz;	// combo pour FFT size
         GtkWidget * estri;	// entry for FFT stride
         GtkWidget * bbpst;	// spin button pour BPST
+	GtkWidget * bc2p;	// check clic-to-play
       GtkWidget * sarea;	// spectre1D
     GtkAdjustment * adjk;	// ajustement pour gain module
 

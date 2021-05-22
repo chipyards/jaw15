@@ -47,7 +47,7 @@ midiflag = ( ( wnam[retval-2] == 'i' ) || ( wnam[retval-2] == 'I' ) );
 
 printf("ouverture %s %s en lecture\n", (mp3flag?"MP3":"WAV"), wnam ); fflush(stdout);
 
-// 1ere etape : lire un premiere bloc pour avoir les parametres
+// 1ere etape : lire un premier bloc pour avoir les parametres
 if	( mp3flag )
 	{
 	af = (audiofile *)&m3;

@@ -24,6 +24,7 @@ GtkWidget *   hbut;
 GtkWidget *     bpla;
 GtkWidget *     brew;
 GtkWidget *     esta;
+GtkWidget *     bc2p;
 GtkWidget *     bpar;
 GtkWidget *     bqui;
 

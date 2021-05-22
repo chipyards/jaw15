@@ -179,10 +179,8 @@ if	( retval ) return retval;
 glo->local_synth.sf2file = sf2file;
 retval = glo->local_synth.load_sf2();	// selon sf2file
 if	( retval ) return retval;
-//glo->local_synth.bank_select( 0, 0 );
-//glo->local_synth.program_change( 0, 0 );	// zero-based, subtract 1 from https://en.wikipedia.org/wiki/General_MIDI
-glo->local_synth.noteon( 0, 60, 127 );	// C4 sur piano
-glo->local_synth.noteon( 0, 70, 127 );	// C4 sur piano
+// glo->local_synth.noteon( 0, 60, 127 );	// C4 sur piano
+// glo->local_synth.noteon( 0, 70, 127 );	// Bb4 sur piano
 return 0;
 }
 
@@ -312,8 +310,12 @@ static void early_clic_call_back( double M, double N, void * vglo )
 {
 glostru * glo = (glostru *)vglo;
 // printf("clic M N %g %g\n", M, N ); fflush(stdout);
-if	( ( N >= 21.0 ) && ( N <= 108.0 ) )	// est-on sur une midinote ?
+if	( ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->bc2p) ) ) &&
+	  ( ( N >= 21.0 ) && ( N <= 108.0 ) )	// est-on sur une midinote ?
+	)
 	{
+	if	( glo->local_synth.synth == NULL )
+		local_synth_start( glo, glo->sf2file );
 	double mn = round(N);
 	if	( fabs(N-mn) < 0.3 ) // tolerance +- 0.3 = 60% de l'espace autour du point ideal
 		{
@@ -329,8 +331,12 @@ static void early_clic_call_back2( double M, double N, void * vglo )
 {
 glostru * glo = (glostru *)vglo;
 // printf("clic M N %g %g\n", M, N ); fflush(stdout);
-if	( ( M >= 21.0 ) && ( M <= 108.0 ) )	// est-on sur une midinote ?
+if	( ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->para.bc2p) ) ) &&
+	  ( ( M >= 21.0 ) && ( M <= 108.0 ) )	// est-on sur une midinote ?
+	)
 	{
+	if	( glo->local_synth.synth == NULL )
+		local_synth_start( glo, glo->sf2file );
 	double mn = round(M);
 	if	( fabs(M-mn) < 0.3 ) // tolerance +- 0.3 = 60% de l'espace autour du point ideal
 		{
@@ -352,7 +358,7 @@ glo->iplayp = M;
 if	( glo->pro.Lspek.spectre2D )
 	{
 	glo->pro.auto_layout2( &glo->para.panneau, glo->iplayp );
-	glo->para.panneau.early_clic_callback_register( early_clic_call_back2, (void *)glo );
+	//glo->para.panneau.early_clic_callback_register( early_clic_call_back2, (void *)glo );
 	glo->para.panneau.bandes[0]->fullN();
 	glo->para.panneau.force_repaint = 1;
 	}
@@ -521,7 +527,8 @@ if	( ( this->pro.Lbuf.size ) && ( this->panneau.bandes.size() >= 1 ) )
 		gasp("echec spectrum, erreur %d", retval );
 	fflush(stdout);
 	this->pro.auto_layout_S( &this->panneau, this->option_linspec );
-	this->pro.auto_layout2( &this->para.panneau, this->iplayp ); 
+	this->pro.auto_layout2( &this->para.panneau, this->iplayp );
+ 	para.panneau.early_clic_callback_register( early_clic_call_back2, (void *)this );
 	fflush(stdout);
 	this->panneau.init_flags = 0;
 	}
@@ -689,6 +696,11 @@ gtk_entry_set_text( GTK_ENTRY(curwidg), "" );
 gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
 glo->esta = curwidg;
 
+// check button
+curwidg = gtk_check_button_new_with_label("Clic_to_Play");
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 0 );
+glo->bc2p = curwidg;
+
 /* simple bouton */
 curwidg = gtk_button_new_with_label ("Load");
 gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
@@ -801,8 +813,6 @@ glo->panneau.key_callback_register( key_call_back, (void *)glo );
 // preparer le layout de la fenetre non modale 'param'
 glo->para.build();
 // alors glo->para.panneau existe et est connecte a glo->para.sarea
-// glo->pro.prep_layout2( &glo->para.panneau ); <-- seulement sur action clic_call_back()
-// glo->pro.connect_layout2( &glo->para.panneau, 0 );  <-- idem
 
 #ifdef USE_PORTAUDIO
 if	( glo->option_noaudio == 0 )

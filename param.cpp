@@ -199,6 +199,11 @@ gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
                     GTK_SIGNAL_FUNC( recomp_call ), (gpointer)glo );
 gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
 
+// check button
+curwidg = gtk_check_button_new_with_label("Clic_to_Play");
+gtk_box_pack_start( GTK_BOX( vspp ), curwidg, FALSE, FALSE, 0 );
+bc2p = curwidg;
+
 /* creer une drawing area resizable depuis la fenetre */
 curwidg = gtk_drawing_area_new();
 gtk_widget_set_size_request( curwidg, 720, 400 );
