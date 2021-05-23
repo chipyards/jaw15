@@ -20,6 +20,7 @@ using namespace std;
 #include "wavio.h"
 #include "mp3in.h"
 #include "MIDI/midirender.h"
+#include "MIDI/patch_chooser.h"
 #include "process.h"
 
 #include "param.h"

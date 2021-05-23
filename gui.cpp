@@ -32,6 +32,7 @@ using namespace std;
 #include "wavio.h"
 #include "mp3in.h"
 #include "MIDI/midirender.h"
+#include "MIDI/patch_chooser.h"
 #include "process.h"
 #include "param.h"
 #include "gui.h"
@@ -321,7 +322,10 @@ if	( ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->bc2p) ) ) &&
 		{
 		int note = int(mn);
 		if	( glo->local_synth.synth )
+			{
+			fluid_synth_program_change( glo->local_synth.synth, 0, glo->current_patch0 );
 			fluid_synth_noteon( glo->local_synth.synth, 0, note, 127 );
+			}
 		}
 	}
 }
@@ -342,7 +346,10 @@ if	( ( gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON(glo->para.bc2p) ) ) &&
 		{
 		int note = int(mn);
 		if	( glo->local_synth.synth )
+			{
+			fluid_synth_program_change( glo->local_synth.synth, 0, glo->current_patch0 );
 			fluid_synth_noteon( glo->local_synth.synth, 0, note, 127 );
+			}
 		}
 	}
 }
@@ -436,9 +443,6 @@ switch	( v )
 	case 'r' :
 		rewind_call( NULL, glo );
 		break;
-	case 'p' :
-		glo->panneau.png_save_drawpad( "drawpad.png" );
-		break;
 	case 'd' :
 		glo->panneau.dump();
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
@@ -457,6 +461,9 @@ switch	( v )
 		fflush(stdout);
 		break;
 	//
+	case 'p' :
+		glo->panneau.png_save_drawpad( "drawpad.png" );
+		break;
 	case 'P' :	// sauver les pixbufs de spectre 2D entiers
 		if	( glo->pro.Lpix )
 			{
@@ -492,6 +499,12 @@ switch	( v )
 			else	printf("Local synth switched ON\n" );
 			fflush(stdout);
 			}
+		break;
+	case 'G' :	// choose a GM patch for midi ch. 0
+		int chopat = glo->ptcho.choose( 0, GTK_WINDOW(glo->wmain) );
+		printf("choosen GM patch = %d\n", chopat ); fflush(stdout);
+		if	( chopat >= 0 )
+			glo->current_patch0 = chopat;
 		break;
 	}
 }

@@ -31,6 +31,7 @@ GtkWidget *     bqui;
 gpanel panneau;		// panneau principal, dans darea
 gzoombar zbar;		// sa zoombar
 param_view para;	// la fenetre auxiliaire de parametres
+patch_chooser ptcho;	// la fenetre modale pour choisir les patches MIDI
 
 int idle_id;		// id pour la fonction idle du timeout
 
@@ -51,6 +52,7 @@ unsigned int option_threads;
 int option_linspec;
 int option_verbose;
 const char * sf2file;
+int current_patch0;	// patch pour midi ch. 0
 
 process pro;		// le process : lecture wav calcul spectro, preparation layout
 fluid local_synth;	// synthe local, pour temps-reel
@@ -58,7 +60,7 @@ fluid local_synth;	// synthe local, pour temps-reel
 // constructeur
 glostru() : para(this), iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000),
 	option_spectrogramme(0), option_monospec(0), option_noaudio(0), option_linspec(0), option_verbose(0),
-	sf2file(DEFAULT_SF2) {};
+	sf2file(DEFAULT_SF2), current_patch0(0) {};
 
 // methodes
 void wavisualize( const char * fnam );	// chargement et layout d'un fichier audio
