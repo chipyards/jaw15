@@ -570,9 +570,12 @@ if	( GTK_IS_COMBO_BOX(para.cfwin) )	// pour contourner les widgets qui ne sont p
 	if	( ifftsize >= ( sizeof(para.small_fftsize) / sizeof(unsigned int) ) )
 		ifftsize = 0;
 	pro.Lspek.fftsize2D = para.small_fftsize[ifftsize];
-	unsigned int stride   = atoi( gtk_entry_get_text( GTK_ENTRY(para.estri) ) ); 
-	if	( stride < ( pro.Lspek.fftsize2D / 16 ) )
-		stride = ( pro.Lspek.fftsize2D / 16 );
+	unsigned int stride   = atoi( gtk_entry_get_text( GTK_ENTRY(para.estri) ) );
+	// fftstride etant une entree totalement libre on doit le borner
+	// if	( stride < ( pro.Lspek.fftsize2D / 16 ) )	// 1/16 c'est totalement arbitraire
+	//	stride = ( pro.Lspek.fftsize2D / 16 );
+	if	( stride < ( pro.Lbuf.size / 32768 ) )		// largeur pixbuf semble limitee 
+		stride = ( pro.Lbuf.size / 32768 ) + 1;		// si on depasse c'est tout blanc !!
 	if	( stride > pro.Lspek.fftsize2D )
 		stride = pro.Lspek.fftsize2D;
 	pro.Lspek.fftstride   = stride;

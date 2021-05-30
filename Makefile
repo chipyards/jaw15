@@ -13,7 +13,7 @@ ifeq ($(AUDIOPORT), PORTAUDIO)
      # pa_devs est un utilitaire local, une couche sur portaudio
      ADEV = pa_devs.c
      # winmm et ole32 requises par portaudio
-     ALIB  = -lportaudio_2011 -lwinmm -lole32
+     ALIB  = -L. -lportaudio_2011 -lwinmm -lole32
      EXE = kawa.exe
 else
      ADEF =
@@ -53,7 +53,7 @@ LIBS= -L$(GTKBASE)/lib \
 -lpangowin32-1.0 \
 -lmpg123 \
 -lfluidsynth \
--L. -lfftw3f-3 \
+-lfftw3f \
 $(ALIB)
 
 # -mwindows

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "fftw3.h"
+#include <fftw3.h>
 
 #include "spectro.h"
 #include <pthread.h>

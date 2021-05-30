@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <mpg123.h>
+#include <fftw3.h>
 
 using namespace std;
 #include <string>
@@ -24,7 +25,6 @@ using namespace std;
 #include "wavio.h"
 #include "mp3in.h"
 #include "MIDI/midirender.h"
-#include "fftw3.h"
 #include "spectro.h"
 #include "process.h"
 
