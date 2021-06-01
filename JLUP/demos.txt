@@ -30,3 +30,8 @@ demo4
 		- style 2 est tres peu penalise par les calculs de log
 		- ecostroke optimal entre 600 et 1200 (sur cet exemple)
 	global context menu (visibilites layers)
+
+demo5
+	manips DSP
+	layer_u		en <double>
+

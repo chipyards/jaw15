@@ -224,6 +224,7 @@ for	( unsigned int i = 0; i < qthread; ++i )
 	{
 	if	( plan[i] )
 		fftwf_destroy_plan(plan[i]);
+	// ici on met FFTW_MEASURE car on a l'intention de reutiliser ce plan de nombreuses fois
 	plan[i] = fftwf_plan_dft_r2c_1d( fftsize2D, fftinbuf[i], (fftwf_complex*)fftoutbuf[i], FFTW_MEASURE );
 	if	( plan[i] == NULL )
 		return -30;
@@ -262,7 +263,8 @@ if	( ( fftinbuf[0] == NULL ) || ( fftoutbuf[0] == NULL ) )
 //** preparer le plan de travail de fftw3
 if	( plan[0] )
 	fftwf_destroy_plan(plan[0]);
-plan[0] = fftwf_plan_dft_r2c_1d( fftsize1D, fftinbuf[0], (fftwf_complex*)fftoutbuf[0], FFTW_MEASURE );
+// ici on met FFTW_ESTIMATE car on n'a pas l'intention de reutiliser ce plan de nombreuses fois
+plan[0] = fftwf_plan_dft_r2c_1d( fftsize1D, fftinbuf[0], (fftwf_complex*)fftoutbuf[0], FFTW_ESTIMATE );
 if	( plan[0] == NULL )
 	return -30;
 return 0;
