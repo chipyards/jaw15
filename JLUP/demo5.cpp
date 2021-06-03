@@ -22,7 +22,7 @@ EXPERIENCE 1 : FT de la reponse impulsionnelle finie = reponse frequentielle
   (en effet Fc = a * (Fsamp/fftsize) = Fsamp * 1 / ( 2 * pispan ) )
   On peut donc demander a jluplot une echelle en frequence relative à l'ideal
 
-- incidence de la longueur de la reponse impulsionnelle qfir = pispan * qpis
+- incidence de la longueur de la reponse impulsionnelle qfir = pispan * qpis (@ pispan = 777) (sans fenetre)
 
 	qpis		stopband 1st zero	niveau 1ere bosse
 	5		1.24			0.106
@@ -38,6 +38,35 @@ EXPERIENCE 1 : FT de la reponse impulsionnelle finie = reponse frequentielle
   de plus la transition passe par Fc toujours pres de 0.5 (-6dB)
   la largeur totale de la transition (de 1.0 a 0) est 25% pour qpis=10, 6.3% pour qpis=40
   La premiere bosse depend des conditions aux bords, toujours pire avec qpis impair
+
+- fenetrage  (@ pispan = 777)
+
+	qpis   fenetre		stopband 1st zero	niveau 1ere bosse
+	10	rect		1.125			-21.9
+	10	hann		1.336			-44.0 dB
+	10	hamming		1.346			-51.7
+	10	blackman	1.56 @ -75 dB		-75.6
+	10	b-harris	1.66 @ -75 dB		n.a.
+
+	20	rect		1.063			-21.4
+	20	hann		1.167			-44.0 dB
+	20	hamming		1.175			-52.7
+	20	blackman	1.28 @ -75 dB		-75.4
+	20	b-harris	1.34 @ -75 dB		n.a.
+
+	30	rect		1.042			-21.3
+	30	hann		1.113			-44
+	30	hamming		1.117			-53.1
+	30	blackman	1.187 @ -75 dB		-75.3
+	30	b-harris	1.228 @ -75 dB		n.a.
+
+La transition intercepte toujours Fc à -6dB !
+Le niveau DC n'est pas affecté par la fenetre, aucune correction n'est requise !
+Le premier zéro est inexistant avec Blackman et Blackman-Harris, on le remplace par un seuil arbitraire
+L'écart entre Fc et le premier zero est toujours inversement proportionnel a qpis,
+mais il est tres augmente par la fenetre (presque triple avec Hamming).
+
+
 */
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -190,6 +219,28 @@ if	( fabs(x) < 1e-5 )
 return ( sin(x) / x );
 }
 
+// fonction imitee de spectro::window_precalc( unsigned int fft_size )
+void glostru::window_precalc( double * window, unsigned int size )
+{
+double a0, a1, a2, a3;
+switch	( window_type )		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+	{
+	case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
+	case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
+	case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
+	case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
+	default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
+	}
+				// on doit diviser par size ( non par (size-1) ), alors 
+double m = M_PI / size;		// le dernier echantillon n'est pas egal au premier mais au second, c'est normal
+for	( unsigned int i = 0; i < size; ++i )
+	{
+        window[i] = a0
+		- a1 * cos( 2 * m * i )
+		+ a2 * cos( 4 * m * i )
+		- a3 * cos( 6 * m * i );
+	}
+}
 
 int glostru::generate()
 {
@@ -208,14 +259,16 @@ if	( plan )
 plan = fftw_plan_dft_r2c_1d( qbuf, Cbuf, (fftw_complex*)Tbuf, FFTW_ESTIMATE );
 if	( plan == NULL )
 	return -3;
-// generation APRES le plan car celui-ci raze le buf d'entree
+// generation APRES le plan FFTW car celui-ci raze le buf d'entree
+window_precalc( Cbuf, qfir );
 double x;
 double k = M_PI / pispan;
 unsigned int i;
+
 for	( i = 0; i < qfir; ++i )
 	{
 	x = k * ( double( (int)i - (int)(qfir/2) ) );
-	Cbuf[i] = mysinc( x );
+	Cbuf[i] *= mysinc( x );
 	}
 for	( i = qfir; i < qbuf; ++i )
 	{
@@ -313,6 +366,7 @@ curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
 curcour->fgcolor.set( 0.0, 0.0, 0.8 );
+curcour->style = 2;
 
 // connexion layout - data
 curcour->V = Tbuf;
@@ -332,19 +386,20 @@ GtkWidget *curwidg;
 gtk_init(&argc,&argv);
 setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
 
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZ" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZw" );
 const char * val;
 int qbuflog = 20;
 double qpis = 6.0;
 if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );		// log de fftsize
 if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );	// taille de PI en samples pour calcul sinc
 if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );	// qfir / pispan ( <--> "nombre de zeros")
+if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );	// 0 = rect, etc...
 if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qbuf = 1 << qbuflog;
 glo->qfir = floor( qpis * double(glo->pispan) );
 
-printf("fftsize = %u, fir span = %u i.e. %g times PI\n", glo->qbuf, glo->qfir, qpis ); fflush(stdout);
+printf("fftsize = %u, fir span = %u i.e. %g times PI, windows %d\n", glo->qbuf, glo->qfir, qpis, glo->window_type ); fflush(stdout);
 
 curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 

@@ -21,6 +21,7 @@ int idle_id;		// id pour la fonction idle du timeout
 unsigned int qbuf;	// taille de buffer
 unsigned int pispan;	// taille de PI dans la reponse impulsionnelle
 unsigned int qfir;	// taille de la reponse impulsionnelle 
+int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
 
 double * Cbuf;	// donnees pour l'experience
 double * Sbuf;
@@ -29,9 +30,11 @@ fftw_plan plan;
 double k;
 
 // constructeur
-glostru() : qbuf(1<<20), pispan(1<<9), qfir(1<<13), Cbuf(0), Sbuf(0), Tbuf(0), plan(0), k(2.0) {};
+glostru() : qbuf(1<<20), pispan(1<<9), qfir(1<<13), window_type(0),
+	    Cbuf(NULL), Sbuf(NULL), Tbuf(NULL), plan(NULL), k(2.0) {};
 
 // methodes
+void window_precalc( double * window, unsigned int size );
 int generate();
 void layout1();
 void layout2();
