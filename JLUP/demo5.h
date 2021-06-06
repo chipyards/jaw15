@@ -22,16 +22,16 @@ unsigned int qbuf;	// taille de buffer
 unsigned int pispan;	// taille de PI dans la reponse impulsionnelle
 unsigned int qfir;	// taille de la reponse impulsionnelle 
 int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+double band_center;	// passe-bande : reponse translatee par band_center * Fc
 
 double * Cbuf;	// donnees pour l'experience
 double * Sbuf;
 double * Tbuf;
 fftw_plan plan;
-double k;
 
 // constructeur
-glostru() : qbuf(1<<20), pispan(1<<9), qfir(1<<13), window_type(0),
-	    Cbuf(NULL), Sbuf(NULL), Tbuf(NULL), plan(NULL), k(2.0) {};
+glostru() : qbuf(1<<20), pispan(1<<9), qfir(1<<13), window_type(0), band_center(0.0),
+	    Cbuf(NULL), Sbuf(NULL), Tbuf(NULL), plan(NULL) {};
 
 // methodes
 void window_precalc( double * window, unsigned int size );

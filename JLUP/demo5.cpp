@@ -188,14 +188,14 @@ switch	( v )
 	case 'd' :
 		glo->panneau1.dump(); fflush(stdout);
 		break;
-	// demo modpop3
+	/* demo modpop3
 	case 'k' :
 		{
 		char tbuf[32];
 		snprintf( tbuf, sizeof(tbuf), "%g", glo->k );
 		modpop_entry( "K setting", "rapport des frequences", tbuf, sizeof(tbuf), GTK_WINDOW(glo->wmain) );
 		glo->k = strtod( tbuf, NULL );
-		} break;
+		} break; */
 	//
 	case 't' :
 		glo->panneau1.bandes[0]->subtk *= 2.0;
@@ -296,14 +296,17 @@ if	( window_type < 8 )
 	double k = M_PI / pispan;
 	unsigned int i;
 	for	( i = 0; i < qfir; ++i )
-		{
+		{	// le "sommet" du sinc est a (qfir/2)
 		x = k * ( double( (int)i - (int)(qfir/2) ) );
 		Cbuf[i] *= mysinc( x );
 		}
+	// si qfir est pair, il manque un echantillon a la fin pour que la symetrie soit parfaite
+	// ce n'est pas grave puisqu'il doit etre nul apres fenetrage et que on complete avec des zeros
+	// mais idealement qfir devrait etre impair, avec le sommet a (qfir-1)/2 ou qfir/2 arrondi par defaut
 	}
 else if	( window_type == 8 )
 	{				// FIR herite de github.com/libsndfile/libsamplerate
-	unsigned int i, halfqfir;
+	unsigned int i, halfqfir;	// !!! halfqfir n'est pas exactement la moitie de qfir !!!
 	double c;
 	halfqfir = sizeof(fastest_coeffs.coeffs) / sizeof(double);
 	qfir = halfqfir * 2 - 1;	// les 2 "moities" se recouvrent sur l'echantillon central !
@@ -314,11 +317,12 @@ else if	( window_type == 8 )
 	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI decorrige), window_type libresample fast %d\n",
 		qbuf, qfir, (double(qfir)/double(pispan)), pispan, window_type );
 	for	( i = 0; i < halfqfir; ++i )
-		{	// le "sommet" du sinc est a (qfir/2)-1, on l'ecrit 2 fois (c'est pas grave ;-)
+		{	// le "sommet" du sinc est a halfqfir-1, on l'ecrit 2 fois (c'est pas grave ;-)
 		c = fastest_coeffs.coeffs[i];
-		Cbuf[halfqfir-1+i] = c;	// remplir de (qfir/2)-1 a qfir-1 inclus
-		Cbuf[halfqfir-1-i] = c;	// remplir de (qfir/2)-1 a 0 inclus
+		Cbuf[halfqfir-1+i] = c;	// remplir de halfqfir-1 a qfir-1 inclus
+		Cbuf[halfqfir-1-i] = c;	// remplir de halfqfir-1 a 0 inclus
 		}
+	// N.B. qfir est impair, halfqfir = (qfir+1)/2, le milieu est a (qfir-1)/2 = halfqfir - 1
 	}
 else if	( window_type == 9 )
 	{				// FIR herite de github.com/libsndfile/libsamplerate
@@ -335,11 +339,21 @@ else if	( window_type == 9 )
 	for	( i = 0; i < halfqfir; ++i )
 		{
 		c = slow_mid_qual_coeffs.coeffs[i];
-		Cbuf[halfqfir-1+i] = c;	// remplir de (qfir/2)-1 a qfir-1 inclus
-		Cbuf[halfqfir-1-i] = c;	// remplir de (qfir/2)-1 a 0 inclus
+		Cbuf[halfqfir-1+i] = c;
+		Cbuf[halfqfir-1-i] = c;
 		}
 	}
 else	qfir = 0;
+// mode passe_bande : multiplier le FIR par une sinusoide pour translater la reponse frequentielle
+if	( band_center > 0.0 )
+	{
+	double k = M_PI * band_center / pispan;
+	for	( unsigned int i = 0; i < qfir; ++i )
+		{	// l'arrondi par defaut nous cale toujours qfir/2 au sommet meme si qfir est impair
+		Cbuf[i] *= cos( k * ( double( (int)i - (int)(qfir/2) ) ) ); 
+		}	// ainsi on preserve le sommet du sinc
+	printf("bande translatee de %g x Fc\n", band_center );
+	}
 // completer avec beaucoup de zeros pour une bonne resolution FFT 
 for	( unsigned int i = qfir; i < qbuf; ++i )
 	{
@@ -349,11 +363,13 @@ fflush(stdout);
 // fft
 fftw_execute( plan );
 // calcul magnitudes sur place (Tbuf)
-unsigned int a = 0;
+unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
 if	( window_type < 8 )
 	k = 1.0 / pispan;
 else	k = 1.0 / castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
+if	( band_center >= 1.0 )
+	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 for	( unsigned int j = 0; j <= qbuf/2; ++j )
 	{
 	Tbuf[j] = k * hypot( Tbuf[a], Tbuf[a+1] );
@@ -444,7 +460,9 @@ curcour->style = 2;
 
 // connexion layout - data
 curcour->V = Tbuf;
-curcour->qu = floor( panneau2.kq * 8 ); // pour que le fullM (horiz.) se limite a 8 * Fc 
+curcour->qu = floor( panneau2.kq * ( 8.0 + band_center ) ); // pour que le fullM (horiz.) se limite a 8 * Fc 
+if	( (unsigned int)curcour->qu > qbuf )
+	curcour->qu = qbuf;
 curcour->scan();	// alors on peut faire un scan
 
 }
@@ -543,14 +561,15 @@ glo->panneau2.key_callback_register( key_call_back2, (void *)glo );
 glo->panneau1.events_connect( GTK_DRAWING_AREA( glo->darea1 ) );
 glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
 
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZw" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwB" );
 const char * val;
 int qbuflog = 20;
 double qpis = 6.0;
-if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );		// log de fftsize
-if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );	// taille de PI en samples pour calcul sinc
-if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );	// qfir / pispan ( <--> "nombre de zeros")
-if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );	// 0 = rect, etc...
+if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );			// log de fftsize
+if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );		// taille de PI en samples pour calcul sinc
+if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );		// qfir / pispan ( <--> "nombre de zeros")
+if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );		// 0 = rect, etc...
+if	( ( val = lepar->get( 'B' ) ) )	glo->band_center = strtod( val, NULL );	// translation band_center * Fc
 if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qbuf = 1 << qbuflog;
