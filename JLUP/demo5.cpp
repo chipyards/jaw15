@@ -66,6 +66,30 @@ Le premier zéro est inexistant avec Blackman et Blackman-Harris, on le remplace
 L'écart entre Fc et le premier zero est toujours inversement proportionnel a qpis,
 mais il est tres augmente par la fenetre (presque triple avec Hamming).
 
+- coefficients herites de github.com/libsndfile/libsamplerate (Mr Castro)
+
+  Les coeffs sont calcules avec Octave (un outil style Matlab) par application de fenetre Kaiser sur sinc.
+  On ne sait pas traduire cela en C, alors on teste deux filtres pre-calcules vus dans libsamplerate:
+	qpis   filtre		stopband @ -75 dB	stopband @ -100 dB	pispan	inc	fudge factor
+	32	fast		1.189			1.202			154	128	1.203
+	84	mid_qual	1.083			1.091			534	491	1.088
+  La transition intercepte toujours Fc à -6dB !
+  La reponse est hyper "lisse" : pas d'ondulation dans la bande passante, ni dans la bande coupee
+  La reponse est similaire à blackman @ qpis = 32, un peu moins bonne de 0 a -75 dB, meilleure en dessous
+  Notes sur les parametres :
+	- Castro ne stocke qu'une demi-table qui commence au top du sinc (commun aux 2 moities donc)
+	- Castro ne donne pas pispan, on le lit directement comme distance entre les zeros sur les data
+	- Castro ne donne pas qpis mais cycles = qpis/4 (nombre de 2PI dans un demi-FIR)
+	- Castro definit un increment, qui est le pitch des coeffs a utiliser pour faire un filtre
+	  qui coupe a la limite de Nyquist, à -100dB pour le fast et -120dB pour le mid_qual.
+	  En effet un pitch egal a pispan ne coupe la limite de Nyquist qu'a -6dB, il faut deplacer
+	  le filtre vers la gauche ("fudge factor"), en fonction de l'attenuation desiree.
+	  On observe exactement -100dB @ 1.202 pour le fast, pour le mid_qual la concordance est moins bonne
+	  mais à -100dB on est tres vulnerable aux erreurs minuscules. 
+	  Castro fixe l'increment en premier, et utilise son script Octave pour determiner le fudge factor
+	  (par approximations successives) et en deduire pispan pour calculer le sinc.
+	- Castro pre-divise les coeffs par le fudge factor pour que l'amplitude matche l'increment plutot que pispan
+	  (pour comparer avec les autres fenetres, nous remultiplions)
 
 */
 #include <gdk/gdkkeysyms.h>
@@ -93,6 +117,7 @@ using namespace std;
 #include "../modpop3.h"
 #include "../cli_parse.h"
 #include "demo5.h"
+#include "demo5_coeff.h"
 
 // unique variable globale exportee pour gasp() de modpop3
 GtkWindow * global_main_window = NULL;
@@ -260,26 +285,75 @@ plan = fftw_plan_dft_r2c_1d( qbuf, Cbuf, (fftw_complex*)Tbuf, FFTW_ESTIMATE );
 if	( plan == NULL )
 	return -3;
 // generation APRES le plan FFTW car celui-ci raze le buf d'entree
-window_precalc( Cbuf, qfir );
-double x;
-double k = M_PI / pispan;
-unsigned int i;
-
-for	( i = 0; i < qfir; ++i )
-	{
-	x = k * ( double( (int)i - (int)(qfir/2) ) );
-	Cbuf[i] *= mysinc( x );
+unsigned int castro_inc = pispan;
+if	( window_type < 8 )
+	{				// sinc et fenetre classique
+	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI), window_type %d\n",
+		qbuf, qfir, (double(qfir)/double(pispan)), pispan, window_type );
+	if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
+	window_precalc( Cbuf, qfir );
+	double x;
+	double k = M_PI / pispan;
+	unsigned int i;
+	for	( i = 0; i < qfir; ++i )
+		{
+		x = k * ( double( (int)i - (int)(qfir/2) ) );
+		Cbuf[i] *= mysinc( x );
+		}
 	}
-for	( i = qfir; i < qbuf; ++i )
+else if	( window_type == 8 )
+	{				// FIR herite de github.com/libsndfile/libsamplerate
+	unsigned int i, halfqfir;
+	double c;
+	halfqfir = sizeof(fastest_coeffs.coeffs) / sizeof(double);
+	qfir = halfqfir * 2 - 1;	// les 2 "moities" se recouvrent sur l'echantillon central !
+	if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
+	castro_inc = fastest_coeffs.increment;
+	c = double(castro_inc) / fastest_coeffs.coeffs[0];
+	pispan = (unsigned int)round(c);
+	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI decorrige), window_type libresample fast %d\n",
+		qbuf, qfir, (double(qfir)/double(pispan)), pispan, window_type );
+	for	( i = 0; i < halfqfir; ++i )
+		{	// le "sommet" du sinc est a (qfir/2)-1, on l'ecrit 2 fois (c'est pas grave ;-)
+		c = fastest_coeffs.coeffs[i];
+		Cbuf[halfqfir-1+i] = c;	// remplir de (qfir/2)-1 a qfir-1 inclus
+		Cbuf[halfqfir-1-i] = c;	// remplir de (qfir/2)-1 a 0 inclus
+		}
+	}
+else if	( window_type == 9 )
+	{				// FIR herite de github.com/libsndfile/libsamplerate
+	unsigned int i, halfqfir;
+	double c;
+	halfqfir = sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double);
+	qfir = halfqfir * 2 - 1;
+	if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
+	castro_inc = slow_mid_qual_coeffs.increment;
+	c = double(castro_inc) / slow_mid_qual_coeffs.coeffs[0];
+	pispan = (unsigned int)round(c);
+	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI decorrige), window_type libresample mid_qual %d\n",
+		qbuf, qfir, (double(qfir)/double(pispan)), pispan, window_type );
+	for	( i = 0; i < halfqfir; ++i )
+		{
+		c = slow_mid_qual_coeffs.coeffs[i];
+		Cbuf[halfqfir-1+i] = c;	// remplir de (qfir/2)-1 a qfir-1 inclus
+		Cbuf[halfqfir-1-i] = c;	// remplir de (qfir/2)-1 a 0 inclus
+		}
+	}
+else	qfir = 0;
+// completer avec beaucoup de zeros pour une bonne resolution FFT 
+for	( unsigned int i = qfir; i < qbuf; ++i )
 	{
 	Cbuf[i] = 0;
 	}
+fflush(stdout);
 // fft
 fftw_execute( plan );
 // calcul magnitudes sur place (Tbuf)
 unsigned int a = 0;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-k = 1.0 / pispan;
+if	( window_type < 8 )
+	k = 1.0 / pispan;
+else	k = 1.0 / castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
 for	( unsigned int j = 0; j <= qbuf/2; ++j )
 	{
 	Tbuf[j] = k * hypot( Tbuf[a], Tbuf[a+1] );
@@ -386,21 +460,6 @@ GtkWidget *curwidg;
 gtk_init(&argc,&argv);
 setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
 
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZw" );
-const char * val;
-int qbuflog = 20;
-double qpis = 6.0;
-if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );		// log de fftsize
-if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );	// taille de PI en samples pour calcul sinc
-if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );	// qfir / pispan ( <--> "nombre de zeros")
-if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );	// 0 = rect, etc...
-if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) )
-	{ printf("invalid argument\n"); return -1; }
-glo->qbuf = 1 << qbuflog;
-glo->qfir = floor( qpis * double(glo->pispan) );
-
-printf("fftsize = %u, fir span = %u i.e. %g times PI, windows %d\n", glo->qbuf, glo->qfir, qpis, glo->window_type ); fflush(stdout);
-
 curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 
 gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
@@ -483,6 +542,19 @@ glo->panneau2.key_callback_register( key_call_back2, (void *)glo );
 
 glo->panneau1.events_connect( GTK_DRAWING_AREA( glo->darea1 ) );
 glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
+
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZw" );
+const char * val;
+int qbuflog = 20;
+double qpis = 6.0;
+if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );		// log de fftsize
+if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );	// taille de PI en samples pour calcul sinc
+if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );	// qfir / pispan ( <--> "nombre de zeros")
+if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );	// 0 = rect, etc...
+if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) )
+	{ printf("invalid argument\n"); return -1; }
+glo->qbuf = 1 << qbuflog;
+glo->qfir = floor( qpis * double(glo->pispan) );
 
 int retval = glo->generate();
 if	( retval )

@@ -32,6 +32,7 @@ demo4
 	global context menu (visibilites layers)
 
 demo5
-	manips DSP
 	layer_u		en <double>
+	manips DSP
+		exp. 1 autour du filtre ideal (sinc fenetre) pour resampling
 
