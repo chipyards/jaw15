@@ -48,12 +48,34 @@ TIMING
   Ce choix d'unite n'a aucune incidence sur l'ordre d'execution des events (merge est effectue avant, sur la base
   des midi timestamps)
 
+- pulsation : coefficient redondant (proxy) t.q. ms_timestamp = mf_timestamp * pulsation * tempo 
+	pulsation = k / (1000.0 * (double)division ), k etant le facteur de vitesse d'execution (cadence)
+
 DUMP
 
 - song::dump()
 	produit une representation reversible, au depart destine a etre compatible avec les progs MF2T/T2MF de Piet van Oostrum
 - song::dump2()
-	ajoute pour chaque event des infos detaillees de timing y compris hh:mn:ss et bars/beats 
+	ajoute pour chaque event des infos detaillees de timing y compris hh:mn:ss et bars/beats
+
+FRESH RECORDING
+
+- Ce concept a ete introduit par JLN pour les besoins d'enregistrement midi sans metronome.
+  Le but est de faciliter la conversion de l'enregistrement en un midifile classique, dans lequel
+  les timestamps MBT (Measure:Beat:Tick) concordent avec l'intention musicale.
+
+- Pour minimiser les pertes à la conversion, un "fresh recording" est utilisé, par définition
+  il est tel que le tick midi vaut 1ms, soit t.q. tempo == ( 1000 * division ) 
+  En effet tempo est la duree en us de division ticks (soit une "midi quarter note").
+  Pourquoi 1ms ?
+	- parceque c'est l'unite de portmidi,
+	- parceque c'est un ordre de grandeur plausible pour un tick midi
+  La seule reference au temps absolu dans la spec midi c'est le tempo en us, mais une us c'est vraiment petit pour un tick.
+  (Le midi timestamp est limite a 1<<28 = 268435455 ticks ce qui ferait 268 s)
+  
+- il est possible de changer la division d'un fresh recording apres enregistrement, sans perte, seul le
+  tempo event est modifie.
+
 */
 
 // un fichier midi en cours de lecture
@@ -159,7 +181,7 @@ vector <midi_event *> events_merged;
 vector <timesig> timesigs;		// les time signatures telles que 4/4, 6/8, 5/4...
 
 // constructeur
-song() : division(384), pulsation( 1.0 / (1000.0 * (double)division ) ) { /* tracks.reserve(1024); */ };
+song() : format(1), division(384), pulsation( 1.0 / (1000.0 * (double)division ) ) { /* tracks.reserve(1024); */ };
 
 // methodes
 int load( const char * fnam );
@@ -185,10 +207,10 @@ int mft2mst0( int mf_timestamp, midi_event * evt ) {	// conversion timestamp pon
     double ms_t = pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
     return( evt->ms_timestamp + (int)ms_t );
     };
-int mst2mft( int ms_timestamp );
-int mst2mft0( int ms_timestamp, midi_event * evt ) {
+unsigned int mst2mft( int ms_timestamp );
+unsigned int mst2mft0( int ms_timestamp, midi_event * evt ) {
     double mf_t = double( ms_timestamp - evt->ms_timestamp ) / (pulsation * (double)evt->vel);
-    return( evt->mf_timestamp + (int)ceil(mf_t) );
+    return( evt->mf_timestamp + (unsigned int)ceil(mf_t) );
     };
 
 int mft2ust( unsigned int mf_timestamp );
@@ -196,10 +218,10 @@ int mft2ust0( int mf_timestamp, midi_event * evt ) {
     double us_t = 1000.0 * pulsation * (double)evt->vel * double( mf_timestamp - evt->mf_timestamp );
     return( evt->us_timestamp + (int)us_t );
     };
-int ust2mft( int us_timestamp );
-int ust2mft0( int us_timestamp, midi_event * evt ) {
+unsigned int ust2mft( int us_timestamp );
+unsigned int ust2mft0( int us_timestamp, midi_event * evt ) {
     double mf_t = double( us_timestamp - evt->us_timestamp ) / (1000.0 * pulsation * (double)evt->vel);
-    return( evt->mf_timestamp + (int)ceil(mf_t) );
+    return( evt->mf_timestamp + (unsigned int)ceil(mf_t) );
     };
 
 void bar_n_beat( midi_event * ev, int * bar, int * beat );	// calcul bar et beat

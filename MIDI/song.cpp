@@ -499,7 +499,7 @@ return( mft2ust0( mf_timestamp, ev ) );
 
 // traduction ponctuelle de ms (milliseconds) en mf_timestamp (midi ticks)
 // basee sur la track 0 qui doit contenir au moins un tempo event a l'instant 0
-int song::mst2mft( int ms_timestamp )
+unsigned int song::mst2mft( int ms_timestamp )
 {
 if	( tracks.size() < 1 )
 	return -2;
@@ -526,7 +526,7 @@ ev = &tr0->events[ tr0->events_tri[ iseg_old ] ];
 return( mst2mft0( ms_timestamp, ev ) );
 }
 
-int song::ust2mft( int us_timestamp )
+unsigned int song::ust2mft( int us_timestamp )
 {
 if	( tracks.size() < 1 )
 	return -2;

@@ -10,6 +10,7 @@
 #include "../audiofile.h"
 #include "fluid.h"
 #include "song.h"
+#include "filter.h"
 
 
 class midirender : public audiofile {

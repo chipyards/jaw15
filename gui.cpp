@@ -451,7 +451,24 @@ switch	( v )
 		break;
 	case GDK_KEY_F1 :
 		printf("F key hit\n"); fflush(stdout);
-		break;
+		// experience MIDI pure hebergee dans jaw15, ebauche de remplacement de MF2M16
+		{
+		if	( glo->pro.mid.lesong )
+			delete( glo->pro.mid.lesong );
+		glo->pro.mid.lesong = new song();
+		song_filt * mysong = (song_filt *)glo->pro.mid.lesong;
+		mysong->division = 960;
+		mysong->pulsation = 1.0 / (1000.0 * (double)mysong->division );
+		mysong->filter_init_tempo( 1000 * mysong->division, 12, 8 );
+		FILE * csv_fil;
+		csv_fil = fopen( "pipo.csv", "r" );
+		if	( csv_fil )
+			{
+			int retval = mysong->filter_CSV_follow( csv_fil, 6 );
+			printf("filter_CSV_follow done, return %d\n", retval ); fflush(stdout );
+			}
+		mysong->dump( stdout ); fflush(stdout);
+		} break;
 	//
 	case 'v' :	// debug : test des flags realized, visible, notebook page
 		printf("sarea realized=%d, visible=%d, main visible=%d\n",
