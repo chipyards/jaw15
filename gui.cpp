@@ -468,6 +468,7 @@ switch	( v )
 			printf("filter_CSV_follow done, return %d\n", retval ); fflush(stdout );
 			}
 		mysong->dump( stdout ); fflush(stdout);
+		mysong->save( "pipo.mid" ); 
 		} break;
 	//
 	case 'v' :	// debug : test des flags realized, visible, notebook page
