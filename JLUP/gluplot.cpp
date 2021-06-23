@@ -930,14 +930,14 @@ if	( istrip & CLIC_MARGE_INF )
 	if	( event->direction == GDK_SCROLL_DOWN )
 		{
 		if	( event->state & GDK_CONTROL_MASK )
-			panXbyK( -0.05 );
-		else	zoomXbyK( 0.9 );
+			panXbyK( 0.05 );
+		else	zoomXbyK( 1.11 );
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
 		if	( event->state & GDK_CONTROL_MASK )
-			panXbyK( 0.05 );
-		else	zoomXbyK( 1.11 );
+			panXbyK( -0.05 );
+		else	zoomXbyK( 0.9 );
 		}
 	force_repaint = 1;
 	}
@@ -948,13 +948,13 @@ else if	( istrip & CLIC_MARGE_GAUCHE )
 		{
 		if	( event->state & GDK_CONTROL_MASK )
 			b->panYbyK( -0.02 );
-		else	b->zoomYbyK( 0.9 );
+		else	b->zoomYbyK( 1.11 );
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
 		if	( event->state & GDK_CONTROL_MASK )
 			b->panYbyK( 0.02 );
-		else	b->zoomYbyK( 1.11 );
+		else	b->zoomYbyK( 0.9 );
 		}
 	force_repaint = 1;
 	}
@@ -964,13 +964,13 @@ else	{
 		{
 		if	( event->state & GDK_CONTROL_MASK )
 			b->panYbyK( -0.02 );	// Y
-		else	panXbyK( -0.02 );	// X
+		else	panXbyK( 0.02 );	// X
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
 		if	( event->state & GDK_CONTROL_MASK )
 			b->panYbyK( 0.02 );	// Y
-		else	panXbyK( 0.02 );	// X
+		else	panXbyK( -0.02 );	// X
 		}
 	force_repaint = 1;
 	}
@@ -1403,11 +1403,11 @@ if	( panneau )
 	{
 	if	( event->direction == GDK_SCROLL_DOWN )
 		{
-		panneau->zoomXbyK( 0.9 );
+		panneau->zoomXbyK( 1.11 );
 		}
 	if	( event->direction == GDK_SCROLL_UP )
 		{
-		panneau->zoomXbyK( 1.1 );
+		panneau->zoomXbyK( 0.9 );
 		}
 	panneau->force_repaint = 1;
 	}
