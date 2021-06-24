@@ -30,6 +30,7 @@ double * Tbuf;	// reponse frequentielle obtenue par DFT
 fftw_plan plan;
 
 autobuf <float> Wbuf;	// audio brut a filtrer 
+autobuf <float> Ybuf;	// audio apres filtrage
 wavio wavp;		// objet audiofile pour lecture wav
 
 // constructeur
@@ -39,7 +40,8 @@ glostru() : qbuf(1<<20), pispan(1<<9), qfir(1<<13), window_type(0), band_center(
 // methodes
 void window_precalc( double * window, unsigned int size );
 int generate();
-int audiofile_process( int verbose );
+int audiofile_load( int verbose );
+int audiofile_process();
 
 void layout1();
 void layout1W();

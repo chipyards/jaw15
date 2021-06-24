@@ -412,7 +412,7 @@ for	( unsigned int j = 0; j <= qbuf/2; ++j )
 return 0;
 }
 
-int glostru::audiofile_process( int verbose )
+int glostru::audiofile_load( int verbose )
 {
 int retval = wavp.read_head( ifnam, verbose ); 
 if	( retval )
@@ -434,7 +434,7 @@ if	( wavp.estpfr > Wbuf.capa )
 	{
 	Wbuf.reset();	// pour eviter realloc, qui serait inefficace ici
 	if	( Wbuf.more( wavp.estpfr ) )
-		gasp("echec alloc Lbuf %d samples", (int)wavp.estpfr );
+		gasp("echec alloc Wbuf %d samples", (int)wavp.estpfr );
 	}
 
 // lecture via un petit buffer, pour extraction mono et/ou conversion float
@@ -494,6 +494,35 @@ fflush(stdout);
 return 0;
 }
 
+
+int glostru::audiofile_process()
+{
+// allocation buffer pour l'audio entier
+if	( wavp.realpfr > Ybuf.capa )
+	{
+	Ybuf.reset();	// pour eviter realloc, qui serait inefficace ici
+	if	( Ybuf.more( wavp.realpfr ) )
+		gasp("echec alloc Ybuf %d samples", (int)wavp.realpfr );
+	}
+int i, j, j0, k;
+double sum;
+j0 = qfir / 2;
+for	( i = 0; i < (int)wavp.realpfr; ++i )
+	{
+	sum = 0.0;
+	for	( j = 0; j < (int)qfir; ++j )
+		{
+		k = i + j - j0 ;
+		if	( ( k >= 0 ) && ( k < (int)wavp.realpfr ) )
+			sum += Wbuf.data[k] * Cbuf[j];
+		}
+	Ybuf.data[i] = float( sum / double(pispan) );
+	}
+Ybuf.size = wavp.realpfr;
+return 0;
+}
+
+
 // layout pour reponse impulsionnelle
 void glostru::layout1()
 {
@@ -548,7 +577,7 @@ curbande->subtk = 1;
 // creer un layer
 layer_u<float> * curcour;
 curcour = new layer_u<float>;
-curbande->add_layer( curcour, "real" );
+curbande->add_layer( curcour, "src" );
 
 // configurer le layer
 curcour->set_km( 1.0 );			// sets APRES add_layer
@@ -560,6 +589,21 @@ curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 // connexion layout - data
 curcour->V = Wbuf.data;
 curcour->qu = Wbuf.size;
+curcour->scan();	// alors on peut faire un scan
+
+curcour = new layer_u<float>;
+curbande->add_layer( curcour, "resu" );
+
+// configurer le layer
+curcour->set_km( 1.0 );
+curcour->set_m0( 0.0 );
+curcour->set_kn( 1.0 );
+curcour->set_n0( 0.0 );
+curcour->fgcolor.set( 0.0, 0.0, 0.8 );
+
+// connexion layout - data
+curcour->V = Ybuf.data;
+curcour->qu = Ybuf.size;
 curcour->scan();	// alors on peut faire un scan
 
 }
@@ -718,13 +762,14 @@ if	( retval )
 if	( glo->ifnam )
 	{
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
-	retval = glo->audiofile_process( 1 );
+	retval = glo->audiofile_load( 1 );
 	if	( retval )
 		glo->ifnam = NULL;	// abandon lecture fichier
 	}
 
 if	( glo->ifnam )
 	{
+	glo->audiofile_process();
 	glo->layout1W();
 	}
 else	{
