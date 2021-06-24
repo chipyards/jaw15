@@ -68,8 +68,10 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
 
 - coefficients herites de github.com/libsndfile/libsamplerate (Mr Castro)
 
-  Les coeffs sont calcules avec Octave (un outil style Matlab) par application de fenetre Kaiser sur sinc.
+  On ajoute a l'experience deux type de fenetre, dont les reponses impulsionnelles sont calcules avec Octave
+  (un outil style Matlab) par application de fenetre Kaiser sur sinc.
   On ne sait pas traduire cela en C, alors on teste deux filtres pre-calcules vus dans libsamplerate:
+  Alors pispan est impose par Castro.
 	qpis   filtre		stopband @ -75 dB	stopband @ -100 dB	pispan	inc	fudge factor
 	32	fast		1.189			1.202			154	128	1.203
 	84	mid_qual	1.083			1.091			534	491	1.088
@@ -91,6 +93,37 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
 	- Castro pre-divise les coeffs par le fudge factor pour que l'amplitude matche l'increment plutot que pispan
 	  (pour comparer avec les autres fenetres, nous remultiplions)
 
+- filtrage passe-bande : on multiplie simplement la reponse impulsionnelle par une fonction cosinus
+  pour translater la reponse frequentielle sur l'axe F de B * Fc.
+  A cet effet la periode du cos est 1/B fois celle du sin inclus dans le sinc.
+  La reponse est abaissee de 6 dB, mais B < 1.0 la reponse presente un "bump" a 0dB
+
+- arguments de la ligne de commande le l'experience 1 (avec les valeurs par defaut) :
+	-L 20	log de fftsize
+	-P 512	pispan = taille de PI en samples pour calcul sinc
+	-Z 6 	qfir / pispan ( <--> "nombre de zeros")
+	-w 0 	0 = rect, etc...
+	-B 0.0	translation band_center * Fc
+  N.B. les normalisations effectuees sur la reponse frequentielles neutralisent l'effet de fftsize et pispan (-L et -P)
+  ces deux params influent sur la qualite du rendu.
+
+  exemple: comparaison entre blackman et castro 'fast' @ qpis = 32
+	./demo5 -P 154 -Z 32 -w 3 
+	./demo5 -Z 32 -w 8
+  N.B. avec -w 8 (castro), pispan est fixe a 154, -P serait ignore
+
+  exemple: passe-bande, reponse de 1.5 Fc a 3.5 Fc (la bande a une largeur 2 Fc)
+	./demo5 -P 154 -Z 32 -w 3 -B 2.5
+
+
+EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
+
+- on utilise un signal echantillonne a fsamp, on le filtre avec la reponse impulsionnelle de taille qfir,
+  on s'attend a une coupure Fc = fsamp/(2*pispan)
+  exemple fsamp = 44100, pispan = 154 ==> fc = 143 Hz
+- le signal filtre est tronque de qfir/2 echantillons a chaque extremite 
+
+ 
 */
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -116,6 +149,8 @@ using namespace std;
 
 #include "../modpop3.h"
 #include "../cli_parse.h"
+#include "../autobuf.h"
+#include "../wavio.h"	// il inclut audiofile.h lui-meme
 #include "demo5.h"
 #include "demo5_coeff.h"
 
@@ -272,11 +307,9 @@ int glostru::generate()
 // allocation
 if	( Cbuf == NULL )
 	Cbuf = (double *)fftw_malloc( qbuf * sizeof(double) );
-if	( Sbuf == NULL )
-	Sbuf = (double *)fftw_malloc( qbuf * sizeof(double) );
 if	( Tbuf == NULL )
 	Tbuf = (double *)fftw_malloc( qbuf * sizeof(double) );
-if	( ( Cbuf == NULL ) || ( Sbuf == NULL ) || ( Tbuf == NULL ) )
+if	( ( Cbuf == NULL ) || ( Tbuf == NULL ) )
 	return -1;
 // preparer le plan de travail de fftw3
 if	( plan )
@@ -379,6 +412,89 @@ for	( unsigned int j = 0; j <= qbuf/2; ++j )
 return 0;
 }
 
+int glostru::audiofile_process( int verbose )
+{
+int retval = wavp.read_head( ifnam, verbose ); 
+if	( retval )
+	{
+	if	( retval == -1 )
+		printf("file not found %s\n", ifnam );
+	else	printf("erreur wavio::read_head %d\n", retval );
+	fflush(stdout); return retval;
+	}
+if	( verbose )
+	{
+	printf("got %d channels @ %d Hz, monosamplesize %d\n",
+		wavp.qchan, wavp.fsamp, wavp.monosamplesize );
+	printf("estimated length : %u PCM frames\n", (unsigned int)wavp.estpfr );
+	fflush(stdout);
+	}
+// pre-allocation (facultative) des buffers pour l'audio entier
+if	( wavp.estpfr > Wbuf.capa )
+	{
+	Wbuf.reset();	// pour eviter realloc, qui serait inefficace ici
+	if	( Wbuf.more( wavp.estpfr ) )
+		gasp("echec alloc Lbuf %d samples", (int)wavp.estpfr );
+	}
+
+// lecture via un petit buffer, pour extraction mono et/ou conversion float
+#define QRAW 2048	// optimal pour WAV, en PCM frames
+#define QMORE	(1<<21)	// quantum pour reallocation ( 1 page = 4M = (1<<21)shorts )
+int i;
+unsigned int j = 0; wavp.realpfr = 0;
+if	( wavp.monosamplesize == 2 )
+	{							// cas du sl16
+	short pcmbuf[QRAW*2];	// supporte stereo
+	do	{
+		retval = wavp.read_data_p( (void *)pcmbuf, QRAW );
+		if	( retval > 0 )
+			{
+			if	( wavp.realpfr > Wbuf.capa )
+				{
+				if	( Wbuf.more( QMORE ) )
+					gasp("echec autobuf::more()");
+				printf("realloc Wbuf\n"); fflush(stdout);
+				}
+			for	( i = 0; i < ( retval * (int)wavp.qchan ); i += (int)wavp.qchan )
+				{	// on prend seulement le canal L si stereo
+				Wbuf.data[j++] = float( (double)pcmbuf[i] / 32768.0 );
+				}
+			}
+		} while ( retval > 0 );
+	Wbuf.size = wavp.realpfr;
+	}
+else if	( wavp.monosamplesize == 4 )
+	{							// cas du float32
+	float pcmbuf[QRAW*2];	// supporte stereo
+	do	{
+		retval = wavp.read_data_p( (void *)pcmbuf, QRAW );
+		if	( retval > 0 )
+			{
+			if	( wavp.realpfr > Wbuf.capa )
+				{
+				if	( Wbuf.more( QMORE ) )
+					gasp("echec autobuf::more()");
+				printf("realloc Wbuf\n"); fflush(stdout);
+				}
+			for	( i = 0; i < ( retval * (int)wavp.qchan ); i += (int)wavp.qchan )
+				{	// on prend seulement le canal L si stereo
+				Wbuf.data[j++] = pcmbuf[i];
+				}
+			}
+		} while ( retval > 0 );
+	Wbuf.size = wavp.realpfr;
+	}
+else	gasp("unsupported format %d bytes", wavp.monosamplesize );
+
+if	( j != wavp.realpfr )	// cela ne peut pas arriver, cette verif est parano
+	gasp("erreur JAW #213978");
+printf("decoded PCM frames %u vs %u estimated\n", wavp.realpfr, wavp.estpfr );
+wavp.afclose();
+fflush(stdout);
+return 0;
+}
+
+// layout pour reponse impulsionnelle
 void glostru::layout1()
 {
 panneau1.offscreen_flag = 0;
@@ -411,8 +527,27 @@ curcour->V = Cbuf;
 curcour->qu = qfir;
 curcour->scan();	// alors on peut faire un scan
 
-/*
-curcour = new layer_u<double>;
+}
+
+// layout pour WAV
+void glostru::layout1W()
+{
+panneau1.offscreen_flag = 0;
+
+// creer le strip
+gstrip * curbande;
+curbande = new gstrip;
+panneau1.add_strip( curbande );
+
+// configurer le strip
+curbande->bgcolor.set( 0.90, 0.95, 1.0 );
+curbande->Ylabel = "val";
+curbande->optX = 1;
+curbande->subtk = 1;
+
+// creer un layer
+layer_u<float> * curcour;
+curcour = new layer_u<float>;
 curbande->add_layer( curcour, "real" );
 
 // configurer le layer
@@ -420,14 +555,15 @@ curcour->set_km( 1.0 );			// sets APRES add_layer
 curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
-curcour->fgcolor.set( 0.0, 0.0, 0.8 );
+curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 
 // connexion layout - data
-curcour->V = Sbuf;
-curcour->qu = qfir;
+curcour->V = Wbuf.data;
+curcour->qu = Wbuf.size;
 curcour->scan();	// alors on peut faire un scan
-*/
+
 }
+
 
 void glostru::layout2()
 {
@@ -574,11 +710,26 @@ if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qbuf = 1 << qbuflog;
 glo->qfir = floor( qpis * double(glo->pispan) );
+glo->ifnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
 
 int retval = glo->generate();
 if	( retval )
 	gasp(" erreur %d", retval );
-glo->layout1();
+if	( glo->ifnam )
+	{
+	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
+	retval = glo->audiofile_process( 1 );
+	if	( retval )
+		glo->ifnam = NULL;	// abandon lecture fichier
+	}
+
+if	( glo->ifnam )
+	{
+	glo->layout1W();
+	}
+else	{
+	glo->layout1();
+	}
 
 gtk_widget_show_all( glo->wmain );
 

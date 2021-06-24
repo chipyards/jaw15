@@ -6,13 +6,13 @@ GTKBASE= /mingw32
 # listes
 SOURCESC = ../modpop3.c
 SOURCESCPP = gluplot.cpp jluplot.cpp \
-    demo5.cpp
+    ../wavio.cpp demo5.cpp
 HEADERS = gluplot.h jluplot.h \
-    layer_u.h \
+    layer_u.h ../wavio.h ../audiofile.h ../autobuf.h \
     ../modpop3.h demo5.h
 
 OBJS= modpop3.o gluplot.o jluplot.o \
-    demo5.o
+    wavio.o demo5.o
 
 EXE = demo5.exe 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
@@ -68,6 +68,8 @@ layer_f_param.o : layer_f_param.cpp ${HEADERS}
 	gcc $(INCS) -c layer_f_param.cpp
 demo5.o : demo5.cpp ${HEADERS}
 	gcc $(INCS) -c demo5.cpp
+wavio.o : ../wavio.cpp ${HEADERS}
+	gcc $(INCS) -c ../wavio.cpp
 
 # dependances
 modpop3.o : ${HEADERS}

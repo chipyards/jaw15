@@ -32,7 +32,8 @@ demo4
 	global context menu (visibilites layers)
 
 demo5
-	layer_u		en <double>
+	layer_u		en double
+	emprunte autobuf, audiofile, wavio de jaw15
 	manips DSP
 		exp. 1 autour du filtre ideal (sinc fenetre) pour resampling
-
+		exp. 2 filtrage d'un fichier wav 
