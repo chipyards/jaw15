@@ -20,10 +20,12 @@ int idle_id;		// id pour la fonction idle du timeout
 
 unsigned int qbuf;	// taille de buffer
 unsigned int pispan;	// taille de PI dans la reponse impulsionnelle
+unsigned int castro_inc;// increment unitaire dans la reponse impulsionnelle pour Castro (aka Kaiser)
 unsigned int qfir;	// taille de la reponse impulsionnelle 
-int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 8 et 9 = Castro
 double band_center;	// passe-bande : reponse translatee par band_center * Fc
 const char * ifnam;	// nom de fichier wav a filtrer
+const char * ofnam;	// nom de fichier wav a sauver
 
 double * Cbuf;	// reponse impulsionelle d'un filtre
 double * Tbuf;	// reponse frequentielle obtenue par DFT
@@ -35,13 +37,14 @@ wavio wavp;		// objet audiofile pour lecture wav
 
 // constructeur
 glostru() : qbuf(1<<20), pispan(1<<9), qfir(1<<13), window_type(0), band_center(0.0),
-	    ifnam(NULL), Cbuf(NULL), Tbuf(NULL), plan(NULL) {};
+	    ifnam(NULL), ofnam(NULL), Cbuf(NULL), Tbuf(NULL), plan(NULL) {};
 
 // methodes
 void window_precalc( double * window, unsigned int size );
 int generate();
 int audiofile_load( int verbose );
 int audiofile_process();
+int audiofile_save( int monosamplesize, int qchan );
 
 void layout1();
 void layout1W();

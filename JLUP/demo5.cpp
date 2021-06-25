@@ -96,7 +96,8 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
 - filtrage passe-bande : on multiplie simplement la reponse impulsionnelle par une fonction cosinus
   pour translater la reponse frequentielle sur l'axe F de B * Fc.
   A cet effet la periode du cos est 1/B fois celle du sin inclus dans le sinc.
-  La reponse est abaissee de 6 dB, mais B < 1.0 la reponse presente un "bump" a 0dB
+  La reponse est abaissee de 6dB, mais B < 1.0 la reponse presente un "bump" a 0dB
+  Le programme corrige les -6dB pour B > 1.0
 
 - arguments de la ligne de commande le l'experience 1 (avec les valeurs par defaut) :
 	-L 20	log de fftsize
@@ -115,15 +116,21 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
   exemple: passe-bande, reponse de 1.5 Fc a 3.5 Fc (la bande a une largeur 2 Fc)
 	./demo5 -P 154 -Z 32 -w 3 -B 2.5
 
-
 EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
 
 - on utilise un signal echantillonne a fsamp, on le filtre avec la reponse impulsionnelle de taille qfir,
   on s'attend a une coupure Fc = fsamp/(2*pispan)
   exemple fsamp = 44100, pispan = 154 ==> fc = 143 Hz
-- le signal filtre est tronque de qfir/2 echantillons a chaque extremite 
+- a chaque extremite du signal, les qfir/2 echantillons manquants sont remplaces par des zeros 
 
- 
+- arguments de la ligne de commande 
+	-o ""	fichier de sortie sauve
+	-c 1	nombre de canaux sauves : 2 -> stereo {src-filtered}, 1 -> mono filtered
+		(N.B. si le fichier d'entree est stereo, seul canal L est traite)
+  exemple : passe-bande  [2205 Hz 5145 Hz] largeur 2940 Hz, resultat dans fichier mono 
+	./demo5 -Z 32 -P 15 -w 3 -B 2.5 ../../JAW/WAV/logipoS.wav -o pipo.wav
+  N.B. accepte fichier 16 bits ou 32 bits, sauve idem
+
 */
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -318,7 +325,7 @@ plan = fftw_plan_dft_r2c_1d( qbuf, Cbuf, (fftw_complex*)Tbuf, FFTW_ESTIMATE );
 if	( plan == NULL )
 	return -3;
 // generation APRES le plan FFTW car celui-ci raze le buf d'entree
-unsigned int castro_inc = pispan;
+castro_inc = pispan;
 if	( window_type < 8 )
 	{				// sinc et fenetre classique
 	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI), window_type %d\n",
@@ -497,6 +504,11 @@ return 0;
 
 int glostru::audiofile_process()
 {
+double Fc = double(wavp.fsamp)/(2.0*double(pispan));
+printf("Fc @ -6dB : %g Hz\n", Fc );
+if	( band_center > 0.0 )
+	printf("bande [%g %g] largeur %g\n", Fc * ( band_center - 1.0 ), Fc * ( band_center + 1.0 ), Fc * 2.0 );
+fflush(stdout);
 // allocation buffer pour l'audio entier
 if	( wavp.realpfr > Ybuf.capa )
 	{
@@ -505,8 +517,14 @@ if	( wavp.realpfr > Ybuf.capa )
 		gasp("echec alloc Ybuf %d samples", (int)wavp.realpfr );
 	}
 int i, j, j0, k;
-double sum;
-j0 = qfir / 2;
+double sum, K;
+if	( window_type < 8 )
+	K = 1.0 / pispan;
+else	K = 1.0 / castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
+if	( band_center >= 1.0 )
+	K *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
+
+j0 = qfir / 2;	// l'arrondi par defaut nous cale toujours qfir/2 au sommet meme si qfir est impair
 for	( i = 0; i < (int)wavp.realpfr; ++i )
 	{
 	sum = 0.0;
@@ -516,12 +534,90 @@ for	( i = 0; i < (int)wavp.realpfr; ++i )
 		if	( ( k >= 0 ) && ( k < (int)wavp.realpfr ) )
 			sum += Wbuf.data[k] * Cbuf[j];
 		}
-	Ybuf.data[i] = float( sum / double(pispan) );
+	Ybuf.data[i] = float( sum * K );
 	}
 Ybuf.size = wavp.realpfr;
 return 0;
 }
 
+int glostru::audiofile_save( int monosamplesize, int qchan )
+{
+if	( ( ofnam == NULL ) || ( Ybuf.size == 0 ) || ( Ybuf.size != Wbuf.size ) )
+	return 0;
+int retval;
+unsigned int qpfr, i, j;
+wavio neww;
+
+neww.qchan   = qchan;
+neww.fsamp   = wavp.fsamp;
+neww.realpfr = Ybuf.size;
+neww.monosamplesize = monosamplesize;
+neww.type = (monosamplesize==4)?3:1;
+
+retval = neww.write_head( ofnam );	// remet realpfr a zero apres l'avoir ecrit
+if	( retval )
+	return retval;
+
+neww.realpfr = 0; j = 0;
+if	( neww.monosamplesize == 2 )
+	{							// cas du sl16
+	short pcmbuf[QRAW*2];	// supporte stereo
+	while	( neww.realpfr < Ybuf.size )
+		{
+		qpfr = Ybuf.size - neww.realpfr;
+		if	( qpfr > QRAW )
+			qpfr = QRAW;
+		if	( neww.qchan == 2 )
+			{
+			for	( i = 0; i < (qpfr*2); i += 2 )
+				{
+				pcmbuf[i]   = short(round(32767.0 * Wbuf.data[j]));
+				pcmbuf[i+1] = short(round(32767.0 * Ybuf.data[j++]));
+				}
+			}
+		else	{
+			for	( i = 0; i < qpfr; i++ )
+				{
+				pcmbuf[i]   = short(round(32767.0 * Ybuf.data[j++]));
+				}
+			}
+		retval = neww.write_data_p( pcmbuf, qpfr );
+		if	( retval < 0 )
+			return retval;
+		}
+	}
+else if	( neww.monosamplesize == 4 )
+	{							// cas du float32
+	float pcmbuf[QRAW*2];	// supporte stereo
+	while	( neww.realpfr < Ybuf.size )
+		{
+		qpfr = Ybuf.size - neww.realpfr;
+		if	( qpfr > QRAW )
+			qpfr = QRAW;
+		if	( neww.qchan == 2 )
+			{
+			for	( i = 0; i < (qpfr*2); i += 2 )
+				{
+				pcmbuf[i]   = Wbuf.data[j];
+				pcmbuf[i+1] = Ybuf.data[j++];
+				}
+			}
+		else	{
+			for	( i = 0; i < qpfr; i++ )
+				{
+				pcmbuf[i]   = Ybuf.data[j++];
+				}
+			}
+		retval = neww.write_data_p( pcmbuf, qpfr );
+		if	( retval < 0 )
+			return retval;
+		}
+	}
+else	gasp("unsupported format %d bytes", neww.monosamplesize );
+neww.afclose();
+printf("finished writing WAV %s, %d bits, %d ch.\n", ofnam, neww.monosamplesize * 8, neww.qchan ); fflush(stdout);
+return 0;
+}
 
 // layout pour reponse impulsionnelle
 void glostru::layout1()
@@ -741,20 +837,23 @@ glo->panneau2.key_callback_register( key_call_back2, (void *)glo );
 glo->panneau1.events_connect( GTK_DRAWING_AREA( glo->darea1 ) );
 glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
 
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwB" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBoc" );
 const char * val;
 int qbuflog = 20;
 double qpis = 6.0;
+unsigned int saved_qchan = 1;
 if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );			// log de fftsize
 if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );		// taille de PI en samples pour calcul sinc
 if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );		// qfir / pispan ( <--> "nombre de zeros")
 if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );		// 0 = rect, etc...
 if	( ( val = lepar->get( 'B' ) ) )	glo->band_center = strtod( val, NULL );	// translation band_center * Fc
-if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) )
+if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
+if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
+if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) || ( saved_qchan > 2 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qbuf = 1 << qbuflog;
 glo->qfir = floor( qpis * double(glo->pispan) );
-glo->ifnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
+glo->ifnam = lepar->get( '@' );		// naked string = input file
 
 int retval = glo->generate();
 if	( retval )
@@ -771,6 +870,8 @@ if	( glo->ifnam )
 	{
 	glo->audiofile_process();
 	glo->layout1W();
+	if	( glo->ofnam )
+		glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
 	}
 else	{
 	glo->layout1();
