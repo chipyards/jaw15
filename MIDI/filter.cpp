@@ -251,40 +251,108 @@ apply_tempo();
 return 0;
 }
 
-// En se basant sur les timestamps de reference lus dans un fichier CSV de Sonic Visualizer (annotation layer),
-// creer un tempo event a chaque timestamp, pour accompagner les variations de cadence
+// lire les timestamps de reference dans un fichier CSV de Sonic Visualizer (annotation layer)
+// le vecteur timestamps doit etre fourni (vide)
 // Les timestamps de reference sont supposéees apparaitre tous les bpkn beats (1 beat = 1 midi quarter note)
-// le filtre ecrit dans la track 0 de la song, qui est supposee etre fresh
-int song_filt::filter_CSV_follow( FILE * csv_fil, int bpkn )
+int song_filt::read_CSV_instants( const char * fnam, vector <double> * timestamps, int bpkn, int FIR )
 {
-if	(!is_fresh_recorded())
-	return -2;
+printf("----- FILTER read_CSV_instants (%s)\n", fnam );
+FILE * csv_fil = fopen( fnam, "r" );
 if	( csv_fil == NULL )
-	return -3;
-printf("----- FILTER CSV-follow\n");
-// lecture fichier
-vector <double> timestamps;
+	return -1;
 char lbuf[256]; double t;
+timestamps->clear();
 while	( fgets( lbuf, sizeof( lbuf ), csv_fil ) )
 	{
 	t = strtod( lbuf, NULL );
-	timestamps.push_back( t );
+	timestamps->push_back( t );
 	}
+fclose( csv_fil );
 // statistiques
-int qstamps = timestamps.size();
+int qstamps = timestamps->size();
 printf("lu %u timestamps\n", qstamps );
 if	( qstamps < 2 )
-	return -4;
-int i; double dt, dtmin = 100000.0, dtmax = 0.0, dtsum = 0.0;
+	return -2;
+int i; double dt, dtmin = 100000.0, dtmax = 0.0, dtsum;
 for	( i = 1; i < qstamps; ++i )
 	{
-	dt = timestamps[i] - timestamps[i-1];
+	dt = timestamps->at(i) - timestamps->at(i-1);
 	if	( dt < dtmin ) dtmin = dt;
 	if	( dt > dtmax ) dtmax = dt;
- 	dtsum += dt;
 	}
+dtsum = timestamps->at(qstamps-1) - timestamps->at(0);
 dtsum /= (qstamps-1);
 printf("[%g,%g] avg %g --> %g BPM\n", dtmin, dtmax, dtsum, double(60 * bpkn) / dtsum );
+if	( ( FIR & 1 ) == 0 )
+	return 0;
+// filtrage FIR optionnel (ordre impair), ce sont les intervalles qui sont filtres
+int qint = qstamps-1;
+double interval_in[qint];
+double interval_out[qint];
+double firsum; int j, k, demi;
+demi = FIR/2; 	// arrondi par defaut
+// calcul des intervalles, ce sont eux qui sont filtres
+for	( i = 0; i < qint; ++i )
+	interval_in[i] = timestamps->at(i+1) - timestamps->at(i);
+// filtrage
+for	( i = 0; i < qint; ++i )
+	{
+	firsum = 0.0;
+	for	( j = 0; j < FIR; j++ )
+		{
+		k = i + j - demi;
+		if	( k < 0 ) k = 0;		// hack du bord gauche
+		if	( k >= qint ) k = qint - 1;	// hack du bord droit
+		firsum += interval_in[k];
+		}
+	interval_out[i] = firsum / FIR;
+	}
+// reconstruction des timestamps
+double oldlast = timestamps->at(qint);
+for	( i = 0; i < qint; ++i )
+	timestamps->at(i+1) = timestamps->at(i) + interval_out[i];
+// verification de la duree totale (en theorie le filtre respecte la composante DC, mais
+// une petite erreur peut etre causee par les hacks des bords) 
+double correction = oldlast - timestamps->at(qint);
+correction /= qint;
+for	( i = 0; i < qint; ++i )
+	interval_out[i] += correction;
+// reconstruction des timestamps
+for	( i = 0; i < qint; ++i )
+	timestamps->at(i+1) = timestamps->at(i) + interval_out[i];
+// nouvelles statistiques
+dtmin = 100000.0; dtmax = 0.0;
+for	( i = 1; i < qstamps; ++i )
+	{
+	dt = timestamps->at(i) - timestamps->at(i-1);
+	if	( dt < dtmin ) dtmin = dt;
+	if	( dt > dtmax ) dtmax = dt;
+	}
+dtsum = timestamps->at(qstamps-1) - timestamps->at(0);
+dtsum /= (qstamps-1);
+printf("apres filtrage FIR ordre %d :\n", FIR );
+printf("[%g,%g] avg %g --> %g BPM\n", dtmin, dtmax, dtsum, double(60 * bpkn) / dtsum );
+// nouveau CSV pour retour vers SV
+char newcsv[512];
+snprintf( newcsv, sizeof(newcsv), "%s.fir%d.csv", fnam, FIR );
+csv_fil = fopen( newcsv, "w" );
+if	( csv_fil )
+	{
+	for	( i = 0; i < qstamps; ++i )
+		fprintf( csv_fil, "%.9f,%d\n", timestamps->at(i), i+1 ); 
+	}
+fclose( csv_fil );
+return 0;
+}
+
+// creer un tempo event a chaque timestamp (exprime en secondes), pour accompagner les variations de cadence
+// Les timestamps de reference sont supposéees apparaitre tous les bpkn beats (1 beat = 1 midi quarter note)
+// le filtre ecrit dans la track 0 de la song, qui est supposee etre fresh
+int song_filt::filter_instants_follow( vector <double> * timestamps, int bpkn )
+{
+if	(!is_fresh_recorded())
+	return -2;
+printf("----- FILTER instants-follow\n");
 // action sur track 0
 int dt_ms, tempo;
 int ms_t1;	// beat courant en ms, fin de la portee du dernier tempo event
@@ -293,10 +361,10 @@ int mf_t0;	// beat precedent en midi ticks
 midi_event * evt = NULL;	// tempo event
 
 mf_t0 = 0;
-ms_t0 = (int)floor( 1000.0 * timestamps[0] );
-for	( i = 1; i < qstamps; ++i )
+ms_t0 = (int)floor( 1000.0 * timestamps->at(0) );
+for	( unsigned int i = 1; i < timestamps->size(); ++i )
 	{				// traiter intervalle ms_t1 - ms_t0
-	ms_t1 = (int)floor( 1000.0 * timestamps[i] );
+	ms_t1 = (int)floor( 1000.0 * timestamps->at(i) );
 	dt_ms = ms_t1 - ms_t0;			// intervalle en ms
 	tempo = ( dt_ms * 1000 ) / bpkn;	// tempo en us/beat
 	// creation tempo event dans track 0

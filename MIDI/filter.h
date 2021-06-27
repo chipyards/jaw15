@@ -65,11 +65,16 @@ int filter_division( int newdiv );
 int filter_division_fresh( int newdiv );
 int filter_init_tempo( int tempo, int num, int den );
 int filter_t_follow( int itrack, int bpkn );
-int filter_CSV_follow( FILE * csv_fil, int bpkn );
+
+int filter_instants_follow( vector <double> * timestamps, int bpkn );
 int filter_SV_CSV_gen( int itrack, int k_note, int shift );
 int filter_lucina_drums_to_GM( int itrack );
 // Filtres travaillant sur 2 songs
 int filter_copy_tempo( song * sng2 );
+
+// methodes auxiliares
+static int read_CSV_instants( const char * fnam, vector <double> * timestamps, int bpkn, int FIR=0 );
+
 };
 
 #endif
