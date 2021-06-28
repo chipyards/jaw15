@@ -460,12 +460,12 @@ switch	( v )
 		song_filt * mysong = (song_filt *)glo->pro.mid.lesong;
 		mysong->division = 960;
 		mysong->pulsation = 1.0 / (1000.0 * (double)mysong->division );
-		mysong->filter_init_tempo( 1000 * mysong->division, 12, 8 );	// hard coded 12/8
+		mysong->filter_init_tempo( 1000 * mysong->division, 4, 4 );	// hard coded 4/4
 		vector <double> timestamps;
-		int retval = song_filt::read_CSV_instants( "pipo.csv", &timestamps, 6, 5 ); // Hard coded 6 beats, FIR=5 
+		int retval = song_filt::read_CSV_instants( "pipo.csv", &timestamps, 4, 0 ); // Hard coded 4 beats, FIR=1,3 ou 5 
 		if	( retval == 0 )
 			{
-			retval = mysong->filter_instants_follow( &timestamps, 6 ); // Hard coded 6 beats
+			retval = mysong->filter_instants_follow( &timestamps, 4, 1 ); // Hard coded 6 beats, lead-in
 			printf("filter_instants_follow done, return %d\n", retval ); fflush(stdout );
 			}
 		mysong->dump( stdout ); fflush(stdout);

@@ -347,8 +347,14 @@ return 0;
 
 // creer un tempo event a chaque timestamp (exprime en secondes), pour accompagner les variations de cadence
 // Les timestamps de reference sont supposéees apparaitre tous les bpkn beats (1 beat = 1 midi quarter note)
-// le filtre ecrit dans la track 0 de la song, qui est supposee etre fresh
-int song_filt::filter_instants_follow( vector <double> * timestamps, int bpkn )
+// le filtre ecrit dans la track 0 de la song, qui est supposee etre fresh, avec une time signature compatible avec bpkn
+// 	exemple 1 : time sig 4/4,  bpkn = 4 : un timestamp par mesure
+//	exemple 2 : time sig 12/8, bpkn = 6 : un timestamp par mesure
+// leadin_flag :
+//	0 : le premier timestamp est mis au tick MIDI 0
+//	1 : le premier timestamp est mis a son instant reel, par insertion d'un nombre arbitraire de mesures
+//	    precedees d'un tempo event ad-hoc 
+int song_filt::filter_instants_follow( vector <double> * timestamps, int bpkn, int leadin_flag )
 {
 if	(!is_fresh_recorded())
 	return -2;
@@ -359,10 +365,45 @@ int ms_t1;	// beat courant en ms, fin de la portee du dernier tempo event
 int ms_t0;	// beat precedent en ms
 int mf_t0;	// beat precedent en midi ticks
 midi_event * evt = NULL;	// tempo event
+unsigned int qstamps = timestamps->size();
 
-mf_t0 = 0;
-ms_t0 = (int)floor( 1000.0 * timestamps->at(0) );
-for	( unsigned int i = 1; i < timestamps->size(); ++i )
+if	( leadin_flag )
+	{
+	int leadin_bars;	// nombre de mesures de lead-in
+	// calculer la duree moyenne d'une mesure, pour avoir quelque chose de plausible
+	double dt = ( timestamps->at(qstamps-1) - timestamps->at(0) ) / (qstamps-1);
+	leadin_bars = int(round( timestamps->at(0) / dt ));
+	// duree d'une mesure de lead-in
+	dt = timestamps->at(0) / leadin_bars;
+	// tempo correspondant en us/beat
+	tempo = int(round( ( dt * 1000000.0 ) / bpkn ));
+	// creation tempo event dans track 0 a l'instant 0
+	tracks[0].events.push_back( midi_event() );
+	tracks[0].events_tri.push_back( tracks[0].events.size() - 1 );
+	evt = &tracks[0].events.back();
+	evt->mf_timestamp = 0;		// debut de beat
+	evt->ms_timestamp = 0;
+	evt->midistatus = 0xFF;
+	evt->channel = 0;
+	evt->midinote = 0x51;
+	evt->vel = tempo;
+	evt->iext = -1;
+	printf("creation tempo @ %d (%d ms) = %d us/beat\n", evt->mf_timestamp, evt->ms_timestamp, evt->vel );
+	printf("inserting %d leading bars\n", leadin_bars );
+	mf_t0 = leadin_bars * bpkn * division;
+	// logiquement on pourrait faire ms_t0 = (int)floor( 1000.0 * timestamps->at(0) );
+	// mais en raison de l'arrondi sur tempo, alors on le recalcule
+	ms_t0 = mft2mst0( mf_t0, evt );
+	if	( ms_t0 != (int)floor( 1000.0 * timestamps->at(0) ) )
+		printf("recalcul ms_timestamp %d --> %d\n", (int)floor( 1000.0 * timestamps->at(0) ), ms_t0 );
+	}
+else	{
+	mf_t0 = 0;
+	// N.B. ci-dessous on devrait mettre zero et soustraire timestamps->at(0) a tous les timestamps,
+	// mais comme c'est utilise en relatif seulement, voila on triche
+	ms_t0 = (int)floor( 1000.0 * timestamps->at(0) );
+	}
+for	( unsigned int i = 1; i < qstamps; ++i )
 	{				// traiter intervalle ms_t1 - ms_t0
 	ms_t1 = (int)floor( 1000.0 * timestamps->at(i) );
 	dt_ms = ms_t1 - ms_t0;			// intervalle en ms
@@ -382,14 +423,14 @@ for	( unsigned int i = 1; i < timestamps->size(); ++i )
 	printf("creation tempo @ %d (%d ms) = %d us/beat\n", evt->mf_timestamp, evt->ms_timestamp, evt->vel );
 	// maintenant il faut mettre a jour le beat precedent pour le prochain tour
 	mf_t0 += ( bpkn * division );
-	// logiquement on doit faire ms_t0 = ms_t1, mais il pourrait y avoir erreur cumulative
+	// logiquement on pourrait faire ms_t0 = ms_t1, mais il pourrait y avoir erreur cumulative
 	// en raison de l'arrondi sur tempo, alors on le recalcule
 	ms_t0 = mft2mst0( mf_t0, evt );
 	if	( ms_t0 != ms_t1 )
 		printf("recalcul ms_timestamp %d --> %d\n", ms_t1, ms_t0 );
 	}
 merge();
-printf("duree avant apply_tempo() = %u\n", get_duration_ms() );
+printf("duree avant apply_tempo() = %u\n", get_duration_ms() );	// faux dans le cas leadin_flag vue la triche
 apply_tempo();
 printf("duree apres apply_tempo() = %u\n", get_duration_ms() );
 return 0;
