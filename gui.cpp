@@ -45,7 +45,6 @@ GtkWindow * global_main_window = NULL;
 
 /** ============================ PLAY with portaudio ======================= */
 
-#define CODEC_FREQ		44100
 #define CODEC_QCHAN		2
 #define FRAMES_PER_BUFFER	128	// 256 <==> 5.8 ms i.e. 172.265625 buffers/s
 
@@ -139,11 +138,11 @@ papa.suggestedLatency = mylatency;	// in seconds
 papa.hostApiSpecificStreamInfo = NULL;
 
 err = Pa_OpenStream(	&glo->stream,
-			NULL,			// no input channels
-			&papa,			// output channel parameters
-                        (double)CODEC_FREQ,	// sample frequ
-			FRAMES_PER_BUFFER,	// 256 <==> 5.8 ms i.e. 172.265625 buffers/s */
-			0,			// no PaStreamFlags for the moment
+			NULL,				// no input channels
+			&papa,				// output channel parameters
+                        (double)glo->session_fsamp,	// sample frequ
+			FRAMES_PER_BUFFER,		// 256 <==> 5.8 ms i.e. 172.265625 buffers/s */
+			0,				// no PaStreamFlags for the moment
 			// cette usine a gaz c'est parceque notre callback prend un glostru* au lieu de void*
                         (int (*)(const void *, void *, unsigned long, const PaStreamCallbackTimeInfo*,
 				 PaStreamCallbackFlags, void *))portaudio_call,
@@ -171,11 +170,11 @@ Pa_Terminate();
 }
 #endif
 
-// demarrage du synthe local
+// demarrage du synthe local (ce n'est pas celui qui sert pour midirender)
 static int local_synth_start( glostru * glo, const char * sf2file )
 {
 int retval;
-retval = glo->local_synth.init( CODEC_FREQ, glo->option_verbose );
+retval = glo->local_synth.init( glo->session_fsamp, glo->option_verbose );
 if	( retval ) return retval;
 glo->local_synth.sf2file = sf2file;
 retval = glo->local_synth.load_sf2();	// selon sf2file
@@ -452,24 +451,28 @@ switch	( v )
 	case GDK_KEY_F1 :
 		printf("F key hit\n"); fflush(stdout);
 		// experience MIDI pure hebergee dans jaw15, ebauche de remplacement de MF2M16
-		// creation d'un song vide, tempo track selon "pipo.csv", resultat dans "pipo.mid"
+		// creation d'un song vide, tempo track selon "song.csv", resultat dans "song.mid"
 		{
+		int num = 6;		// time sig num/den
+		int den = 8;
+		int bpkn = (4*num)/den;	// formule pour 1 instant / mesure
+
 		if	( glo->pro.mid.lesong )
 			delete( glo->pro.mid.lesong );
 		glo->pro.mid.lesong = new song();
 		song_filt * mysong = (song_filt *)glo->pro.mid.lesong;
 		mysong->division = 960;
 		mysong->pulsation = 1.0 / (1000.0 * (double)mysong->division );
-		mysong->filter_init_tempo( 1000 * mysong->division, 4, 4 );	// hard coded 4/4
+		mysong->filter_init_tempo( 1000 * mysong->division, num, den );
 		vector <double> timestamps;
-		int retval = song_filt::read_CSV_instants( "pipo.csv", &timestamps, 4, 0 ); // Hard coded 4 beats, FIR=1,3 ou 5 
+		int retval = song_filt::read_CSV_instants( "song.csv", &timestamps, bpkn, 0 ); // FIR = 0, 3 ou 5 
 		if	( retval == 0 )
 			{
-			retval = mysong->filter_instants_follow( &timestamps, 4, 1 ); // Hard coded 6 beats, lead-in
+			retval = mysong->filter_instants_follow( &timestamps, bpkn, 1 ); // 1 => avec lead-in bars
 			printf("filter_instants_follow done, return %d\n", retval ); fflush(stdout );
 			}
 		mysong->dump( stdout ); fflush(stdout);
-		mysong->save( "pipo.mid" ); 
+		mysong->save( "song.mid" ); 
 		} break;
 	//
 	case 'v' :	// debug : test des flags realized, visible, notebook page
@@ -862,12 +865,19 @@ glo->panneau.key_callback_register( key_call_back, (void *)glo );
 glo->para.build();
 // alors glo->para.panneau existe et est connecte a glo->para.sarea
 
+/* Sampling frequency 
+	- si un fichier audio a été chargé, glo->session_fsamp a été mis à jour
+	  (dans le cas d'un fichier midi, c'est la frequence fixee par le constructeur audiofile()
+	- sinon session_fsamp est fixee par le constructeur glostru()
+*/
+
 #ifdef USE_PORTAUDIO
 if	( glo->option_noaudio == 0 )
 	{
 	// demarrer la sortie audio (en silence)
+	glo->session_fsamp = glo->pro.af->fsamp;
 	audio_engine_start( glo, mylatency, myoutput, pa_dev_options );
-	printf("audio engine started\n");
+	printf("audio engine started, %d Hz\n", glo->session_fsamp );
 	}
 #endif
 

@@ -45,6 +45,7 @@ PaStream *stream;	// portaudio stream
 // double play_start_time;
 #endif
 
+int session_fsamp;		// sample rate
 int option_spectrogramme;
 int option_monospec;
 int option_noaudio;
@@ -58,7 +59,7 @@ process pro;		// le process : lecture wav calcul spectro, preparation layout
 fluid local_synth;	// synthe local, pour temps-reel
 
 // constructeur
-glostru() : para(this), iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000),
+glostru() : para(this), iplay(-1), iplayp(0), iplay0(0), iplay1(2000000000), session_fsamp(44100),
 	option_spectrogramme(0), option_monospec(0), option_noaudio(0), option_linspec(0), option_verbose(0),
 	sf2file(DEFAULT_SF2), current_patch0(0) {};
 

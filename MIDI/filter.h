@@ -32,11 +32,12 @@ int filter_t_follow( int itrack, int bpkn );
 	(cela concerne surtout les note-off et controles divers presents par accident)
 	Les autres tracks sont ignorees.
 
-int filter_CSV_follow( FILE * csv_fil, int bpkn );
-	En se basant sur les timestamps de reference lus dans un fichier CSV de Sonic Visualizer (annotation layer),
+int filter_instants_follow( vector <double> * timestamps, int bpkn, int leadin_flag=0 );
 	creer un tempo event a chaque timestamp, pour accompagner les variations de cadence
 	Les timestamps de reference sont supposéees apparaitre tous les bpkn beats (1 beat = 1 midi quarter note)
-	le filtre ecrit dans la track 0 de la song, qui est supposee etre fresh
+	le filtre ecrit dans la track 0 de la song, qui est supposee etre fresh.
+	- mesures de lead-in : leur nombre sera calcule automatiquement si leadin_flag == true
+	- timestamps de reference : les lire d'un fichier CSV de Sonic Visualizer avec song_filt::read_CSV_instants()
 
 int filter_SV_CSV_gen( int itrack, int k_note, int shift );
 	ce filtre produit (en stdout) un texte CSV compatible avec Sonic Visualizer (annotation layer)
