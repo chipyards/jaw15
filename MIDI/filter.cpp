@@ -353,7 +353,12 @@ return 0;
 // leadin_flag :
 //	0 : le premier timestamp est mis au tick MIDI 0
 //	1 : le premier timestamp est mis a son instant reel, par insertion d'un nombre arbitraire de mesures
-//	    precedees d'un tempo event ad-hoc 
+//	    precedees d'un tempo event ad-hoc
+//	    N.B. ce n'est pas compatible avec un lead-in audible (metronome ou sticks) car le tempo de ces mesures
+//	    est different de la premiere mesure musicale (TODO - fix this !)
+//
+#define CAKE_FLAW	// reproduire l'erreur d'arrondi cumulative de Cakewalk
+
 int song_filt::filter_instants_follow( vector <double> * timestamps, int bpkn, int leadin_flag )
 {
 if	(!is_fresh_recorded())
@@ -423,11 +428,17 @@ for	( unsigned int i = 1; i < qstamps; ++i )
 	printf("creation tempo @ %d (%d ms) = %d us/beat\n", evt->mf_timestamp, evt->ms_timestamp, evt->vel );
 	// maintenant il faut mettre a jour le beat precedent pour le prochain tour
 	mf_t0 += ( bpkn * division );
-	// logiquement on pourrait faire ms_t0 = ms_t1, mais il pourrait y avoir erreur cumulative
-	// en raison de l'arrondi sur tempo, alors on le recalcule
+	// logiquement on pourrait faire ms_t0 = ms_t1
+	// mais cela peut causer une erreur cumulative en raison de l'arrondi sur tempo,
+	// ce qui peut etre desirable si le DAW fait la meme erreur...
+	#ifdef CAKE_FLAW
+	ms_t0 = ms_t1;
+	#else
+	// ou on peut vouloir eviter cette cumulation en recalculant ms_t0
 	ms_t0 = mft2mst0( mf_t0, evt );
 	if	( ms_t0 != ms_t1 )
 		printf("recalcul ms_timestamp %d --> %d\n", ms_t1, ms_t0 );
+	#endif
 	}
 merge();
 printf("duree avant apply_tempo() = %u\n", get_duration_ms() );	// faux dans le cas leadin_flag vue la triche
