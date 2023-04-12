@@ -17,7 +17,7 @@
 	dans un strip : vector < layer_base * > courbes;
 	dans un panel : vector < strip * > bandes;
    classes de base :
-	layer_base est abstraite - les layers operationnels sont definis dans l'unite layer.h
+	layer_base est abstraite - les layers operationnels sont definis dans des unites layer_xx.h
 	strip est operationnelle
 
 1) contexte graphique
@@ -75,6 +75,22 @@
 		- format A4 landscape (@ pdf_DPI = 72), indep. de la taille de fenetre
 		- fond transparent (optcadre = 1)
 	  elle restitue le contexte au retour.
+5) echelles log style "Bode Plot"
+	- echelle verticale t.q. dB
+		- c'est a la charge du layer, par exemple layer_u avec style=2 :
+			- les data sont lineaires t.q. module de fonction de transfert ou de signal reel
+			- le layer effectue la conversion "20*log10(v)" sur chaque valeur de V,
+			  en positionnant le 0dB selon parametre k0dB et en limitant les dB negatifs
+			  selon plancher Vfloor
+		- le strip gere une graduation lineaire uniforme, il n'est pas au courant
+	- echelle horizontale de frequence dite "echelle log"
+		- les data sont supposees etre generees en progression exponentielle,
+		  pour le layer elles ont un pas uniforme, U = indice des chaque sample
+		  c'est a dire que U est proportionnel au log de la frequence (M aussi)
+		- le layer (par exemple layer_u) n'est pas au courant de "l'echelle log"
+		- c'est au panel de produire des graduations X et un reticule non uniformes
+		  permettant de lire directement la frequence
+		- ce comportement se configure avec panel::logscale_helper() (ci dessous)
 */
 class panel;
 class strip;
@@ -268,6 +284,7 @@ unsigned int mx;	// marge x pour les textes a gauche (pixels)
 			// sert a translater le repere pour trace des courbes
 unsigned int my;	// marge pour les textes de l'axe X (pixels)
 unsigned int pdf_DPI;	// conversion des pixels t.q. pdf_DPI = 72 <==> 1 pix = 1 point
+int optLog10;		// graduation log style Bode ( en fait c'est Q qui est le log de la frequence )
 
 // zoombar X optionnelle
 void * zoombar;		// pointeur sur l'objet, a passer a la callback
@@ -276,7 +293,7 @@ void(* zbarcall)(void*, double, double); 	// callback de zoom normalise
 // constructeur
 panel() : x0(0.0), kx(1.0), q0(0.0), kq(1.0),
 	  tdq(10.0), qtkx(11), full_valid(0), force_redraw(1),
-	  fdx(200), fdy(200), mx(60), my(20), pdf_DPI(72),
+	  fdx(200), fdy(200), mx(60), my(20), pdf_DPI(72), optLog10(0),
 	  zbarcall(NULL)
 	  { ndx = fdx - mx; };
 // methodes
@@ -290,12 +307,15 @@ void set_x0( double X0 );
 void set_kx( double kX );
 double get_x0() { return x0; };
 double get_kx() { return kx; };
-
+void logscale_helper( double fstart, double fref, double mref ) {
+	q0 = log10( fstart );
+	kq = mref / ( log10( fref ) - q0 );
+	optLog10 = 1;
+	};
 void add_strip( strip * labande ) {
-labande->parent = this;
-bandes.push_back( labande );
-}
-
+	labande->parent = this;
+	bandes.push_back( labande );
+	};
 // dessin
 void zoomM( double mmin, double mmax );	// zoom absolu
 void zoomX( double xmin, double xmax );	// zoom relatif

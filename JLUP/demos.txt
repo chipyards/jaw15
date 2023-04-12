@@ -10,9 +10,11 @@ demo2
 	layer_f_fifo	simu acquisition de donnees en temps reel
 			styles 0 et 1
 	layer_f_param
-	paned widgets	en haut panel X(t) Y(t) avec zoombar, en bas panel Y(X) 
+	paned widgets	deux panels dont la separation est ajustable a la souris :
+				en haut panel X(t) Y(t) avec zoombar
+				en bas panel Y(X) 
 	ou
-	notebook (tab widgets) (option -N)
+			notebook (tab widgets) avec option -N
 	PDF
 	subticks
 
@@ -36,4 +38,10 @@ demo5
 	emprunte autobuf, audiofile, wavio de jaw15
 	manips DSP
 		exp. 1 autour du filtre ideal (sinc fenetre) pour resampling
-		exp. 2 filtrage d'un fichier wav 
+		exp. 2 filtrage d'un fichier wav
+
+demo6
+	layer_u		en double, styles 0 et 2
+	Bode Plot, illustre l'echelle log horizontale geree dans jluplot
+	fonctions de transfert "classiques" empruntees a BODULE_1
+	

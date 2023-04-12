@@ -4,7 +4,7 @@
 // 1 : style spectre en barres verticales
 // 2 : courbe classique en dB
 // donnees allouees a l'exterieur, de type Tsamp parametrable
-// teste avec short, unsigned short, Tsamp
+// teste avec double, float, short, unsigned short, Tsamp
 // (no destructor needed , Tsamp * V is allocated and freed by app)
 template <typename Tsamp> class layer_u : public layer_base {
 public :
