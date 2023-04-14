@@ -69,12 +69,20 @@
 	- chaque layer derive peut implementer une methode scan() pour mettre a jour ses min et max,
 	  a charge pour l'application de l'appeler quand les data sont mises a jour
 
+4) Densite des ticks (graduations et reticules)
+	- le nombre total de ticks depend de strip::qtky et panel::qtkx
+	  l'ajustement en fonction des pixels disponibles est a charge de l'appli,
+	  jluplot ne le fait pas automatiquement (sauf partiellement pour echelle log)
+	- les subticks sont traces sur le reticule seulement, leur densite (en X et Y)
+	  relative aux ticks depend de strip::subtk que l'appli peut ajuster
+
 4) PDF plot
 	- la methode pdfplot( fnam, caption ) modifie le contexte :
 		- pour les elements fixes en pixels : pdf_DPI = 72 ==> 1 pixel -> 1 pt ( 0.353 mm )
 		- format A4 landscape (@ pdf_DPI = 72), indep. de la taille de fenetre
 		- fond transparent (optcadre = 1)
 	  elle restitue le contexte au retour.
+
 5) echelles log style "Bode Plot"
 	- echelle verticale t.q. dB
 		- c'est a la charge du layer, par exemple layer_u avec style=2 :
@@ -84,9 +92,10 @@
 			  selon plancher Vfloor
 		- le strip gere une graduation lineaire uniforme, il n'est pas au courant
 	- echelle horizontale de frequence dite "echelle log"
-		- les data sont supposees etre generees en progression exponentielle,
+		- repose sur une collaboration entre la source de data et l'affichage:
+		  ne fonctionne que si les data sont generees en progression exponentielle,
 		  pour le layer elles ont un pas uniforme, U = indice des chaque sample
-		  c'est a dire que U est proportionnel au log de la frequence (M aussi)
+		  c'est a dire que U est proportionnel au log de la "frequence" (M aussi)
 		- le layer (par exemple layer_u) n'est pas au courant de "l'echelle log"
 		- c'est au panel de produire des graduations X et un reticule non uniformes
 		  permettant de lire directement la frequence

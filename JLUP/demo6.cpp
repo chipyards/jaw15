@@ -95,6 +95,8 @@ switch	( v )
 	//
 	case 't' :
 		glo->panneau1.qtkx *= 1.5;
+		glo->panneau1.bandes[0]->qtky *= 2.0;
+		glo->panneau1.bandes[1]->qtky *= 2.0;
 		glo->panneau1.force_repaint = 1;
 		glo->panneau1.force_redraw = 1;		// necessaire pour panneau1 a cause de offscreen_flag
 		break;

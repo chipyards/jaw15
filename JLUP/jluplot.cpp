@@ -266,26 +266,60 @@ if	( parent->optLog10 == 0 )
 		}
 	}
 else	{				// ECHELLE LOG STYLE BODE
-	// puissance de 10 immediatement inferieure ou egale au bord gauche
-	double curq, iq = floor( parent->QdeM(parent->MdeX(0)) );
-	double curx = parent->XdeM(parent->MdeQ(iq));
-	while	( curx < parent->ndx )
+	double curq, curx;
+	double leftq  = parent->QdeM(parent->MdeX(0));
+	double rightq = parent->QdeM(parent->MdeX(parent->ndx));
+	// nombre de decades visibles
+	double qdec = rightq - leftq;
+	// iq = exposant de la puissance de 10 immediatement inferieure ou egale au bord gauche
+	double iq = floor( leftq );
+	if	( qdec > 0.95 )		// style "papier log"
 		{
-		for	( int j = 1; j < 10; j++ )	// 9 ticks pour 1 decade
+		curx = parent->XdeM(parent->MdeQ(iq));
+		while	( curx < parent->ndx )
 			{
-			curq = iq + log10(double(j));
+			for	( int j = 1; j < 10; j++ )	// 9 ticks pour 1 decade
+				{
+				curq = iq + log10(double(j));
+				curx = parent->XdeM(parent->MdeQ(curq));	// la transformation
+				if	( curx >= parent->ndx )
+					break;
+				if	( curx >= 0 )
+					{
+					cairo_move_to( cai, curx, -((double)ndy ) );	// top
+					cairo_line_to( cai, curx, 0.0 );		// bottom
+					cairo_stroke( cai );
+					}
+				}
+			iq += 1.0;
+			curx = parent->XdeM(parent->MdeQ(iq));
+			}
+		}
+	else	{			// zoomed-in, style quasi lin
+		// frequence des bords
+		double leftf  = pow( 10, leftq );
+		double rightf = pow( 10, rightq );
+		// intervalle des ticks en frequence
+		double tdf = autotick( rightf - leftf, parent->qtkx );
+		// frequence du premier tick = premier multiple de tdf >= leftf
+		double f = ceil( leftf / tdf ) * tdf;
+		do	{
+			curq = log10(f);
+			if	( fabs( curq - ( iq + 1.0 ) ) < 0.00001 )
+				{		// recalage sur la decade suivante
+				iq += 1.0;
+				curq = iq;
+				f = pow( 10, iq );
+				tdf *= 10.0;
+				}		
 			curx = parent->XdeM(parent->MdeQ(curq));	// la transformation
 			if	( curx >= parent->ndx )
 				break;
-			if	( curx >= 0 )
-				{
-				cairo_move_to( cai, curx, -((double)ndy ) );	// top
-				cairo_line_to( cai, curx, 0.0 );		// bottom
-				cairo_stroke( cai );
-				}
-			}
-		iq += 1.0;
-		curx = parent->XdeM(parent->MdeQ(iq));
+			cairo_move_to( cai, curx, -((double)ndy ) );	// top
+			cairo_line_to( cai, curx, 0.0 );		// bottom
+			cairo_stroke( cai );
+			f += tdf;
+			} while ( curx < parent->ndx );
 		}
 	}
 }
@@ -317,50 +351,88 @@ if	( parent->optLog10 == 0 )
 		}
 	}
 else	{	// ECHELLE LOG STYLE BODE (see panel::logscale_helper() )
-	double curq;
-	// iq puissance de 10 immediatement inferieure ou egale au bord gauche
-	double iq = floor( parent->QdeM(parent->MdeX(0)) );
-	double curx = parent->XdeM(parent->MdeQ(iq));
+	double curq, curx;
+	double leftq  = parent->QdeM(parent->MdeX(0));
+	double rightq = parent->QdeM(parent->MdeX(parent->ndx));
+	// nombre de decades visibles
+	double qdec = rightq - leftq;
 	double pixperdecade = parent->kq / parent->get_kx();
-	// printf("pxpd = %g\n", pixperdecade ); fflush(stdout);
-	int loglod;
-	if	( pixperdecade > 280 ) loglod = 2;
-	else if	( pixperdecade > 150 ) loglod = 1;
-	else	loglod = 0;
-	// printf("gradu_X: start %g\n", pow( 10, iq ) ); fflush(stdout);
-	while	( curx < parent->ndx )
+	printf("%g decades visibles, %g pixels par decade\n", qdec, pixperdecade ); fflush(stdout);
+	// iq = exposant de la puissance de 10 immediatement inferieure ou egale au bord gauche
+	double iq = floor( leftq );
+	if	( qdec > 0.95 )		// style "papier log"
 		{
-		if	( curx >= 0 )	// texte pour puissance de 10
+		curx = parent->XdeM(parent->MdeQ(iq));
+		int loglod;
+		if	( pixperdecade > 700 ) loglod = 3;
+		else if	( pixperdecade > 280 ) loglod = 2;
+		else if	( pixperdecade > 150 ) loglod = 1;
+		else	loglod = 0;
+		// printf("gradu_X: start %g\n", pow( 10, iq ) ); fflush(stdout);
+		while	( curx < parent->ndx )
 			{
-			// scientout( lbuf, pow( 10, iq ) );
-			snprintf( lbuf, sizeof(lbuf), "%.0e", pow( 10, iq ) );
-			cairo_move_to( cai, curx - 20, 15 );
-			cairo_show_text( cai, lbuf );
+			if	( curx >= 0 )	// texte pour puissance de 10
+				{
+				// scientout( lbuf, pow( 10, iq ) );
+				snprintf( lbuf, sizeof(lbuf), "%.0e", pow( 10, iq ) );
+				cairo_move_to( cai, curx - 20, 15 );
+				cairo_show_text( cai, lbuf );
+				}
+			for	( int j = 1; j < 10; j++ )	// 9 ticks pour 1 decade
+				{
+				curq = iq + log10(double(j));
+				curx = parent->XdeM(parent->MdeQ(curq));	// la transformation
+				if	( curx >= parent->ndx )
+					break;
+				if	( curx >= 0 )
+					{
+					cairo_move_to( cai, curx, 0.0 );	// top
+					cairo_line_to( cai, curx, 3.0 ); 	// bottom
+					cairo_stroke( cai );
+					if	(
+						( ( loglod >= 1 ) && ( (j==2) || (j==5) ) ) ||
+						( ( loglod >= 2 ) && ( (j==3) || (j==4) || (j==6) || (j==7) ) ) ||
+						( ( loglod >= 3 ) && (  j>1 ) )
+						)
+						{
+						snprintf( lbuf, sizeof(lbuf), "%d", j );
+						cairo_move_to( cai, curx - 4, 15 );
+						cairo_show_text( cai, lbuf );
+						}
+					}
+				}
+			iq += 1.0;
+			curx = parent->XdeM(parent->MdeQ(iq));
 			}
-		for	( int j = 1; j < 10; j++ )	// 9 ticks pour 1 decade
-			{
-			curq = iq + log10(double(j));
+		}
+	else	{			// zoomed-in, style quasi lin
+		// frequence des bords
+		double leftf  = pow( 10, leftq );
+		double rightf = pow( 10, rightq );
+		// intervalle des ticks en frequence
+		double tdf = autotick( rightf - leftf, parent->qtkx );
+		// frequence du premier tick = premier multiple de tdf >= leftf
+		double f = ceil( leftf / tdf ) * tdf;
+		do	{
+			curq = log10(f);
+			if	( fabs( curq - ( iq + 1.0 ) ) < 0.00001 )
+				{		// recalage sur la decade suivante
+				iq += 1.0;
+				curq = iq;
+				f = pow( 10, iq );
+				tdf *= 10.0;
+				}		
 			curx = parent->XdeM(parent->MdeQ(curq));	// la transformation
 			if	( curx >= parent->ndx )
 				break;
-			if	( curx >= 0 )
-				{
-				cairo_move_to( cai, curx, 0.0 );	// top
-				cairo_line_to( cai, curx, 3.0 ); 	// bottom
-				cairo_stroke( cai );
-				if	(
-					( ( loglod >= 1 ) && ( (j==2) || (j==5) ) ) ||
-					( ( loglod >= 2 ) && ( (j==3) || (j==4) || (j==6) || (j==7) ) )
-					)
-					{
-					snprintf( lbuf, sizeof(lbuf), "%d", j );
-					cairo_move_to( cai, curx - 4, 15 );
-					cairo_show_text( cai, lbuf );
-					}
-				}
-			}
-		iq += 1.0;
-		curx = parent->XdeM(parent->MdeQ(iq));
+			cairo_move_to( cai, curx, 0.0 );	// top
+			cairo_line_to( cai, curx, 3.0 ); 	// bottom
+			cairo_stroke( cai );
+			snprintf( lbuf, sizeof(lbuf), "%g", f );
+			cairo_move_to( cai, curx - 4, 15 );
+			cairo_show_text( cai, lbuf );
+			f += tdf;
+			} while ( curx < parent->ndx );
 		}
 	}
 }
