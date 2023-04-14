@@ -316,11 +316,6 @@ void set_x0( double X0 );
 void set_kx( double kX );
 double get_x0() { return x0; };
 double get_kx() { return kx; };
-void logscale_helper( double fstart, double fref, double mref ) {
-	q0 = log10( fstart );
-	kq = mref / ( log10( fref ) - q0 );
-	optLog10 = 1;
-	};
 void add_strip( strip * labande ) {
 	labande->parent = this;
 	bandes.push_back( labande );
@@ -336,6 +331,12 @@ void fullMN();
 void presize( int redx, int redy );	// met a jour les dimensions en pixels
 void resize( int redx, int redy );	// met a jour les dimensions en pixels puis les zooms
 void draw( cairo_t * cai );
+void logscale_helper( double fstart, double fref, double mref ) {
+	q0 = log10( fstart );
+	kq = mref / ( log10( fref ) - q0 );
+	optLog10 = 1;
+	};
+void bode_log_scale(  cairo_t * cai, bool gradu, double ytop, double ybot );
 // event
 int clicXY( double x, double y, double * px, double * py );
 int clicMN( double x, double y, double * pM, double * pN );
