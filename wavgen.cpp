@@ -176,13 +176,16 @@ return 440.0 * pow( 2.0, ( ( midinote - 69 ) / 12.0 ) );
 // generation signal sinus gamme a intervale uniforme specifie en demi-tons,
 // debut et fin specifies en midi (A4 = 440Hz = midi 69)
 // stereo, mouvement ascendant en L, descendant en R
+// mono, mouvements montant et descendant superposes
 void bal_gamme( wavio *d, double duree_note, int interval, int midi0, int midi1 )
 {
 // parametres de generation
 int qnotes = 1 + ( midi1 - midi0 ) / interval;
 if	( qnotes <= 0 )
 	gasp("trop peu de notes");
-double amplitude = 0.99;
+double amplitude = 0.966;	// -0.3dB
+if	( d->qchan <= 1 )
+	amplitude *= 0.5;	// mono
 unsigned int samp_per_note = (int)( ((double)d->fsamp) * duree_note );
 
 // variables temporaires
@@ -208,23 +211,22 @@ phi[1] = 0.0;
 j = 0;
 for	( i = 0; i < d->realpfr; ++i )
 	{
-	// produire 1 echantillon L et le sauver
+	// produire 1 echantillon L ascendant et le sauver
 	v = amplitude * sin( phi[0] );
 	frame[0] = (short int)round(v);
 	// incrementer la phase
 	phi[0] += ( ( f[0] * 2.0 * M_PI ) / (double)d->fsamp );
 	if	( phi[0] > ( 2.0 * M_PI ) )
 		phi[0] -= ( 2.0 * M_PI );
+	// produire 1 echantillon descendant R et le sauver
+	v = amplitude * sin( phi[1] );
 	if	( d->qchan > 1 )
-		{
-		// produire 1 echantillon R et le sauver
-		v = amplitude * sin( phi[1] );
-		frame[1] = (short int)round(v);
-		// incrementer la phase
-		phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->fsamp );
-		if	( phi[1] > ( 2.0 * M_PI ) )
-			phi[1] -= ( 2.0 * M_PI );
-		}
+		frame[1] = (short int)round(v);		// stereo
+	else	frame[0] += (short int)round(v);	// mono
+	// incrementer la phase
+	phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->fsamp );
+	if	( phi[1] > ( 2.0 * M_PI ) )
+		phi[1] -= ( 2.0 * M_PI );
 	// ecrire sur le disk
 	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
 	if	( writcnt != ( d->qchan * sizeof(short) ) )
@@ -253,7 +255,8 @@ if	( argc < 4 )
 		"  bal. lin : wavgen I <fichier_dest> <duree>\n"
 		"  sin. fix : wavgen F <fichier_dest> <frequ> {<freq. vibrato>}\n"
 		"  tri. fix : wavgen T <fichier_dest> <frequ>\n"
-		"  gamme tp : wavgen G <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
+		"  demitons : wavgen G <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
+		"  tierces  : wavgen H <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
 		"  quartes  : wavgen Q <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
 		"  quintes  : wavgen D <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
 		"(lettre minuscule pour mono au lieu de stereo)\n"
@@ -270,7 +273,7 @@ d.qchan = 2;
 
 d.hand = open( argv[2], O_RDWR | O_BINARY | O_CREAT | O_TRUNC, 0666 );
 if	( d.hand == -1 )
-	gasp("echec ouverture ecriture %s", argv[1] );
+	gasp("echec ouverture ecriture %s", argv[2] );
 
 int opt = argv[1][0];
 if	( opt >= 'a' )
@@ -293,6 +296,9 @@ switch	( opt )
 		break;
 	case 'G' : if	( argc == 6 )
 			bal_gamme( &d, strtod( argv[3], NULL ), 1, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
+		break;
+	case 'H' : if	( argc == 6 )
+			bal_gamme( &d, strtod( argv[3], NULL ), 4, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
 		break;
 	case 'Q' : if	( argc == 6 )
 			bal_gamme( &d, strtod( argv[3], NULL ), 5, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );

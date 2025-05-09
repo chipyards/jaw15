@@ -670,6 +670,36 @@ memset( palG + iend, val, 65536 - iend );
 memset( palB + iend, val, 65536 - iend );
 }
 
+/* Exemple de generation de palette a partir de quelques "key colors", en Java (projet WUCAM a l'ENAC) 
+public class ColorRamp {
+	final int size = 300;
+	int Rlut[] = new int[size];
+	int Glut[] = new int[size];
+	int Blut[] = new int[size];
+	// chaque key contient sa position (index dans la palette) suivie de R, G et B 
+	int keys[][] = { { 0, 255, 220, 0 }, { 100 , 0, 240, 0 }, { 150, 0, 220, 240 }, { 200, 40, 80, 255 }, { 250, 140, 20, 255 }, { 300, 240, 20, 240 } };
+
+	// constructeur
+	public ColorRamp() {
+		double R0, G0, B0, kR, kG, kB; int k, j, j0, j1, dj;
+		for	( k = 1; k < keys.length; k++ )
+			{
+			j0 = keys[k-1][0]; j1 = keys[k][0]; dj = j1 - j0;
+			R0 = keys[k-1][1]; kR = ( keys[k][1] - R0 ) / (double)dj;
+			G0 = keys[k-1][2]; kG = ( keys[k][2] - G0 ) / (double)dj;
+			B0 = keys[k-1][3]; kB = ( keys[k][3] - B0 ) / (double)dj;
+			// interpolation
+			for	( j = j0; j < j1; j++ )
+				{
+				Rlut[j] = (int)Math.round( R0 + kR * ( j - j0 ) ); 
+				Glut[j] = (int)Math.round( G0 + kG * ( j - j0 ) ); 
+				Blut[j] = (int)Math.round( B0 + kB * ( j - j0 ) ); 
+				}
+			}
+		}
+	}
+*/
+
 // colorisation d'un pixbuf sur le spectre2D precalcule, utilisant la palette referencee dans spek
 // i.e. remplir le pixbuf avec l'image RBG obtenue par palettisation du spectre2D en u16
 // c'est un wrapper sur spectro::spectre2rgb
