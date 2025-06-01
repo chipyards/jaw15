@@ -20,7 +20,7 @@ double k0dB;	// specifique style 2, k0dB = 1 / V0dB, a fournir par l'appli
 double Vfloor;	// specifique style 2, plancher pour dB, a fournir par l'appli
 
 // constructeur
-layer_u<Tsamp>() : layer_base(),
+layer_u() : layer_base(),
 	  Vmin(0), Vmax(1), qu(0), curi(0), style(0), ecostroke(400), k0dB(1.0), Vfloor(1e-5) {};
 
 // methodes propres a cette classe derivee

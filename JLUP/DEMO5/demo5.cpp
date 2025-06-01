@@ -70,7 +70,7 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
 
   On ajoute a l'experience deux type de fenetre, dont les reponses impulsionnelles sont calcules avec Octave
   (un outil style Matlab) par application de fenetre Kaiser sur sinc.
-  On ne sait pas traduire cela en C, alors on teste deux filtres pre-calcules vus dans libsamplerate:
+  On ne sait pas traduire cela en C, alors on teste deux filtres pre-calcules vus dans libsamplerate.
   Alors pispan est impose par Castro.
 	qpis   filtre		stopband @ -75 dB	stopband @ -100 dB	pispan	inc	fudge factor
 	32	fast		1.189			1.202			154	128	1.203
@@ -247,7 +247,7 @@ switch	( v )
 	//
 	case 'p' :
 		char fnam[32], capt[128];
-		snprintf( fnam, sizeof(fnam), "demo2.1.pdf" );
+		snprintf( fnam, sizeof(fnam), "demo5.pdf" );
 		modpop_entry( "PDF plot", "nom du fichier", fnam, sizeof(fnam), GTK_WINDOW(glo->wmain) );
 		snprintf( capt, sizeof(capt), "plot FIFO" );
 		modpop_entry( "PDF plot", "description", capt, sizeof(capt), GTK_WINDOW(glo->wmain) );
@@ -308,6 +308,34 @@ for	( unsigned int i = 0; i < size; ++i )
 		- a3 * cos( 6 * m * i );
 	}
 }
+
+void glostru::descriptor()
+	{
+	const char * wname; int cycles;
+	double dpispan = (double)pispan;
+	switch	( window_type ) {
+		case 1: wname = "hann"; break;
+		case 2: wname = "hamming"; break;
+		case 3: wname = "blackman"; break;
+		case 4: wname = "blackmanharris"; break;
+		case 8: wname = "kaiser (castro fast)";
+			cycles = 8;
+			dpispan = (double)qfir/(cycles*4); 
+			break;
+		case 9: wname = "kaiser (castro mid_qual)";
+			cycles = 21;
+			dpispan = (double)qfir/(cycles*4);
+			break;
+		case 10: wname = "kaiser (castro high_qual)";
+			cycles = 69;
+			dpispan = (double)qfir/(cycles*4);
+			break;
+		default: wname = "rectangle";
+		}
+	double dqpis = (double(qfir)/dpispan);
+	snprintf( description, sizeof(description), "fir span %u, pispan %g, qpis %g, window %d %s",
+		qfir, dpispan, dqpis, window_type, wname );
+	}
 
 int glostru::generate()
 {
@@ -402,7 +430,7 @@ for	( unsigned int i = qfir; i < qbuf; ++i )
 fflush(stdout);
 // fft
 fftw_execute( plan );
-// calcul magnitudes sur place (Tbuf)
+// calcul magnitudes sur place (Tbuf contient des valeurs complexes)
 unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
 if	( window_type < 8 )
@@ -732,19 +760,32 @@ curcour->set_m0( 0.0 );
 curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
 curcour->fgcolor.set( 0.0, 0.0, 0.8 );
-curcour->style = 2;
+curcour->style = 2;			// echelle verticale en dB
 
 // connexion layout - data
 curcour->V = Tbuf;
 curcour->qu = floor( panneau2.kq * ( 8.0 + band_center ) ); // pour que le fullM (horiz.) se limite a 8 * Fc 
 if	( (unsigned int)curcour->qu > qbuf )
 	curcour->qu = qbuf;
-curcour->scan();	// alors on peut faire un scan
-
+curcour->Vfloor = 1e-6;		// pour plancher a -120dB au lieu de -100dB
+curcour->scan();		// alors on peut faire un scan
 }
 
 
 /** ============================ main, quoi ======================= */
+
+void usage()
+{
+printf("Usage :\n"
+ "-L log de fftsize\n"
+ "-P pispan = taille de PI en samples pour calcul RI\n"
+ "-Z qpis = taille de RI en PIs\n"
+ "-w fenetre 0 = rect, etc...\n"
+ "-B translation band_center rel. a Fc (la bande a largeur 2 Fc)\n"
+ "-o output file\n"
+ "-c channels in saved file\n"
+ "<input file> (sinon seulement FFT)\n" );
+}
 
 int main( int argc, char *argv[] )
 {
@@ -771,14 +812,14 @@ curwidg = gtk_vbox_new( FALSE, 5 ); /* spacing ENTRE objets */
 gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
 glo->vmain = curwidg;
 
-// creer boite verticale pour panel X(t) Y(t) et sa zoombar
+// creer boite verticale pour panel superieur et sa zoombar
 curwidg = gtk_vbox_new( FALSE, 0 ); /* spacing ENTRE objets */
 // gtk_paned_pack1( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
 glo->vpan1 = curwidg;
 
 /* creer une drawing area resizable depuis la fenetre */
 curwidg = gtk_drawing_area_new();
-gtk_widget_set_size_request( curwidg, 800, 80 );	// hauteur mini, la hauteur initiale fixee par parent
+gtk_widget_set_size_request( curwidg, VIEW_W, 200 );	// hauteur mini, la hauteur initiale fixee par parent
 gtk_box_pack_start( GTK_BOX( glo->vpan1 ), curwidg, TRUE, TRUE, 0 );
 glo->darea1 = curwidg;
 
@@ -788,17 +829,17 @@ glo->zbar.events_connect( GTK_DRAWING_AREA( curwidg ) );
 gtk_box_pack_start( GTK_BOX( glo->vpan1 ), curwidg, FALSE, FALSE, 0 );
 glo->zarea1 = curwidg;
 
-/* creer une drawing area pour panel Y(X) */
+/* creer une drawing area pour panel inferieur */
 curwidg = gtk_drawing_area_new();
-gtk_widget_set_size_request( curwidg, 800, 80 );	// hauteur mini, la hauteur initiale fixee par parent
+gtk_widget_set_size_request( curwidg, VIEW_W, VIEW_H / 2 );	// hauteur mini, la hauteur initiale fixee par parent
 // gtk_paned_pack2( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
 glo->darea2 = curwidg;
 // option paned
-	{		// paire verticale "paned" pour : en haut panel X(t) Y(t) avec zoombar, en bas panel Y(X)
+	{		// paire verticale "paned"
 	curwidg = gtk_vpaned_new ();
 	gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
 	// gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 5 );	// le tour exterieur
-	gtk_widget_set_size_request( curwidg, 800, 700 );
+	gtk_widget_set_size_request( curwidg, VIEW_W, VIEW_H );
 	glo->vpans = curwidg;
 	// y placer les deux panels
 	gtk_paned_pack1( GTK_PANED(glo->vpans), glo->vpan1, TRUE, FALSE ); // resizable, not shrinkable
@@ -811,19 +852,13 @@ gtk_container_set_border_width( GTK_CONTAINER (curwidg), 5);
 gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
 glo->hbut = curwidg;
 
-/* simple bouton */
-curwidg = gtk_button_new_with_label (" Run/Pause ");
-gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
-                    GTK_SIGNAL_FUNC( run_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
-glo->brun = curwidg;
-
-/* simple bouton */
-curwidg = gtk_button_new_with_label (" Restart ");
-gtk_signal_connect( GTK_OBJECT(curwidg), "clicked",
-                    GTK_SIGNAL_FUNC( clear_call ), (gpointer)glo );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, TRUE, TRUE, 0 );
-glo->braz = curwidg;
+/* texte descriptif */
+curwidg = gtk_entry_new();
+gtk_entry_set_editable( GTK_ENTRY(curwidg), FALSE );
+gtk_entry_set_max_length( GTK_ENTRY(curwidg), 128 );
+gtk_widget_set_size_request( curwidg, VIEW_W, -1 );
+gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 5 );
+glo->edesc = curwidg;
 
 // connecter la zoombar au panel et inversement
 glo->panneau1.zoombar = &glo->zbar;
@@ -837,6 +872,8 @@ glo->panneau2.key_callback_register( key_call_back2, (void *)glo );
 glo->panneau1.events_connect( GTK_DRAWING_AREA( glo->darea1 ) );
 glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
 
+if	( argc < 2 )
+	{ usage(); return 0; }
 cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBoc" );
 const char * val;
 int qbuflog = 20;
@@ -846,7 +883,7 @@ if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );			// log de fftsize
 if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );		// taille de PI en samples pour calcul sinc
 if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );		// qfir / pispan ( <--> "nombre de zeros")
 if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );		// 0 = rect, etc...
-if	( ( val = lepar->get( 'B' ) ) )	glo->band_center = strtod( val, NULL );	// translation band_center * Fc
+if	( ( val = lepar->get( 'B' ) ) )	glo->band_center = strtod( val, NULL );	// translation band_center rel. Fc
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
 if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) || ( saved_qchan > 2 ) )
@@ -858,6 +895,9 @@ glo->ifnam = lepar->get( '@' );		// naked string = input file
 int retval = glo->generate();
 if	( retval )
 	gasp(" erreur %d", retval );
+glo->descriptor();
+gtk_entry_set_text( GTK_ENTRY( glo->edesc ), glo->description );
+printf( "%s\n", glo->description );
 if	( glo->ifnam )
 	{
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
