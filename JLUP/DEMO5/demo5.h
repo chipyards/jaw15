@@ -24,7 +24,8 @@ gpanel panneau2;	// panneau2 dans darea2
 int idle_id;		// id pour la fonction idle du timeout
 
 unsigned int qbuf;	// taille de buffer
-unsigned int pispan;	// taille de PI dans la reponse impulsionnelle
+double pispan;		// taille de PI dans la reponse impulsionnelle
+unsigned int qpis;	// nombre de fois pi dans le sinc de la RI, dit "nombre de zeros
 unsigned int castro_inc;// increment unitaire dans la reponse impulsionnelle pour Castro (i.e. Kaiser)
 unsigned int qfir;	// taille de la reponse impulsionnelle 
 int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 8 et 9 = Castro
@@ -42,12 +43,15 @@ wavio wavp;		// objet audiofile pour lecture wav
 char description[128];
 
 // constructeur
-glostru() : qbuf(1<<20), pispan(1<<9), qfir(1<<13), window_type(0), band_center(0.0),
+glostru() : qbuf(1<<20), pispan(777), qpis(12), qfir(0), window_type(0), band_center(0.0),
 	    ifnam(NULL), ofnam(NULL), Cbuf(NULL), Tbuf(NULL), plan(NULL) {};
 
 // methodes
-void window_precalc( double * window, unsigned int size );
-void descriptor();
+double mysinc( double x ) {
+	if	( fabs(x) < 1e-5 )
+		return 1.0;
+	return ( sin(x) / x );
+	};
 int generate();
 int audiofile_load( int verbose );
 int audiofile_process();

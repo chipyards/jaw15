@@ -4,7 +4,7 @@
 
 - theoreme : le filtre ideal est un filtre dont la reponse impulsionnelle finie est la fonction sinc( k * i )
   avec k = 2 * pi * (Fc/Fsamp)
-         = pi / pispan, avec pispan = 1 / ( Fc / ( Fsamp / 2 ) ) = "intervalle entre deux zeros de sinc"
+       k = pi / pispan, avec pispan = ( Fsamp / 2 ) / Fc = "intervalle entre deux zeros de sinc"
 
 - cas limite : pispan = 1 <==> Fc = Fsamp/2 = limite de Nyquist
   Un tel filtre ne sert a rien pour filtrer un signal incident, mais il a un sens pour faire de l'interpolation
@@ -22,7 +22,7 @@ EXPERIENCE 1 : FT de la reponse impulsionnelle finie = reponse frequentielle
   (en effet Fc = a * (Fsamp/fftsize) = Fsamp * 1 / ( 2 * pispan ) )
   On peut donc demander a jluplot une echelle en frequence relative à l'ideal
 
-- incidence de la longueur de la reponse impulsionnelle qfir = pispan * qpis (@ pispan = 777) (sans fenetre)
+- incidence de la longueur de la reponse impulsionnelle qfir = 1 + pispan * qpis (@ pispan = 777) (sans fenetre)
 
 	qpis		stopband 1st zero	niveau 1ere bosse
 	5		1.24			0.106
@@ -72,25 +72,24 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
   (un outil style Matlab) par application de fenetre Kaiser sur sinc.
   On ne sait pas traduire cela en C, alors on teste deux filtres pre-calcules vus dans libsamplerate.
   Alors pispan est impose par Castro.
-	qpis   filtre		stopband @ -75 dB	stopband @ -100 dB	pispan	inc	fudge factor
-	32	fast		1.189			1.202			154	128	1.203
-	84	mid_qual	1.083			1.091			534	491	1.088
+	qpis   filtre		stopband @ -75 dB    stopband @-100dB	pispan		inc	fudge factor
+	32	fast		1.188			1.200		153.9375	128	1.2026
+	84	mid_qual	1.082			1.090		534.2143	491	1.0880
   La transition intercepte toujours Fc à -6dB !
   La reponse est hyper "lisse" : pas d'ondulation dans la bande passante, ni dans la bande coupee
-  La reponse est similaire à blackman @ qpis = 32, un peu moins bonne de 0 a -75 dB, meilleure en dessous
+  La reponse est similaire à blackman @ qpis = 32 de 0 a -75 dB
   Notes sur les parametres :
 	- Castro ne stocke qu'une demi-table qui commence au top du sinc (commun aux 2 moities donc)
 	- Castro ne donne pas pispan, on le lit directement comme distance entre les zeros sur les data
 	- Castro ne donne pas qpis mais cycles = qpis/4 (nombre de 2PI dans un demi-FIR)
-	- Castro definit un increment, qui est le pitch des coeffs a utiliser pour faire un filtre
-	  qui coupe a la limite de Nyquist, à -100dB pour le fast et -120dB pour le mid_qual.
-	  En effet un pitch egal a pispan ne coupe la limite de Nyquist qu'a -6dB, il faut deplacer
-	  le filtre vers la gauche ("fudge factor"), en fonction de l'attenuation desiree.
-	  On observe exactement -100dB @ 1.202 pour le fast, pour le mid_qual la concordance est moins bonne
-	  mais à -100dB on est tres vulnerable aux erreurs minuscules. 
+	- Castro definit un increment < pispan, qui est l'increment utilise pour prendre les coeffs dans la table
+	  avec coupure à Fsamp/2 au niveau voulu t.q. -100dB pour le fast plutot que -6dB qu'on aurait avec
+	  increment = pispan, i.e. deplacer le filtre vers la gauche ("fudge factor"), en fonction de l'attenuation desiree.
+	  On observe exactement -100dB @ 1.202 pour le fast, mieux que 120dB pour le mid_qual
+	  Rappel : en 16 bits signes, le bruit de quantification est a -90.3dB
 	  Castro fixe l'increment en premier, et utilise son script Octave pour determiner le fudge factor
 	  (par approximations successives) et en deduire pispan pour calculer le sinc.
-	- Castro pre-divise les coeffs par le fudge factor pour que l'amplitude matche l'increment plutot que pispan
+	- Castro pre-divise les coeffs par le fudge factor pour que l'amplitude soit Ok avec l'increment
 	  (pour comparer avec les autres fenetres, nous remultiplions)
 
 - filtrage passe-bande : on multiplie simplement la reponse impulsionnelle par une fonction cosinus
@@ -102,16 +101,16 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
 - arguments de la ligne de commande le l'experience 1 (avec les valeurs par defaut) :
 	-L 20	log de fftsize
 	-P 512	pispan = taille de PI en samples pour calcul sinc
-	-Z 6 	qfir / pispan ( <--> "nombre de zeros")
+	-Z 6 	nombre de zeros (doit etre pair)
 	-w 0 	0 = rect, etc...
 	-B 0.0	translation band_center * Fc
   N.B. les normalisations effectuees sur la reponse frequentielles neutralisent l'effet de fftsize et pispan (-L et -P)
   ces deux params influent sur la qualite du rendu.
 
   exemple: comparaison entre blackman et castro 'fast' @ qpis = 32
-	./demo5 -P 154 -Z 32 -w 3 
+	./demo5 -P 153.9375 -Z 32 -w 3 
 	./demo5 -Z 32 -w 8
-  N.B. avec -w 8 (castro), pispan est fixe a 154, -P serait ignore
+  N.B. avec -w 8 (castro), pispan est fixe a 153.969, -P serait ignore
 
   exemple: passe-bande, reponse de 1.5 Fc a 3.5 Fc (la bande a une largeur 2 Fc)
 	./demo5 -P 154 -Z 32 -w 3 -B 2.5
@@ -279,66 +278,57 @@ switch	( v )
 
 /** ============================ l'application ==================== */
 
-static double mysinc( double x )
-{
-if	( fabs(x) < 1e-5 )
-	return 1.0;
-return ( sin(x) / x );
-}
-
-// fonction imitee de spectro::window_precalc( unsigned int fft_size )
-void glostru::window_precalc( double * window, unsigned int size )
-{
-double a0, a1, a2, a3;
-switch	( window_type )		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
-	{
-	case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
-	case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
-	case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
-	case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
-	default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
-	}
-				// on doit diviser par size ( non par (size-1) ), alors 
-double m = M_PI / size;		// le dernier echantillon n'est pas egal au premier mais au second, c'est normal
-for	( unsigned int i = 0; i < size; ++i )
-	{
-        window[i] = a0
-		- a1 * cos( 2 * m * i )
-		+ a2 * cos( 4 * m * i )
-		- a3 * cos( 6 * m * i );
-	}
-}
-
-void glostru::descriptor()
-	{
-	const char * wname; int cycles;
-	double dpispan = (double)pispan;
-	switch	( window_type ) {
-		case 1: wname = "hann"; break;
-		case 2: wname = "hamming"; break;
-		case 3: wname = "blackman"; break;
-		case 4: wname = "blackmanharris"; break;
-		case 8: wname = "kaiser (castro fast)";
-			cycles = 8;
-			dpispan = (double)qfir/(cycles*4); 
-			break;
-		case 9: wname = "kaiser (castro mid_qual)";
-			cycles = 21;
-			dpispan = (double)qfir/(cycles*4);
-			break;
-		case 10: wname = "kaiser (castro high_qual)";
-			cycles = 69;
-			dpispan = (double)qfir/(cycles*4);
-			break;
-		default: wname = "rectangle";
-		}
-	double dqpis = (double(qfir)/dpispan);
-	snprintf( description, sizeof(description), "fir span %u, pispan %g, qpis %g, window %d %s",
-		qfir, dpispan, dqpis, window_type, wname );
-	}
+const char * window_name[] = {
+	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "", "", "", 
+	"kaiser (castro fast)", "kaiser (castro mid_qual)", "kaiser (castro high_qual)" };
 
 int glostru::generate()
 {
+unsigned int halfqfir = 0;
+const double * castroeffs;
+if	( ( window_type == 8 ) || ( window_type == 9 ) )
+	{
+	unsigned int cycles;
+	if	( window_type == 8 )
+		{
+		castroeffs = fastest_coeffs.coeffs;
+		halfqfir = sizeof(fastest_coeffs.coeffs) / sizeof(double);
+		cycles = 8;	// selon comments de Castro
+		castro_inc = fastest_coeffs.increment;
+		}
+	else if	( window_type == 9 )
+		{
+		castroeffs = slow_mid_qual_coeffs.coeffs;
+		halfqfir = sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double);
+		cycles = 21;	// selon comments de Castro
+		castro_inc = slow_mid_qual_coeffs.increment;
+		}
+	qfir = ( halfqfir * 2 ) - 1;
+	qpis = 4 * cycles;
+	pispan = (double)(qfir-1) / (double)qpis;
+	// NB il y a 2 manieres de calculer pispan d'une table de Castro,
+	// (sans considerer l'intervalle entre les zeros, qui sont invisibles si pispan n'est pas entier)
+	// methode 1 : (qfir - 1)/ qpis : plus logique, mais Castro donne qpis seulement en commentaire (cycles)
+	// methode 2 : on profite du scaling applique aux coeffs par Castro 
+	double pispan_bis = double(castro_inc) / castroeffs[0];
+	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g (%g), qpis %d, window %d %s",
+		qfir, pispan, pispan_bis, qpis, window_type, window_name[window_type] );
+	printf("%s\n", description );
+	}
+else	{
+	double dqfir = 1.0 + (double)qpis * pispan;
+	qfir = round(dqfir);
+	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g, qpis %d, window %d %s",
+		qfir, pispan, qpis, window_type, window_name[window_type] );
+	printf("%s\n", description );
+	// N.B. qfir doit etre entier et impair, c'est assuré si pispan est entier vu que qpis est pair
+	// si pispan est fractionnaire, il doit etre calcule pour que pispan * qpis soit entier et pair
+	double fract_qfir = fabs( dqfir - (double)qfir );
+	if	( fract_qfir > 1e-5 )
+		printf("warning : residu qfir = %g\n", fract_qfir );
+	if	( ( qfir & 1 ) == 0 )
+		printf("warning : qfir not odd\n");
+	}
 // allocation
 if	( Cbuf == NULL )
 	Cbuf = (double *)fftw_malloc( qbuf * sizeof(double) );
@@ -352,63 +342,49 @@ if	( plan )
 plan = fftw_plan_dft_r2c_1d( qbuf, Cbuf, (fftw_complex*)Tbuf, FFTW_ESTIMATE );
 if	( plan == NULL )
 	return -3;
+if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
 // generation APRES le plan FFTW car celui-ci raze le buf d'entree
-castro_inc = pispan;
 if	( window_type < 8 )
 	{				// sinc et fenetre classique
-	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI), window_type %d\n",
-		qbuf, qfir, (double(qfir)/double(pispan)), pispan, window_type );
-	if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
-	window_precalc( Cbuf, qfir );
+	// calcul fenetre (imitee de spectro::window_precalc() de JAW15)
+	double a0, a1, a2, a3;
+	// please add Lanczos https://en.wikipedia.org/wiki/Lanczos_resampling
+	switch	( window_type )		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+		{
+		case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
+		case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
+		case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
+		case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
+		default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
+		}
+	double m = 2.0 * M_PI / (qfir-1);
+	// le sommet de la fenetre est a l'angle m * (qfir-1)/2 = PI 
+	for	( unsigned int i = 0; i < qfir; ++i )
+		{
+		Cbuf[i] = a0
+			- a1 * cos(     m * i )
+			+ a2 * cos( 2 * m * i )
+			- a3 * cos( 3 * m * i );
+		}
+	double k = M_PI / pispan;	// = m * (qpis/2) 
 	double x;
-	double k = M_PI / pispan;
-	unsigned int i;
-	for	( i = 0; i < qfir; ++i )
-		{	// le "sommet" du sinc est a (qfir/2)
-		x = k * ( double( (int)i - (int)(qfir/2) ) );
+	// le "sommet" du sinc est a i = (qfir-1)/2 => x = 0
+	for	( int i = 0; i < (int)qfir; ++i )
+		{
+		x = k * ( double( i - int((qfir-1)/2) ) );
 		Cbuf[i] *= mysinc( x );
 		}
-	// si qfir est pair, il manque un echantillon a la fin pour que la symetrie soit parfaite
-	// ce n'est pas grave puisqu'il doit etre nul apres fenetrage et que on complete avec des zeros
-	// mais idealement qfir devrait etre impair, avec le sommet a (qfir-1)/2 ou qfir/2 arrondi par defaut
 	}
-else if	( window_type == 8 )
-	{				// FIR herite de github.com/libsndfile/libsamplerate
-	unsigned int i, halfqfir;	// !!! halfqfir n'est pas exactement la moitie de qfir !!!
-	double c;
-	halfqfir = sizeof(fastest_coeffs.coeffs) / sizeof(double);
-	qfir = halfqfir * 2 - 1;	// les 2 "moities" se recouvrent sur l'echantillon central !
-	if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
-	castro_inc = fastest_coeffs.increment;
-	c = double(castro_inc) / fastest_coeffs.coeffs[0];
-	pispan = (unsigned int)round(c);
-	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI decorrige), window_type libresample fast %d\n",
-		qbuf, qfir, (double(qfir)/double(pispan)), pispan, window_type );
-	for	( i = 0; i < halfqfir; ++i )
+else if	( ( window_type == 8 ) || ( window_type == 9 ) )
+	{
+	// halfqfir = (qfir+1)/2 est la taille d'une "moitie" de RI fournie par Castro
+	// ce n'est pas la moitie de qfir (qui est impair), les 2 "moities" se recouvrent sur le coeff central
+	// qui est a (qfir-1)/2 = halfqfir - 1
+	for	( unsigned int i = 0; i < halfqfir; ++i )
 		{	// le "sommet" du sinc est a halfqfir-1, on l'ecrit 2 fois (c'est pas grave ;-)
-		c = fastest_coeffs.coeffs[i];
+		double c = castroeffs[i];
 		Cbuf[halfqfir-1+i] = c;	// remplir de halfqfir-1 a qfir-1 inclus
 		Cbuf[halfqfir-1-i] = c;	// remplir de halfqfir-1 a 0 inclus
-		}
-	// N.B. qfir est impair, halfqfir = (qfir+1)/2, le milieu est a (qfir-1)/2 = halfqfir - 1
-	}
-else if	( window_type == 9 )
-	{				// FIR herite de github.com/libsndfile/libsamplerate
-	unsigned int i, halfqfir;
-	double c;
-	halfqfir = sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double);
-	qfir = halfqfir * 2 - 1;
-	if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
-	castro_inc = slow_mid_qual_coeffs.increment;
-	c = double(castro_inc) / slow_mid_qual_coeffs.coeffs[0];
-	pispan = (unsigned int)round(c);
-	printf("fftsize = %u, fir span = %u i.e. %g times %u (PI decorrige), window_type libresample mid_qual %d\n",
-		qbuf, qfir, (double(qfir)/double(pispan)), pispan, window_type );
-	for	( i = 0; i < halfqfir; ++i )
-		{
-		c = slow_mid_qual_coeffs.coeffs[i];
-		Cbuf[halfqfir-1+i] = c;
-		Cbuf[halfqfir-1-i] = c;
 		}
 	}
 else	qfir = 0;
@@ -416,9 +392,12 @@ else	qfir = 0;
 if	( band_center > 0.0 )
 	{
 	double k = M_PI * band_center / pispan;
-	for	( unsigned int i = 0; i < qfir; ++i )
-		{	// l'arrondi par defaut nous cale toujours qfir/2 au sommet meme si qfir est impair
-		Cbuf[i] *= cos( k * ( double( (int)i - (int)(qfir/2) ) ) ); 
+	double x;
+	// le "sommet" du sinc est a i = (qfir-1)/2 => x = 0 => cos(x) = 1
+	for	( int i = 0; i < (int)qfir; ++i )
+		{
+		x = k * ( double( i - int((qfir-1)/2) ) );
+		Cbuf[i] *= cos( x ); 
 		}	// ainsi on preserve le sommet du sinc
 	printf("bande translatee de %g x Fc\n", band_center );
 	}
@@ -440,10 +419,9 @@ if	( band_center >= 1.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 for	( unsigned int j = 0; j <= qbuf/2; ++j )
 	{
-	Tbuf[j] = k * hypot( Tbuf[a], Tbuf[a+1] );
+	Tbuf[j] = k * hypot( Tbuf[a], Tbuf[a+1] ); // magnitude (conversion en dB sera faite par layer_u)
 	a += 2;
 	}
-
 return 0;
 }
 
@@ -532,7 +510,7 @@ return 0;
 
 int glostru::audiofile_process()
 {
-double Fc = double(wavp.fsamp)/(2.0*double(pispan));
+double Fc = double(wavp.fsamp)/(2.0*pispan);
 printf("Fc @ -6dB : %g Hz\n", Fc );
 if	( band_center > 0.0 )
 	printf("bande [%g %g] largeur %g\n", Fc * ( band_center - 1.0 ), Fc * ( band_center + 1.0 ), Fc * 2.0 );
@@ -552,7 +530,7 @@ else	K = 1.0 / castro_inc;	// Castro a corrige la valeur centrale du sinc pour m
 if	( band_center >= 1.0 )
 	K *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 
-j0 = qfir / 2;	// l'arrondi par defaut nous cale toujours qfir/2 au sommet meme si qfir est impair
+j0 = (qfir-1)/ 2;	// qfir est impair
 for	( i = 0; i < (int)wavp.realpfr; ++i )
 	{
 	sum = 0.0;
@@ -764,7 +742,11 @@ curcour->style = 2;			// echelle verticale en dB
 
 // connexion layout - data
 curcour->V = Tbuf;
-curcour->qu = floor( panneau2.kq * ( 8.0 + band_center ) ); // pour que le fullM (horiz.) se limite a 8 * Fc 
+// pispan = Fsamp/2 / Fc
+double limit = 8.0 + band_center;	// pour que le fullM (horiz.) se limite a 8 * Fc
+if	( limit > pispan )
+	limit = pispan;			// pour que le fullM (horiz.) se limite a Fsamp/2
+curcour->qu = floor( panneau2.kq * limit ); 
 if	( (unsigned int)curcour->qu > qbuf )
 	curcour->qu = qbuf;
 curcour->Vfloor = 1e-6;		// pour plancher a -120dB au lieu de -100dB
@@ -877,25 +859,24 @@ if	( argc < 2 )
 cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBoc" );
 const char * val;
 int qbuflog = 20;
-double qpis = 6.0;
 unsigned int saved_qchan = 1;
+
 if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );			// log de fftsize
-if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = atoi( val );		// taille de PI en samples pour calcul sinc
-if	( ( val = lepar->get( 'Z' ) ) )	qpis = strtod( val, NULL );		// qfir / pispan ( <--> "nombre de zeros")
+if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
+if	( ( val = lepar->get( 'Z' ) ) )	glo->qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );		// 0 = rect, etc...
 if	( ( val = lepar->get( 'B' ) ) )	glo->band_center = strtod( val, NULL );	// translation band_center rel. Fc
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
-if	( ( qbuflog < 8 ) || ( glo->pispan < 8 ) || ( qpis < 2.0 ) || ( saved_qchan > 2 ) )
+glo->ifnam = lepar->get( '@' );		// naked string = input file
+
+if	( ( qbuflog < 8 ) || ( glo->pispan < 1.0 ) || ( glo->qpis < 4 ) || ( glo->qpis & 1 ) || ( saved_qchan > 2 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qbuf = 1 << qbuflog;
-glo->qfir = floor( qpis * double(glo->pispan) );
-glo->ifnam = lepar->get( '@' );		// naked string = input file
 
 int retval = glo->generate();
 if	( retval )
 	gasp(" erreur %d", retval );
-glo->descriptor();
 gtk_entry_set_text( GTK_ENTRY( glo->edesc ), glo->description );
 printf( "%s\n", glo->description );
 if	( glo->ifnam )
