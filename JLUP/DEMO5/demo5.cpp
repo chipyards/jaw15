@@ -333,11 +333,19 @@ else	{
 	}
 // ouf, ici qfir est enfin stable
 
-// allouer buffer
+// allouer buffers
 if	( FIRbuf == NULL )
 	FIRbuf = (double *)malloc( qfir * sizeof(double) );
 if	( FIRbuf == NULL )
 	{ printf("malloc failed\n"); return -1; }
+if	( window_type < 8 )
+	{
+	if	( FENbuf == NULL )
+		FENbuf = (double *)malloc( qfir * sizeof(double) );
+	if	( FENbuf == NULL )
+		{ printf("malloc failed\n"); return -1; }
+	}
+else	FENbuf = NULL;
 
 // calcul coeffs
 if	( window_type < 8 )
@@ -357,7 +365,7 @@ if	( window_type < 8 )
 	// le sommet de la fenetre est a l'angle m * (qfir-1)/2 = PI 
 	for	( unsigned int i = 0; i < qfir; ++i )
 		{
-		FIRbuf[i] = a0
+		FENbuf[i] = a0
 			- a1 * cos(     m * i )
 			+ a2 * cos( 2 * m * i )
 			- a3 * cos( 3 * m * i );
@@ -368,7 +376,7 @@ if	( window_type < 8 )
 	for	( int i = 0; i < (int)qfir; ++i )
 		{
 		x = k * ( double( i - int((qfir-1)/2) ) );
-		FIRbuf[i] *= mysinc( x );
+		FIRbuf[i] = FENbuf[i] * mysinc( x );
 		}
 	}
 else if	( ( window_type == 8 ) || ( window_type == 9 ) )
@@ -658,7 +666,7 @@ curbande = new gstrip;
 panneau1.add_strip( curbande );
 
 // configurer le strip
-curbande->bgcolor.set( 0.90, 0.95, 1.0 );
+curbande->bgcolor.set( 0.92, 0.98, 1.0 );
 curbande->Ylabel = "val";
 curbande->optX = 1;
 curbande->subtk = 1;
@@ -666,7 +674,7 @@ curbande->subtk = 1;
 // creer un layer
 layer_u<double> * curcour;
 curcour = new layer_u<double>;
-curbande->add_layer( curcour, "real" );
+curbande->add_layer( curcour, "fir" );
 
 // configurer le layer
 curcour->set_km( 1.0 );			// sets APRES add_layer
@@ -680,6 +688,24 @@ curcour->V = FIRbuf;
 curcour->qu = qfir;
 curcour->scan();	// alors on peut faire un scan
 
+if	( FENbuf == NULL )
+	return;
+
+// creer un layer
+curcour = new layer_u<double>;
+curbande->add_layer( curcour, "win" );
+
+// configurer le layer
+curcour->set_km( 1.0 );			// sets APRES add_layer
+curcour->set_m0( 0.0 );
+curcour->set_kn( 1.0 );
+curcour->set_n0( 0.0 );
+curcour->fgcolor.set( 0.0, 0.5, 0.3 );
+
+// connexion layout - data
+curcour->V = FENbuf;
+curcour->qu = qfir;
+curcour->scan();	// alors on peut faire un scan
 }
 
 // layout pour WAV

@@ -28,6 +28,7 @@ unsigned int qpis;	// nombre de fois pi dans le sinc de la RI, dit "nombre de ze
 unsigned int castro_inc;// increment unitaire dans la reponse impulsionnelle pour Castro (i.e. Kaiser)
 unsigned int qfir;	// taille de la reponse impulsionnelle 
 int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 8 et 9 = Castro
+double * FENbuf;	// fenetre
 double * FIRbuf;	// impulse response
 
 double band_center;	// passe-bande : reponse translatee par band_center * Fc
@@ -45,7 +46,7 @@ wavio wavp;		// objet audiofile pour lecture wav
 char description[128];
 
 // constructeur
-glostru() : pispan(777), qpis(12), qfir(0), window_type(0), FIRbuf(NULL), band_center(0.0),
+glostru() : pispan(777), qpis(12), qfir(0), window_type(0), FENbuf(NULL), FIRbuf(NULL), band_center(0.0),
 	    ifnam(NULL), ofnam(NULL),
 	    qFFT(1<<20), FFTin(NULL), FFTout(NULL), plan(NULL) {};
 
