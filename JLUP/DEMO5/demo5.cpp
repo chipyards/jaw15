@@ -120,6 +120,7 @@ EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
 - on utilise un signal echantillonne a fsamp, on le filtre avec la reponse impulsionnelle de taille qfir,
   on s'attend a une coupure Fc = fsamp/(2*pispan)
   exemple fsamp = 44100, pispan = 154 ==> fc = 143 Hz
+	  fsamp = 44100, pispan = 50.1136 ==> fc = 440 Hz
 - a chaque extremite du signal, les qfir/2 echantillons manquants sont remplaces par des zeros 
 
 - arguments de la ligne de commande 
@@ -131,7 +132,7 @@ EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
   N.B. accepte fichier 16 bits ou 32 bits, sauve idem
 
 */
-#include <gdk/gdkkeysyms.h>
+#include <gdk/gdkkeysyms.h>  
 #include <gtk/gtk.h>
 #include <cairo-pdf.h>
 #include <locale.h>
@@ -282,8 +283,9 @@ const char * window_name[] = {
 	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "", "", "", 
 	"kaiser (castro fast)", "kaiser (castro mid_qual)", "kaiser (castro high_qual)" };
 
-int glostru::generate()
+int glostru::generate_FIR()
 {
+// preparation parametres
 unsigned int halfqfir = 0;
 const double * castroeffs;
 if	( ( window_type == 8 ) || ( window_type == 9 ) )
@@ -329,21 +331,15 @@ else	{
 	if	( ( qfir & 1 ) == 0 )
 		printf("warning : qfir not odd\n");
 	}
-// allocation
-if	( Cbuf == NULL )
-	Cbuf = (double *)fftw_malloc( qbuf * sizeof(double) );
-if	( Tbuf == NULL )
-	Tbuf = (double *)fftw_malloc( qbuf * sizeof(double) );
-if	( ( Cbuf == NULL ) || ( Tbuf == NULL ) )
-	return -1;
-// preparer le plan de travail de fftw3
-if	( plan )
-	fftw_destroy_plan(plan);
-plan = fftw_plan_dft_r2c_1d( qbuf, Cbuf, (fftw_complex*)Tbuf, FFTW_ESTIMATE );
-if	( plan == NULL )
-	return -3;
-if	( qbuf < qfir )	{ printf("sorry fftsize < FIR\n"); fflush(stdout); exit(1);  }
-// generation APRES le plan FFTW car celui-ci raze le buf d'entree
+// ouf, ici qfir est enfin stable
+
+// allouer buffer
+if	( FIRbuf == NULL )
+	FIRbuf = (double *)malloc( qfir * sizeof(double) );
+if	( FIRbuf == NULL )
+	{ printf("malloc failed\n"); return -1; }
+
+// calcul coeffs
 if	( window_type < 8 )
 	{				// sinc et fenetre classique
 	// calcul fenetre (imitee de spectro::window_precalc() de JAW15)
@@ -361,7 +357,7 @@ if	( window_type < 8 )
 	// le sommet de la fenetre est a l'angle m * (qfir-1)/2 = PI 
 	for	( unsigned int i = 0; i < qfir; ++i )
 		{
-		Cbuf[i] = a0
+		FIRbuf[i] = a0
 			- a1 * cos(     m * i )
 			+ a2 * cos( 2 * m * i )
 			- a3 * cos( 3 * m * i );
@@ -372,7 +368,7 @@ if	( window_type < 8 )
 	for	( int i = 0; i < (int)qfir; ++i )
 		{
 		x = k * ( double( i - int((qfir-1)/2) ) );
-		Cbuf[i] *= mysinc( x );
+		FIRbuf[i] *= mysinc( x );
 		}
 	}
 else if	( ( window_type == 8 ) || ( window_type == 9 ) )
@@ -383,11 +379,12 @@ else if	( ( window_type == 8 ) || ( window_type == 9 ) )
 	for	( unsigned int i = 0; i < halfqfir; ++i )
 		{	// le "sommet" du sinc est a halfqfir-1, on l'ecrit 2 fois (c'est pas grave ;-)
 		double c = castroeffs[i];
-		Cbuf[halfqfir-1+i] = c;	// remplir de halfqfir-1 a qfir-1 inclus
-		Cbuf[halfqfir-1-i] = c;	// remplir de halfqfir-1 a 0 inclus
+		FIRbuf[halfqfir-1+i] = c;	// remplir de halfqfir-1 a qfir-1 inclus
+		FIRbuf[halfqfir-1-i] = c;	// remplir de halfqfir-1 a 0 inclus
 		}
 	}
-else	qfir = 0;
+else	{ qfir = 0; return -666; }
+
 // mode passe_bande : multiplier le FIR par une sinusoide pour translater la reponse frequentielle
 if	( band_center > 0.0 )
 	{
@@ -397,19 +394,44 @@ if	( band_center > 0.0 )
 	for	( int i = 0; i < (int)qfir; ++i )
 		{
 		x = k * ( double( i - int((qfir-1)/2) ) );
-		Cbuf[i] *= cos( x ); 
+		FIRbuf[i] *= cos( x ); 
 		}	// ainsi on preserve le sommet du sinc
 	printf("bande translatee de %g x Fc\n", band_center );
 	}
-// completer avec beaucoup de zeros pour une bonne resolution FFT 
-for	( unsigned int i = qfir; i < qbuf; ++i )
-	{
-	Cbuf[i] = 0;
-	}
 fflush(stdout);
-// fft
+return 0;
+}
+
+// calcul FFT pour visu reponse frequentielle
+int glostru::fft_on_FIR()
+{
+printf("FFT size %u\n", qFFT );
+// allocation pour FFT
+if	( qFFT < qfir )	{ printf("sorry fftsize < FIR\n"); return -5; }
+if	( FFTin == NULL )
+	FFTin = (double *)fftw_malloc( qFFT * sizeof(double) );
+if	( FFTout == NULL )
+	FFTout = (double *)fftw_malloc( qFFT * sizeof(double) );
+if	( ( FFTin == NULL ) || ( FFTout == NULL ) )
+	{ printf("malloc failed\n"); return -1; }
+// preparer le plan de travail de fftw3
+if	( plan )
+	fftw_destroy_plan(plan);
+plan = fftw_plan_dft_r2c_1d( qFFT, FFTin, (fftw_complex*)FFTout, FFTW_ESTIMATE );
+if	( plan == NULL )
+	{ printf("fftw plan failed\n"); return -3; }
+
+// copier reponse impulsionnelle
+for	( unsigned int i = 0; i < qfir; ++i )
+	FFTin[i] = FIRbuf[i];
+// completer avec beaucoup de zeros pour une bonne resolution FFT 
+for	( unsigned int i = qfir; i < qFFT; ++i )
+	FFTin[i] = 0;
+
+// execution FFT
 fftw_execute( plan );
-// calcul magnitudes sur place (Tbuf contient des valeurs complexes)
+
+// calcul magnitudes sur place (FFTout contient des valeurs complexes)
 unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
 if	( window_type < 8 )
@@ -417,9 +439,9 @@ if	( window_type < 8 )
 else	k = 1.0 / castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
 if	( band_center >= 1.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
-for	( unsigned int j = 0; j <= qbuf/2; ++j )
+for	( unsigned int j = 0; j <= qFFT/2; ++j )
 	{
-	Tbuf[j] = k * hypot( Tbuf[a], Tbuf[a+1] ); // magnitude (conversion en dB sera faite par layer_u)
+	FFTout[j] = k * hypot( FFTout[a], FFTout[a+1] ); // magnitude (conversion en dB sera faite par layer_u)
 	a += 2;
 	}
 return 0;
@@ -538,7 +560,7 @@ for	( i = 0; i < (int)wavp.realpfr; ++i )
 		{
 		k = i + j - j0 ;
 		if	( ( k >= 0 ) && ( k < (int)wavp.realpfr ) )
-			sum += Wbuf.data[k] * Cbuf[j];
+			sum += Wbuf.data[k] * FIRbuf[j];
 		}
 	Ybuf.data[i] = float( sum * K );
 	}
@@ -654,7 +676,7 @@ curcour->set_n0( 0.0 );
 curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 
 // connexion layout - data
-curcour->V = Cbuf;
+curcour->V = FIRbuf;
 curcour->qu = qfir;
 curcour->scan();	// alors on peut faire un scan
 
@@ -716,7 +738,7 @@ void glostru::layout2()
 // layout jluplot pour panneau2
 panneau2.offscreen_flag = 0;
 // normalisation d'echelle horizontale t.q. Fc theorique <==> 1.0
-panneau2.kq = qbuf / ( 2 * pispan );
+panneau2.kq = qFFT / ( 2 * pispan );
  
 // creer le strip
 gstrip * curbande;
@@ -739,16 +761,20 @@ curcour->set_kn( 1.0 );
 curcour->set_n0( 0.0 );
 curcour->fgcolor.set( 0.0, 0.0, 0.8 );
 curcour->style = 2;			// echelle verticale en dB
-
 // connexion layout - data
-curcour->V = Tbuf;
-// pispan = Fsamp/2 / Fc
-double limit = 8.0 + band_center;	// pour que le fullM (horiz.) se limite a 8 * Fc
-if	( limit > pispan )
-	limit = pispan;			// pour que le fullM (horiz.) se limite a Fsamp/2
+curcour->V = FFTout;
+// normalisation d'echelle horizontale affichee, t.q. Fc theorique <==> 1.0
+panneau2.kq = qFFT / ( 2 * pispan );
+// limitation d'etendue horizontale via qu, notamment pour le full zoom horizontal (fullM)
+double limit;				// limite en unites affichees (Fc <==> 1.0) 
+limit = pispan;				// pour que le fullM (horiz.) se limite a Fsamp/2 (pispan = Fsamp/2 / Fc) 
+if	( limit > 8.0 + band_center )
+	limit = 8.0 + band_center;	// pour que le fullM (horiz.) se limite a 8 * Fc
+// appliquer limit a qu
 curcour->qu = floor( panneau2.kq * limit ); 
-if	( (unsigned int)curcour->qu > qbuf )
-	curcour->qu = qbuf;
+// precaution
+if	( (unsigned int)curcour->qu > qFFT )
+	curcour->qu = qFFT;
 curcour->Vfloor = 1e-6;		// pour plancher a -120dB au lieu de -100dB
 curcour->scan();		// alors on peut faire un scan
 }
@@ -854,14 +880,15 @@ glo->panneau2.key_callback_register( key_call_back2, (void *)glo );
 glo->panneau1.events_connect( GTK_DRAWING_AREA( glo->darea1 ) );
 glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
 
+// traiter arguments
 if	( argc < 2 )
 	{ usage(); return 0; }
 cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBoc" );
 const char * val;
-int qbuflog = 20;
+int qFFTlog = 20;
 unsigned int saved_qchan = 1;
 
-if	( ( val = lepar->get( 'L' ) ) )	qbuflog = atoi( val );			// log de fftsize
+if	( ( val = lepar->get( 'L' ) ) )	qFFTlog = atoi( val );			// log de fftsize
 if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
 if	( ( val = lepar->get( 'Z' ) ) )	glo->qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );		// 0 = rect, etc...
@@ -870,15 +897,22 @@ if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
-if	( ( qbuflog < 8 ) || ( glo->pispan < 1.0 ) || ( glo->qpis < 4 ) || ( glo->qpis & 1 ) || ( saved_qchan > 2 ) )
+if	( ( qFFTlog < 8 ) || ( glo->pispan < 1.0 ) || ( glo->qpis < 4 ) || ( glo->qpis & 1 ) || ( saved_qchan > 2 ) )
 	{ printf("invalid argument\n"); return -1; }
-glo->qbuf = 1 << qbuflog;
+glo->qFFT = 1 << qFFTlog;
 
-int retval = glo->generate();
+// generer FIR
+int retval = glo->generate_FIR();
 if	( retval )
 	gasp(" erreur %d", retval );
 gtk_entry_set_text( GTK_ENTRY( glo->edesc ), glo->description );
-printf( "%s\n", glo->description );
+
+// FFT pour reponse freqentielle
+    retval = glo->fft_on_FIR();
+if	( retval )
+	gasp(" erreur %d", retval );
+
+// filtrage audio
 if	( glo->ifnam )
 	{
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
