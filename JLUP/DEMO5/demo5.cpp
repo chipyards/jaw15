@@ -687,6 +687,8 @@ printf("Usage :\n"
  "-Z qpis = taille de RI en PIs\n"
  "-w fenetre 0 = rect, etc...\n"
  "-B translation band_center rel. a Fc (la bande a largeur 2 Fc)\n"
+ "-a A0 decalage du centre de la RI\n"
+ "-d dA increment angulaire\n"
  "-o output file\n"
  "-c channels in saved file\n"
  "<input file> (sinon seulement FFT)\n" );
@@ -780,7 +782,7 @@ glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
 // traiter arguments
 if	( argc < 2 )
 	{ usage(); return 0; }
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBoc" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBadoc" );
 const char * val;
 int qFFTlog = 20;
 unsigned int saved_qchan = 1;
@@ -790,6 +792,8 @@ if	( ( val = lepar->get( 'P' ) ) )	lefir.pispan = strtod( val, NULL );	// taille
 if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );		// 0 = rect, etc...
 if	( ( val = lepar->get( 'B' ) ) )	lefir.band_center = strtod( val, NULL );	// translation band_center rel. Fc
+if	( ( val = lepar->get( 'a' ) ) )	lefir.A0 = strtod( val, NULL );		// decalage du centre de la RI
+if	( ( val = lepar->get( 'd' ) ) )	lefir.dA = strtod( val, NULL );		// increment angulaire
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
 glo->ifnam = lepar->get( '@' );		// naked string = input file

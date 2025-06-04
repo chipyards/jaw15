@@ -74,34 +74,24 @@ else	FENbuf = NULL;
 
 // calcul coeffs
 if	( window_type < 8 )
-	{				// sinc et fenetre classique
-	// calcul fenetre (imitee de spectro::window_precalc() de JAW15)
-	double a0, a1, a2, a3;
-	// please add Lanczos https://en.wikipedia.org/wiki/Lanczos_resampling
-	switch	( window_type )		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
+	{
+	if	( ( A0 != 0.0 ) || ( dA != 0.0 ) )
 		{
-		case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
-		case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
-		case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
-		case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
-		default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
+		if	( dA == 0.0 )
+			dA = M_PI / pispan;
+		else	{
+			if	( dA < ( M_PI / pispan ) )	// provisoire pour eviter depassement qfir
+				{ printf("dA too small\n"); return -42; }	// sinon ça serait bon
+			if	( fabs(A0) >= dA )
+				{ printf("A0 too big\n"); return -43; }
+			}
+		int cnt = general_fir( A0, dA );
+		printf("new qfir = %d vs %d\n", cnt, qfir );
+		qfir = cnt;
 		}
-	double m = 2.0 * M_PI / (qfir-1);
-	// le sommet de la fenetre est a l'angle m * (qfir-1)/2 = PI 
-	for	( unsigned int i = 0; i < qfir; ++i )
-		{
-		FENbuf[i] = a0
-			- a1 * cos(     m * i )
-			+ a2 * cos( 2 * m * i )
-			- a3 * cos( 3 * m * i );
-		}
-	double k = M_PI / pispan;	// = m * (qpis/2) 
-	double x;
-	// le "sommet" du sinc est a i = (qfir-1)/2 => x = 0
-	for	( int i = 0; i < (int)qfir; ++i )
-		{
-		x = k * ( double( i - int((qfir-1)/2) ) );
-		FIRbuf[i] = FENbuf[i] * mysinc( x );
+	else	{
+		classic_fir();
+		printf("dA = %g\n", dA = M_PI / pispan );
 		}
 	}
 else if	( ( window_type == 8 ) || ( window_type == 9 ) )
@@ -119,7 +109,7 @@ else if	( ( window_type == 8 ) || ( window_type == 9 ) )
 else	{ qfir = 0; return -666; }
 
 // mode passe_bande : multiplier le FIR par une sinusoide pour translater la reponse frequentielle
-if	( band_center > 0.0 )
+if	( ( band_center > 0.0 ) && ( A0 == 0.0 ) && ( dA == 0.0 ) )
 	{
 	double k = M_PI * band_center / pispan;
 	double x;
