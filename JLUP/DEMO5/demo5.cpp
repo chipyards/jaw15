@@ -113,7 +113,7 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
   N.B. avec -w 8 (castro), pispan est fixe a 153.969, -P serait ignore
 
   exemple: passe-bande, reponse de 1.5 Fc a 3.5 Fc (la bande a une largeur 2 Fc)
-	./demo5 -P 154 -Z 32 -w 3 -B 2.5
+	./demo5 -P 6 -Z 32 -w 3 -B 2.5
 
 EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
 
@@ -158,14 +158,15 @@ using namespace std;
 #include "../cli_parse.h"
 #include "../autobuf.h"
 #include "../wavio.h"	// il inclut audiofile.h lui-meme
+#include "fir.h"
 #include "demo5.h"
-#include "demo5_coeff.h"
 
 // unique variable globale exportee pour gasp() de modpop3
 GtkWindow * global_main_window = NULL;
 
 // le contexte de l'appli
 static glostru theglo;
+static fir lefir;
 
 /** ============================ GTK call backs ======================= */
 int idle_call( glostru * glo )
@@ -279,143 +280,12 @@ switch	( v )
 
 /** ============================ l'application ==================== */
 
-const char * window_name[] = {
-	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "", "", "", 
-	"kaiser (castro fast)", "kaiser (castro mid_qual)", "kaiser (castro high_qual)" };
-
-int glostru::generate_FIR()
-{
-// preparation parametres
-unsigned int halfqfir = 0;
-const double * castroeffs;
-if	( ( window_type == 8 ) || ( window_type == 9 ) )
-	{
-	unsigned int cycles;
-	if	( window_type == 8 )
-		{
-		castroeffs = fastest_coeffs.coeffs;
-		halfqfir = sizeof(fastest_coeffs.coeffs) / sizeof(double);
-		cycles = 8;	// selon comments de Castro
-		castro_inc = fastest_coeffs.increment;
-		}
-	else if	( window_type == 9 )
-		{
-		castroeffs = slow_mid_qual_coeffs.coeffs;
-		halfqfir = sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double);
-		cycles = 21;	// selon comments de Castro
-		castro_inc = slow_mid_qual_coeffs.increment;
-		}
-	qfir = ( halfqfir * 2 ) - 1;
-	qpis = 4 * cycles;
-	pispan = (double)(qfir-1) / (double)qpis;
-	// NB il y a 2 manieres de calculer pispan d'une table de Castro,
-	// (sans considerer l'intervalle entre les zeros, qui sont invisibles si pispan n'est pas entier)
-	// methode 1 : (qfir - 1)/ qpis : plus logique, mais Castro donne qpis seulement en commentaire (cycles)
-	// methode 2 : on profite du scaling applique aux coeffs par Castro 
-	double pispan_bis = double(castro_inc) / castroeffs[0];
-	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g (%g), qpis %d, window %d %s",
-		qfir, pispan, pispan_bis, qpis, window_type, window_name[window_type] );
-	printf("%s\n", description );
-	}
-else	{
-	double dqfir = 1.0 + (double)qpis * pispan;
-	qfir = round(dqfir);
-	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g, qpis %d, window %d %s",
-		qfir, pispan, qpis, window_type, window_name[window_type] );
-	printf("%s\n", description );
-	// N.B. qfir doit etre entier et impair, c'est assuré si pispan est entier vu que qpis est pair
-	// si pispan est fractionnaire, il doit etre calcule pour que pispan * qpis soit entier et pair
-	double fract_qfir = fabs( dqfir - (double)qfir );
-	if	( fract_qfir > 1e-5 )
-		printf("warning : residu qfir = %g\n", fract_qfir );
-	if	( ( qfir & 1 ) == 0 )
-		printf("warning : qfir not odd\n");
-	}
-// ouf, ici qfir est enfin stable
-
-// allouer buffers
-if	( FIRbuf == NULL )
-	FIRbuf = (double *)malloc( qfir * sizeof(double) );
-if	( FIRbuf == NULL )
-	{ printf("malloc failed\n"); return -1; }
-if	( window_type < 8 )
-	{
-	if	( FENbuf == NULL )
-		FENbuf = (double *)malloc( qfir * sizeof(double) );
-	if	( FENbuf == NULL )
-		{ printf("malloc failed\n"); return -1; }
-	}
-else	FENbuf = NULL;
-
-// calcul coeffs
-if	( window_type < 8 )
-	{				// sinc et fenetre classique
-	// calcul fenetre (imitee de spectro::window_precalc() de JAW15)
-	double a0, a1, a2, a3;
-	// please add Lanczos https://en.wikipedia.org/wiki/Lanczos_resampling
-	switch	( window_type )		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
-		{
-		case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
-		case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
-		case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
-		case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
-		default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
-		}
-	double m = 2.0 * M_PI / (qfir-1);
-	// le sommet de la fenetre est a l'angle m * (qfir-1)/2 = PI 
-	for	( unsigned int i = 0; i < qfir; ++i )
-		{
-		FENbuf[i] = a0
-			- a1 * cos(     m * i )
-			+ a2 * cos( 2 * m * i )
-			- a3 * cos( 3 * m * i );
-		}
-	double k = M_PI / pispan;	// = m * (qpis/2) 
-	double x;
-	// le "sommet" du sinc est a i = (qfir-1)/2 => x = 0
-	for	( int i = 0; i < (int)qfir; ++i )
-		{
-		x = k * ( double( i - int((qfir-1)/2) ) );
-		FIRbuf[i] = FENbuf[i] * mysinc( x );
-		}
-	}
-else if	( ( window_type == 8 ) || ( window_type == 9 ) )
-	{
-	// halfqfir = (qfir+1)/2 est la taille d'une "moitie" de RI fournie par Castro
-	// ce n'est pas la moitie de qfir (qui est impair), les 2 "moities" se recouvrent sur le coeff central
-	// qui est a (qfir-1)/2 = halfqfir - 1
-	for	( unsigned int i = 0; i < halfqfir; ++i )
-		{	// le "sommet" du sinc est a halfqfir-1, on l'ecrit 2 fois (c'est pas grave ;-)
-		double c = castroeffs[i];
-		FIRbuf[halfqfir-1+i] = c;	// remplir de halfqfir-1 a qfir-1 inclus
-		FIRbuf[halfqfir-1-i] = c;	// remplir de halfqfir-1 a 0 inclus
-		}
-	}
-else	{ qfir = 0; return -666; }
-
-// mode passe_bande : multiplier le FIR par une sinusoide pour translater la reponse frequentielle
-if	( band_center > 0.0 )
-	{
-	double k = M_PI * band_center / pispan;
-	double x;
-	// le "sommet" du sinc est a i = (qfir-1)/2 => x = 0 => cos(x) = 1
-	for	( int i = 0; i < (int)qfir; ++i )
-		{
-		x = k * ( double( i - int((qfir-1)/2) ) );
-		FIRbuf[i] *= cos( x ); 
-		}	// ainsi on preserve le sommet du sinc
-	printf("bande translatee de %g x Fc\n", band_center );
-	}
-fflush(stdout);
-return 0;
-}
-
 // calcul FFT pour visu reponse frequentielle
-int glostru::fft_on_FIR()
+int glostru::fft_on_FIR( unsigned int firsize, double * firbuf )
 {
 printf("FFT size %u\n", qFFT );
 // allocation pour FFT
-if	( qFFT < qfir )	{ printf("sorry fftsize < FIR\n"); return -5; }
+if	( qFFT < firsize )	{ printf("sorry fftsize < FIR\n"); return -5; }
 if	( FFTin == NULL )
 	FFTin = (double *)fftw_malloc( qFFT * sizeof(double) );
 if	( FFTout == NULL )
@@ -430,10 +300,10 @@ if	( plan == NULL )
 	{ printf("fftw plan failed\n"); return -3; }
 
 // copier reponse impulsionnelle
-for	( unsigned int i = 0; i < qfir; ++i )
-	FFTin[i] = FIRbuf[i];
+for	( unsigned int i = 0; i < firsize; ++i )
+	FFTin[i] = firbuf[i];
 // completer avec beaucoup de zeros pour une bonne resolution FFT 
-for	( unsigned int i = qfir; i < qFFT; ++i )
+for	( unsigned int i = firsize; i < qFFT; ++i )
 	FFTin[i] = 0;
 
 // execution FFT
@@ -442,10 +312,10 @@ fftw_execute( plan );
 // calcul magnitudes sur place (FFTout contient des valeurs complexes)
 unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( window_type < 8 )
-	k = 1.0 / pispan;
-else	k = 1.0 / castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
-if	( band_center >= 1.0 )
+if	( lefir.window_type < 8 )
+	k = 1.0 / lefir.pispan;
+else	k = 1.0 / lefir.castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
+if	( lefir.band_center >= 1.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 for	( unsigned int j = 0; j <= qFFT/2; ++j )
 	{
@@ -540,10 +410,10 @@ return 0;
 
 int glostru::audiofile_process()
 {
-double Fc = double(wavp.fsamp)/(2.0*pispan);
+double Fc = double(wavp.fsamp)/(2.0*lefir.pispan);
 printf("Fc @ -6dB : %g Hz\n", Fc );
-if	( band_center > 0.0 )
-	printf("bande [%g %g] largeur %g\n", Fc * ( band_center - 1.0 ), Fc * ( band_center + 1.0 ), Fc * 2.0 );
+if	( lefir.band_center > 0.0 )
+	printf("bande [%g %g] largeur %g\n", Fc * ( lefir.band_center - 1.0 ), Fc * ( lefir.band_center + 1.0 ), Fc * 2.0 );
 fflush(stdout);
 // allocation buffer pour l'audio entier
 if	( wavp.realpfr > Ybuf.capa )
@@ -554,21 +424,21 @@ if	( wavp.realpfr > Ybuf.capa )
 	}
 int i, j, j0, k;
 double sum, K;
-if	( window_type < 8 )
-	K = 1.0 / pispan;
-else	K = 1.0 / castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
-if	( band_center >= 1.0 )
+if	( lefir.window_type < 8 )
+	K = 1.0 / lefir.pispan;
+else	K = 1.0 / lefir.castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
+if	( lefir.band_center >= 1.0 )
 	K *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 
-j0 = (qfir-1)/ 2;	// qfir est impair
+j0 = (lefir.qfir-1)/ 2;	// qfir est impair
 for	( i = 0; i < (int)wavp.realpfr; ++i )
 	{
 	sum = 0.0;
-	for	( j = 0; j < (int)qfir; ++j )
+	for	( j = 0; j < (int)lefir.qfir; ++j )
 		{
 		k = i + j - j0 ;
 		if	( ( k >= 0 ) && ( k < (int)wavp.realpfr ) )
-			sum += Wbuf.data[k] * FIRbuf[j];
+			sum += Wbuf.data[k] * lefir.FIRbuf[j];
 		}
 	Ybuf.data[i] = float( sum * K );
 	}
@@ -664,6 +534,7 @@ panneau1.offscreen_flag = 0;
 gstrip * curbande;
 curbande = new gstrip;
 panneau1.add_strip( curbande );
+panneau1.q0 = - int((lefir.qfir-1)/2);	// l'abcisse 0 au sommet du sinc 
 
 // configurer le strip
 curbande->bgcolor.set( 0.92, 0.98, 1.0 );
@@ -684,11 +555,11 @@ curcour->set_n0( 0.0 );
 curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 
 // connexion layout - data
-curcour->V = FIRbuf;
-curcour->qu = qfir;
+curcour->V = lefir.FIRbuf;
+curcour->qu = lefir.qfir;
 curcour->scan();	// alors on peut faire un scan
 
-if	( FENbuf == NULL )
+if	( lefir.FENbuf == NULL )
 	return;
 
 // creer un layer
@@ -703,8 +574,8 @@ curcour->set_n0( 0.0 );
 curcour->fgcolor.set( 0.0, 0.5, 0.3 );
 
 // connexion layout - data
-curcour->V = FENbuf;
-curcour->qu = qfir;
+curcour->V = lefir.FENbuf;
+curcour->qu = lefir.qfir;
 curcour->scan();	// alors on peut faire un scan
 }
 
@@ -764,7 +635,7 @@ void glostru::layout2()
 // layout jluplot pour panneau2
 panneau2.offscreen_flag = 0;
 // normalisation d'echelle horizontale t.q. Fc theorique <==> 1.0
-panneau2.kq = qFFT / ( 2 * pispan );
+panneau2.kq = qFFT / ( 2 * lefir.pispan );
  
 // creer le strip
 gstrip * curbande;
@@ -790,12 +661,12 @@ curcour->style = 2;			// echelle verticale en dB
 // connexion layout - data
 curcour->V = FFTout;
 // normalisation d'echelle horizontale affichee, t.q. Fc theorique <==> 1.0
-panneau2.kq = qFFT / ( 2 * pispan );
+panneau2.kq = qFFT / ( 2 * lefir.pispan );
 // limitation d'etendue horizontale via qu, notamment pour le full zoom horizontal (fullM)
 double limit;				// limite en unites affichees (Fc <==> 1.0) 
-limit = pispan;				// pour que le fullM (horiz.) se limite a Fsamp/2 (pispan = Fsamp/2 / Fc) 
-if	( limit > 8.0 + band_center )
-	limit = 8.0 + band_center;	// pour que le fullM (horiz.) se limite a 8 * Fc
+limit = lefir.pispan;				// pour que le fullM (horiz.) se limite a Fsamp/2 (pispan = Fsamp/2 / Fc) 
+if	( limit > 8.0 + lefir.band_center )
+	limit = 8.0 + lefir.band_center;	// pour que le fullM (horiz.) se limite a 8 * Fc
 // appliquer limit a qu
 curcour->qu = floor( panneau2.kq * limit ); 
 // precaution
@@ -915,26 +786,26 @@ int qFFTlog = 20;
 unsigned int saved_qchan = 1;
 
 if	( ( val = lepar->get( 'L' ) ) )	qFFTlog = atoi( val );			// log de fftsize
-if	( ( val = lepar->get( 'P' ) ) )	glo->pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
-if	( ( val = lepar->get( 'Z' ) ) )	glo->qpis = atoi( val );		// nombre de zeros
-if	( ( val = lepar->get( 'w' ) ) )	glo->window_type = atoi( val );		// 0 = rect, etc...
-if	( ( val = lepar->get( 'B' ) ) )	glo->band_center = strtod( val, NULL );	// translation band_center rel. Fc
+if	( ( val = lepar->get( 'P' ) ) )	lefir.pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
+if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
+if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );		// 0 = rect, etc...
+if	( ( val = lepar->get( 'B' ) ) )	lefir.band_center = strtod( val, NULL );	// translation band_center rel. Fc
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
-if	( ( qFFTlog < 8 ) || ( glo->pispan < 1.0 ) || ( glo->qpis < 4 ) || ( glo->qpis & 1 ) || ( saved_qchan > 2 ) )
+if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) || ( saved_qchan > 2 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 
 // generer FIR
-int retval = glo->generate_FIR();
+int retval = lefir.generate();
 if	( retval )
 	gasp(" erreur %d", retval );
-gtk_entry_set_text( GTK_ENTRY( glo->edesc ), glo->description );
+gtk_entry_set_text( GTK_ENTRY( glo->edesc ), lefir.description );
 
 // FFT pour reponse freqentielle
-    retval = glo->fft_on_FIR();
+retval = glo->fft_on_FIR( lefir.qfir, lefir.FIRbuf );
 if	( retval )
 	gasp(" erreur %d", retval );
 

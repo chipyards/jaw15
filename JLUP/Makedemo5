@@ -9,10 +9,10 @@ SOURCESCPP = gluplot.cpp jluplot.cpp \
     ../wavio.cpp DEMO5/demo5.cpp
 HEADERS = gluplot.h jluplot.h \
     layer_u.h ../wavio.h ../audiofile.h ../autobuf.h \
-    ../modpop3.h DEMO5/demo5.h
+    ../modpop3.h DEMO5/fir.h DEMO5/demo5.h
 
 OBJS= modpop3.o gluplot.o jluplot.o \
-    wavio.o demo5.o
+    wavio.o fir.o demo5.o
 
 EXE = DEMO5/demo5.exe 
 # maintenir les libs et includes dans l'ordre alphabetique SVP
@@ -67,6 +67,8 @@ layer_f_fifo.o : layer_f_fifo.cpp ${HEADERS}
 	gcc $(INCS) -c layer_f_fifo.cpp
 layer_f_param.o : layer_f_param.cpp ${HEADERS}
 	gcc $(INCS) -c layer_f_param.cpp
+fir.o : DEMO5/fir.cpp ${HEADERS}
+	gcc $(INCS) -c DEMO5/fir.cpp
 demo5.o : DEMO5/demo5.cpp ${HEADERS}
 	gcc $(INCS) -c DEMO5/demo5.cpp
 wavio.o : ../wavio.cpp ${HEADERS}
