@@ -4,8 +4,10 @@ public:
 double pispan;		// taille de PI dans la reponse impulsionnelle
 unsigned int qpis;	// nombre de fois pi dans le sinc de la RI, dit "nombre de zeros
 unsigned int castro_inc;// increment unitaire dans la reponse impulsionnelle pour Castro (i.e. Kaiser)
-unsigned int qfir;	// taille de la reponse impulsionnelle 
-double A0;		// decalage du centre de la RI
+unsigned int qfir;	// taille de la reponse impulsionnelle ( cnt_left + 1 + cnt_right )
+unsigned int cnt_left;	// part de qfir a gauche du coeff "central" 
+unsigned int cnt_right;	// part de qfir a droite du coeff "central" 
+double A0;		// decalage angulaire du coeff "central" -dA < A0 < dA
 double dA;		// increment angulaire
 int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 8 et 9 = Castro
 double a0;		// coeff pour calcul fenetres 0..4
@@ -19,7 +21,8 @@ double band_center;	// passe-bande : reponse translatee par band_center * Fc
 char description[128];
 
 // constructeur
-fir() : pispan(777), qpis(12), qfir(0), A0(0.0), dA(0.0), window_type(0), a0(1), a1(0), a2(0), a3(0),
+fir() : pispan(1.0), qpis(2), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
+	window_type(0), a0(1), a1(0), a2(0), a3(0),
 	FENbuf(NULL), FIRbuf(NULL), band_center(0.0) {};
 
 // methodes
@@ -72,23 +75,29 @@ void classic_fir() {
 		FIRbuf[topi+i] = FIRbuf[topi-i] = f * mysinc( A );
 		}	
 	};
+// preparer general_fir(), pour avoir qfir pret pour alloc memoire
+void general_fir_init() {
+	// on veut partir a proximite du sommet (normalement fabs(A0) < dA)
+	double A_half_span = M_PI * (qpis/2);
+	// on a besoin de ce calcul seulement pour mettre le premier coeff a l'indice zero
+	// et connaitre qfir a l'avance pour allouer le buffer
+	// si on filtrait directement on s'en passerait
+	cnt_left  = (int)floor( ( A_half_span + A0 ) / dA );
+	cnt_right = (int)floor( ( A_half_span - A0 ) / dA );
+	qfir = cnt_left + 1 + cnt_right;
+	};
 // echantillonner une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire 
-int general_fir( double A0, double dA ) {
+int general_fir() {
 	init_window();
 	double khann = 2.0 / qpis;
-	// on veut partir a proximite du sommet (normalement fabs(A0) < dA)
-	double A_half_span = 0.5 * M_PI * qpis;
-	// on a besoin de ce calcul seulement pour mettre le premier coeff a l'indice zero
-	// si on filtrait directement on s'en passerait
-	int cnt_left  = (int)floor( ( A_half_span + A0 ) / dA );
-	// celui-ci juste pour verif
-	int cnt_right = (int)floor( ( A_half_span - A0 ) / dA );
-	// on part comme on a dit
 	double A = A0;
 	int i = cnt_left;
+	double A_half_span = M_PI * (qpis/2);
 	// right side (incl A0)
 	while	( A < A_half_span )
 		{
+		if	( i >= (int)qfir )
+			{ printf("evitage debordement fir a droite\n"); break; }
 		FENbuf[i] = mywindow( khann, A );
 		FIRbuf[i] = FENbuf[i] * mysinc( A );
 		A += dA; i++;
@@ -99,7 +108,8 @@ int general_fir( double A0, double dA ) {
 	i = cnt_left - 1;
 	while	( A > (-A_half_span) ) 
 		{
-		if ( i < 0 ) break;	// securite pour le cas limite
+		if	( i < 0 )
+			{ printf("evitage debordement fir a gauche\n"); break; }
 		FENbuf[i] = mywindow( khann, A );
 		FIRbuf[i] = FENbuf[i] * mysinc( A );
 		A -= dA; i--;
@@ -107,9 +117,8 @@ int general_fir( double A0, double dA ) {
 	// verifications
 	if	( i != -1 )
 		printf("left side anomaly i = %d\n", i );
-	int expected_cnt = cnt_left + 1 + cnt_right;
-	if	( iend != expected_cnt )
-		printf("right side anomaly cnt = %d vs %d\n", iend, expected_cnt );
+	if	( iend != (int)qfir )
+		printf("right side anomaly cnt = %d vs %d\n", iend, qfir );
 	return iend;
 	};
 

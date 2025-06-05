@@ -43,18 +43,29 @@ if	( ( window_type == 8 ) || ( window_type == 9 ) )
 	printf("%s\n", description );
 	}
 else	{
-	double dqfir = 1.0 + (double)qpis * pispan;
-	qfir = round(dqfir);
+	if	( ( A0 != 0.0 ) || ( dA != 0.0 ) )
+		{		// generalized style
+		if	( dA == 0.0 )
+			dA = M_PI / pispan;
+		else	pispan = M_PI / dA;
+		if	( fabs(A0) >= dA )
+			{ printf("A0 too big\n"); return -43; }
+		general_fir_init();
+		}
+	else	{		// legacy style
+		double dqfir = 1.0 + (double)qpis * pispan;
+		qfir = round(dqfir);
+		// N.B. qfir doit etre entier et impair, c'est assuré si pispan est entier vu que qpis est pair
+		// si pispan est fractionnaire, il doit etre calcule pour que pispan * qpis soit entier et pair
+		double fract_qfir = fabs( dqfir - (double)qfir );
+		if	( fract_qfir > 1e-5 )
+			printf("warning : residu qfir = %g\n", fract_qfir );
+		if	( ( qfir & 1 ) == 0 )
+			printf("warning : qfir not odd\n");
+		}
 	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g, qpis %d, window %d %s",
 		qfir, pispan, qpis, window_type, window_name[window_type] );
 	printf("%s\n", description );
-	// N.B. qfir doit etre entier et impair, c'est assuré si pispan est entier vu que qpis est pair
-	// si pispan est fractionnaire, il doit etre calcule pour que pispan * qpis soit entier et pair
-	double fract_qfir = fabs( dqfir - (double)qfir );
-	if	( fract_qfir > 1e-5 )
-		printf("warning : residu qfir = %g\n", fract_qfir );
-	if	( ( qfir & 1 ) == 0 )
-		printf("warning : qfir not odd\n");
 	}
 // ouf, ici qfir est enfin stable
 
@@ -77,21 +88,11 @@ if	( window_type < 8 )
 	{
 	if	( ( A0 != 0.0 ) || ( dA != 0.0 ) )
 		{
-		if	( dA == 0.0 )
-			dA = M_PI / pispan;
-		else	{
-			if	( dA < ( M_PI / pispan ) )	// provisoire pour eviter depassement qfir
-				{ printf("dA too small\n"); return -42; }	// sinon ça serait bon
-			if	( fabs(A0) >= dA )
-				{ printf("A0 too big\n"); return -43; }
-			}
-		int cnt = general_fir( A0, dA );
-		printf("new qfir = %d vs %d\n", cnt, qfir );
-		qfir = cnt;
+		general_fir();
 		}
 	else	{
 		classic_fir();
-		printf("dA = %g\n", dA = M_PI / pispan );
+		printf("dA = %g\n", M_PI / pispan );
 		}
 	}
 else if	( ( window_type == 8 ) || ( window_type == 9 ) )
