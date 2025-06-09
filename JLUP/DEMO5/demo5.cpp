@@ -315,7 +315,7 @@ unsigned int a = 0; double k;
 if	( lefir.window_type < 8 )
 	k = 1.0 / lefir.pispan;
 else	k = 1.0 / lefir.castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
-if	( lefir.band_center >= 1.0 )
+if	( lefir.rB > 0.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 for	( unsigned int j = 0; j <= qFFT/2; ++j )
 	{
@@ -412,8 +412,8 @@ int glostru::audiofile_process()
 {
 double Fc = double(wavp.fsamp)/(2.0*lefir.pispan);
 printf("Fc @ -6dB : %g Hz\n", Fc );
-if	( lefir.band_center > 0.0 )
-	printf("bande [%g %g] largeur %g\n", Fc * ( lefir.band_center - 1.0 ), Fc * ( lefir.band_center + 1.0 ), Fc * 2.0 );
+//if	( lefir.rB > 0.0 )
+//	printf("bande [%g %g] largeur %g\n", Fc * ( lefir.band_center - 1.0 ), Fc * ( lefir.band_center + 1.0 ), Fc * 2.0 );
 fflush(stdout);
 // allocation buffer pour l'audio entier
 if	( wavp.realpfr > Ybuf.capa )
@@ -427,7 +427,7 @@ double sum, K;
 if	( lefir.window_type < 8 )
 	K = 1.0 / lefir.pispan;
 else	K = 1.0 / lefir.castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
-if	( lefir.band_center >= 1.0 )
+if	( lefir.rB > 0.0 )
 	K *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 
 j0 = (lefir.qfir-1)/ 2;	// qfir est impair
@@ -534,8 +534,9 @@ panneau1.offscreen_flag = 0;
 gstrip * curbande;
 curbande = new gstrip;
 panneau1.add_strip( curbande );
-panneau1.q0 = - int((lefir.qfir-1)/2);	// l'abcisse 0 au sommet du sinc 
-
+if	( lefir.classic )	// mettre le sommet du sinc a l'abcisse 0 
+	panneau1.q0 = - double( (lefir.qfir-1) / 2 );	// l'abcisse 0 au sommet du sinc 
+else	panneau1.q0 = - double( lefir.cnt_left + (lefir.A0/lefir.dA) ); 
 // configurer le strip
 curbande->bgcolor.set( 0.92, 0.98, 1.0 );
 curbande->Ylabel = "val";
@@ -665,8 +666,8 @@ panneau2.kq = qFFT / ( 2 * lefir.pispan );
 // limitation d'etendue horizontale via qu, notamment pour le full zoom horizontal (fullM)
 double limit;				// limite en unites affichees (Fc <==> 1.0) 
 limit = lefir.pispan;				// pour que le fullM (horiz.) se limite a Fsamp/2 (pispan = Fsamp/2 / Fc) 
-if	( limit > 8.0 + lefir.band_center )
-	limit = 8.0 + lefir.band_center;	// pour que le fullM (horiz.) se limite a 8 * Fc
+if	( limit > 8.0 + lefir.rB )
+	limit = 8.0 + lefir.rB;	// pour que le fullM (horiz.) se limite a 8 * Fc
 // appliquer limit a qu
 curcour->qu = floor( panneau2.kq * limit ); 
 // precaution
@@ -685,13 +686,19 @@ printf("Usage :\n"
  "-L log de fftsize\n"
  "-P pispan = taille de PI en samples pour calcul RI\n"
  "-Z qpis = taille de RI en PIs\n"
- "-w fenetre 0 = rect, etc...\n"
- "-B translation band_center rel. a Fc (la bande a largeur 2 Fc)\n"
- "-a A0 decalage du centre de la RI\n"
- "-d dA increment angulaire\n"
+ "-w fenetre 0 = rect, etc...\nRadian\n"
+ "-a A0 decalage du centre de la RI (rd/samp)\n"
+ "-d dA increment angulaire(rd/samp)\nRelatif\n"
+ "-b rB pass band : translation band_center (rd/samp)\n"
+ "-A decalage de la RI (relatif dA)\n"
+ "-F frequ de coupure ou min, rel. Nyquist (Fsamp/2)\n"
+ "-G frequ max, rel. Nyquist (Fsamp/2)\nHertz\n"
+ "-r Fsamp en Hz\n"
+ "-f frequence de coupure ou min en Hz\n"
+ "-g frequence de max en Hz\nWAV\n"
  "-o output file\n"
  "-c channels in saved file\n"
- "<input file> (sinon seulement FFT)\n" );
+ "<input file> (sinon, seulement FFT)\n" );
 }
 
 int main( int argc, char *argv[] )
@@ -782,25 +789,76 @@ glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
 // traiter arguments
 if	( argc < 2 )
 	{ usage(); return 0; }
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBadoc" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwadbAFGrfgoc" );
 const char * val;
 int qFFTlog = 20;
 unsigned int saved_qchan = 1;
+double relA0 = 0.0;
+double F0_rny = 0.0;
+double F1_rny = 0.0;
+glo->Fsamp = 44100;
+double F0_Hz  = 0.0;
+double F1_Hz  = 0.0;
 
 if	( ( val = lepar->get( 'L' ) ) )	qFFTlog = atoi( val );			// log de fftsize
-if	( ( val = lepar->get( 'P' ) ) )	lefir.pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
+if	( ( val = lepar->get( 'P' ) ) )	{
+					lefir.pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
+					lefir.classic = 1;
+					}
 if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
-if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );		// 0 = rect, etc...
-if	( ( val = lepar->get( 'B' ) ) )	lefir.band_center = strtod( val, NULL );	// translation band_center rel. Fc
-if	( ( val = lepar->get( 'a' ) ) )	lefir.A0 = strtod( val, NULL );		// decalage du centre de la RI
-if	( ( val = lepar->get( 'd' ) ) )	lefir.dA = strtod( val, NULL );		// increment angulaire
+if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );	// 0 = rect, etc...
+if	( ( val = lepar->get( 'a' ) ) )	lefir.A0 = strtod( val, NULL );		// A0 decalage du centre de la RI (rd)
+if	( ( val = lepar->get( 'd' ) ) )	lefir.dA = strtod( val, NULL );		// dA increment angulaire (rd/samp)
+if	( ( val = lepar->get( 'b' ) ) )	lefir.rB = strtod( val, NULL );		// rB translation band_center (rd/samp)
+
+if	( ( val = lepar->get( 'A' ) ) )	relA0 = strtod( val, NULL );		// decalage de la RI (relatif dA)
+if	( ( val = lepar->get( 'F' ) ) )	F0_rny = strtod( val, NULL );		// frequ de coupure ou min, rel. Nyquist (Fsamp/2)
+if	( ( val = lepar->get( 'G' ) ) )	F1_rny = strtod( val, NULL );		// frequ max, rel. Nyquist (Fsamp/2)
+
+if	( ( val = lepar->get( 'r' ) ) )	glo->Fsamp  = atoi( val );		// Fsamp en Hz
+if	( ( val = lepar->get( 'f' ) ) )	F0_Hz  = strtod( val, NULL );		// frequence de coupure ou min (Hz)
+if	( ( val = lepar->get( 'g' ) ) )	F1_Hz  = strtod( val, NULL );		// frequence max (band) (Hz)
+
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
+
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
 if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) || ( saved_qchan > 2 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
+
+if	( F0_rny > 0.0 )
+	{
+	if	( F1_rny == 0.0 )
+		{			// low-pass
+		lefir.dA = M_PI * F0_rny;
+		lefir.rB = 0.0;
+		}
+	else	{			// band-pass
+		lefir.dA = M_PI * 0.5 * (F1_rny-F0_rny);
+		lefir.rB = M_PI * 0.5 * (F1_rny+F0_rny);
+		}
+	}
+
+if	( ( F0_Hz > 0.0 ) && ( glo->Fsamp > 0 ) )
+	{
+	if	( F1_Hz == 0.0 )
+		{			// low-pass
+		lefir.dA = 2.0 * M_PI * F0_Hz / (double)glo->Fsamp;
+		lefir.rB = 0.0;
+		}
+	else	{			// band-pass
+		lefir.dA = M_PI * (F1_Hz-F0_Hz) / (double)glo->Fsamp; 
+		lefir.rB = M_PI * (F1_Hz+F0_Hz) / (double)glo->Fsamp; 
+		}
+	}
+if	( relA0 != 0.0 )
+	lefir.A0 = relA0 * lefir.dA;
+// s'assurer que dA et pispan sont tous les deux definis
+if	( lefir.dA == 0.0 )
+	lefir.dA = M_PI / lefir.pispan;
+else	lefir.pispan = M_PI / lefir.dA;
 
 // generer FIR
 int retval = lefir.generate();

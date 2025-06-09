@@ -43,13 +43,10 @@ if	( ( window_type == 8 ) || ( window_type == 9 ) )
 	printf("%s\n", description );
 	}
 else	{
-	if	( ( A0 != 0.0 ) || ( dA != 0.0 ) )
+	if	( classic == 0 )
 		{		// generalized style
-		if	( dA == 0.0 )
-			dA = M_PI / pispan;
-		else	pispan = M_PI / dA;
 		if	( fabs(A0) >= dA )
-			{ printf("A0 too big\n"); return -43; }
+			{ printf("A0 too big %g vs %g\n", A0, dA ); return -43; }
 		general_fir_init();
 		}
 	else	{		// legacy style
@@ -63,8 +60,8 @@ else	{
 		if	( ( qfir & 1 ) == 0 )
 			printf("warning : qfir not odd\n");
 		}
-	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g, qpis %d, window %d %s",
-		qfir, pispan, qpis, window_type, window_name[window_type] );
+	snprintf( description, sizeof(description), "FIR %s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, window %d %s",
+		((classic)?("classic "):("")), qfir, qpis, dA, pispan, A0, window_type, window_name[window_type] );
 	printf("%s\n", description );
 	}
 // ouf, ici qfir est enfin stable
@@ -86,13 +83,12 @@ else	FENbuf = NULL;
 // calcul coeffs
 if	( window_type < 8 )
 	{
-	if	( ( A0 != 0.0 ) || ( dA != 0.0 ) )
+	if	( classic == 0 )
 		{
 		general_fir();
 		}
 	else	{
 		classic_fir();
-		printf("dA = %g\n", M_PI / pispan );
 		}
 	}
 else if	( ( window_type == 8 ) || ( window_type == 9 ) )
@@ -110,18 +106,21 @@ else if	( ( window_type == 8 ) || ( window_type == 9 ) )
 else	{ qfir = 0; return -666; }
 
 // mode passe_bande : multiplier le FIR par une sinusoide pour translater la reponse frequentielle
-if	( ( band_center > 0.0 ) && ( A0 == 0.0 ) && ( dA == 0.0 ) )
+if	( rB > 0.0 )
+	{ printf("band-pass disabled in this version\n"); return -111; }
+	/*
 	{
-	double k = M_PI * band_center / pispan;
 	double x;
 	// le "sommet" du sinc est a i = (qfir-1)/2 => x = 0 => cos(x) = 1
 	for	( int i = 0; i < (int)qfir; ++i )
 		{
-		x = k * ( double( i - int((qfir-1)/2) ) );
+		x = rB * ( double( i - int((qfir-1)/2) ) );
 		FIRbuf[i] *= cos( x ); 
 		}	// ainsi on preserve le sommet du sinc
-	printf("bande translatee de %g x Fc\n", band_center );
+	printf("bande translatee de %g rd/samp\n", rB );
 	}
+	*/
+
 fflush(stdout);
 return 0;
 }

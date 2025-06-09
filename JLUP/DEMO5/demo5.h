@@ -23,6 +23,7 @@ gpanel panneau2;	// panneau2 dans darea2
 
 int idle_id;		// id pour la fonction idle du timeout
 
+unsigned int Fsamp;	// frequ ech.
 const char * ifnam;	// nom de fichier wav a filtrer
 const char * ofnam;	// nom de fichier wav a sauver
 
@@ -36,7 +37,7 @@ autobuf <float> Ybuf;	// audio apres filtrage
 wavio wavp;		// objet audiofile pour lecture wav
 
 // constructeur
-glostru() : ifnam(NULL), ofnam(NULL),
+glostru() : Fsamp(44100), ifnam(NULL), ofnam(NULL),
 	    qFFT(1<<20), FFTin(NULL), FFTout(NULL), plan(NULL) {};
 
 // methodes

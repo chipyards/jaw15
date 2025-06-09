@@ -1,14 +1,15 @@
 
 class fir {
 public:
+int classic;		// mode classic
 double pispan;		// taille de PI dans la reponse impulsionnelle
 unsigned int qpis;	// nombre de fois pi dans le sinc de la RI, dit "nombre de zeros
 unsigned int castro_inc;// increment unitaire dans la reponse impulsionnelle pour Castro (i.e. Kaiser)
-unsigned int qfir;	// taille de la reponse impulsionnelle ( cnt_left + 1 + cnt_right )
-unsigned int cnt_left;	// part de qfir a gauche du coeff "central" 
-unsigned int cnt_right;	// part de qfir a droite du coeff "central" 
+unsigned int qfir;	// taille de la reponse impulsionnelle ( cnt_left + cnt_right )
+unsigned int cnt_left;	// part de qfir a gauche du coeff de ref (exclus)
+unsigned int cnt_right;	// part de qfir a droite du coeff de ref (inclus)
 double A0;		// decalage angulaire du coeff "central" -dA < A0 < dA
-double dA;		// increment angulaire
+double dA;		// increment angulaire (rd/samp)
 int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 8 et 9 = Castro
 double a0;		// coeff pour calcul fenetres 0..4
 double a1;
@@ -16,14 +17,14 @@ double a2;
 double a3;
 double * FENbuf;	// fenetre
 double * FIRbuf;	// impulse response
-double band_center;	// passe-bande : reponse translatee par band_center * Fc
+double rB;		// passe-bande : reponse translatee (rd/samp)
 
 char description[128];
 
 // constructeur
-fir() : pispan(1.0), qpis(2), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
+fir() : classic(0), pispan(1.0), qpis(2), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
 	window_type(0), a0(1), a1(0), a2(0), a3(0),
-	FENbuf(NULL), FIRbuf(NULL), band_center(0.0) {};
+	FENbuf(NULL), FIRbuf(NULL), rB(0.0) {};
 
 // methodes
 
@@ -76,24 +77,44 @@ void classic_fir() {
 		}	
 	};
 // preparer general_fir(), pour avoir qfir pret pour alloc memoire
+// Note 1 : A0 est le déplacement angulaire du sommet du sinc par rapport a un sample voisin
+// 	pris comme référence (le plus proche, mais ce n'est pas obligé)
+// 	A0 est compté positif si le sommet est à droite du sample de reference
+// Note 2 : on va effectuer le filtrage en partant du sample de ref, en 2 fois, 
+// 	du coté droit en incluant le sample de ref puis du gauche en excluant le sample de ref
+// le filtrage n'a pas besoin de ce calcul preliminaire, on le fait pour avoir la longueur qfir
+// en vue d'allouer le buffer pour stockage des coeffs
 void general_fir_init() {
-	// on veut partir a proximite du sommet (normalement fabs(A0) < dA)
 	double A_half_span = M_PI * (qpis/2);
-	// on a besoin de ce calcul seulement pour mettre le premier coeff a l'indice zero
-	// et connaitre qfir a l'avance pour allouer le buffer
-	// si on filtrait directement on s'en passerait
-	cnt_left  = (int)floor( ( A_half_span + A0 ) / dA );
-	cnt_right = (int)floor( ( A_half_span - A0 ) / dA );
-	qfir = cnt_left + 1 + cnt_right;
+	// methode 1 : calcul analytique
+	double R = ( A_half_span + A0 ) / dA;
+	double L = ( A_half_span - A0 - dA ) / dA;
+	// printf("L=%.16f, R=%.16f\n", L, R );
+	// pourquoi ceil ?
+	//	- cas general : nombre de samples = nombre d'intervalles + 1
+	//	- cas particulier R ou L entier : nombre de samples = nombre d'intervalles
+	//	  car on ne veut pas le sample qui est sur le bord (aussi elimine par les boucles) 
+	cnt_left  = (int)ceil( L );
+	cnt_right = (int)ceil( R );
+	printf("cnt_left=%d, cnt_right=%d\n", cnt_left, cnt_right );
+	qfir = cnt_left + cnt_right;
+	// methode 2 : simulation des boucles du filtrage (sera supprimee apres verif)
+	int sim_right = 0; double A = -A0;
+	while	( A < A_half_span )
+		{ A += dA; sim_right++; }
+	int sim_left = 0; A = - A0 - dA;
+	while	( A > (-A_half_span) )
+		{ A -= dA; sim_left++; }
+	printf("sim_left=%d, sim_right=%d\n", sim_left, sim_right );
 	};
 // echantillonner une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire 
 int general_fir() {
 	init_window();
 	double khann = 2.0 / qpis;
-	double A = A0;
+	double A = -A0;		// angle of ref sample
 	int i = cnt_left;
 	double A_half_span = M_PI * (qpis/2);
-	// right side (incl A0)
+	// right side (incl ref sample @ -A0)
 	while	( A < A_half_span )
 		{
 		if	( i >= (int)qfir )
@@ -103,8 +124,8 @@ int general_fir() {
 		A += dA; i++;
 		}
 	int iend = i;
-	// left side (excl. A0)
-	A = A0 - dA;
+	// left side (excl ref sample @ -A0)
+	A = - A0 - dA;
 	i = cnt_left - 1;
 	while	( A > (-A_half_span) ) 
 		{
