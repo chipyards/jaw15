@@ -60,8 +60,8 @@ else	{
 		if	( ( qfir & 1 ) == 0 )
 			printf("warning : qfir not odd\n");
 		}
-	snprintf( description, sizeof(description), "FIR %s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, window %d %s",
-		((classic)?("classic "):("")), qfir, qpis, dA, pispan, A0, window_type, window_name[window_type] );
+	snprintf( description, sizeof(description), "FIR %s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g (rel. %g), window %d %s",
+		((classic)?("classic "):("")), qfir, qpis, dA, pispan, A0, A0/dA, window_type, window_name[window_type] );
 	printf("%s\n", description );
 	}
 // ouf, ici qfir est enfin stable

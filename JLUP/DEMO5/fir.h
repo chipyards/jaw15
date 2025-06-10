@@ -89,7 +89,7 @@ void general_fir_init() {
 	// methode 1 : calcul analytique
 	double R = ( A_half_span + A0 ) / dA;
 	double L = ( A_half_span - A0 - dA ) / dA;
-	// printf("L=%.16f, R=%.16f\n", L, R );
+	// printf("L=%.18f, R=%.18f\n", L, R );
 	// pourquoi ceil ?
 	//	- cas general : nombre de samples = nombre d'intervalles + 1
 	//	- cas particulier R ou L entier : nombre de samples = nombre d'intervalles
@@ -98,15 +98,43 @@ void general_fir_init() {
 	cnt_right = (int)ceil( R );
 	printf("cnt_left=%d, cnt_right=%d\n", cnt_left, cnt_right );
 	qfir = cnt_left + cnt_right;
-	// methode 2 : simulation des boucles du filtrage (sera supprimee apres verif)
+	/* methode 2 : simulation des boucles du filtrage pour verif des cas limite
+	Les cas limite sont les cas ou un sample est pile au bord de la fenetre, ou le coeff est 0.0
+	Lors du filtrage, ces cas sont normalement elimines par ( A < A_half_span )
+	Mais il arrive rarement que ce test rende true alors que theoriquement A == A_half_span
+	en raison d'erreurs cumulees sur A += dA.
+	exemple de reference : DEMO5/demo5 -Z 14 -w 4 -F 0.125
+	Cela n'a aucun impact sur le filtrage (ajout d'un terme nul) mais pourrait causer un debordement
+	du buffer FIRbuf, qu'on evite avec un test de securite dans general_fir()
+	Une autre approche, stupidement couteuse, serait de calculer cnt_left et cnt_right par simulation
+	comme ci-dessous. Mais on a observe que la simu donne les memes valeurs que la methode 1,
+	donc en contradiction avec general_fir() dans les cas tels que l'exemple de ref. !!!!
+	Explication : les boucles de simu sont optimisees pour que tous les calculs restent dans le FPU
+	qui a une resolution de 80 bits alors que le type double est limite a 64 bits.
+	En inserant des printf dans les boucles, on force la simu a avoir le meme comportement que
+	general_fir(), c'est a dire inclusion des samples limites. idem avec volatile double A.
+	Resolution finale : on garde la methode 1, plus efficace dans le cas general, et on accepte les
+	"evitage debordements" dans les rares cas de fuite du test ( A < A_half_span )
+	*/
+	/*
 	int sim_right = 0; double A = -A0;
+	// printf("A_half_span %.18f\n", A_half_span );
 	while	( A < A_half_span )
-		{ A += dA; sim_right++; }
+		{
+		// printf("simu %.18f\n", A );
+		A += dA; sim_right++;
+		}
 	int sim_left = 0; A = - A0 - dA;
 	while	( A > (-A_half_span) )
-		{ A -= dA; sim_left++; }
+		{
+		// printf("simu %.18f\n", A );
+		A -= dA; sim_left++;
+		}
 	printf("sim_left=%d, sim_right=%d\n", sim_left, sim_right );
-	};
+	
+	*/
+	};	// general_fir_init()
+
 // echantillonner une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire 
 int general_fir() {
 	init_window();
@@ -118,7 +146,7 @@ int general_fir() {
 	while	( A < A_half_span )
 		{
 		if	( i >= (int)qfir )
-			{ printf("evitage debordement fir a droite\n"); break; }
+			{ printf("note: evitage debordement fir a droite\n"); break; }
 		FENbuf[i] = mywindow( khann, A );
 		FIRbuf[i] = FENbuf[i] * mysinc( A );
 		A += dA; i++;
@@ -130,18 +158,18 @@ int general_fir() {
 	while	( A > (-A_half_span) ) 
 		{
 		if	( i < 0 )
-			{ printf("evitage debordement fir a gauche\n"); break; }
+			{ printf("note: evitage debordement fir a gauche\n"); break; }
 		FENbuf[i] = mywindow( khann, A );
 		FIRbuf[i] = FENbuf[i] * mysinc( A );
 		A -= dA; i--;
 		}
 	// verifications
 	if	( i != -1 )
-		printf("left side anomaly i = %d\n", i );
+		printf("suspect: anomalie gauche i = %d\n", i );
 	if	( iend != (int)qfir )
-		printf("right side anomaly cnt = %d vs %d\n", iend, qfir );
+		printf("suspect: anomalie droite cnt = %d vs %d\n", iend, qfir );
 	return iend;
-	};
+	};	// general_fir()
 
 int generate();
 

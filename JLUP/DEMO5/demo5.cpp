@@ -682,23 +682,29 @@ curcour->scan();		// alors on peut faire un scan
 
 void usage()
 {
-printf("Usage :\n"
- "-L log de fftsize\n"
- "-P pispan = taille de PI en samples pour calcul RI\n"
- "-Z qpis = taille de RI en PIs\n"
- "-w fenetre 0 = rect, etc...\nRadian\n"
- "-a A0 decalage du centre de la RI (rd/samp)\n"
- "-d dA increment angulaire(rd/samp)\nRelatif\n"
- "-b rB pass band : translation band_center (rd/samp)\n"
- "-A decalage de la RI (relatif dA)\n"
- "-F frequ de coupure ou min, rel. Nyquist (Fsamp/2)\n"
- "-G frequ max, rel. Nyquist (Fsamp/2)\nHertz\n"
- "-r Fsamp en Hz\n"
- "-f frequence de coupure ou min en Hz\n"
- "-g frequence de max en Hz\nWAV\n"
- "-o output file\n"
- "-c channels in saved file\n"
- "<input file> (sinon, seulement FFT)\n" );
+printf("// Usage //\n"
+ " -L log de fftsize\n"
+ " -P pispan = taille de PI en samples pour calcul RI\n"
+ " -Z qpis = taille de RI en PIs\n"
+ " -w fenetre 0 = rect, etc...\n"
+"Radian:\n"
+ " -a A0 decalage du centre de la RI (rd/samp)\n"
+ " -d dA increment angulaire(rd/samp)\n"
+"Relatif:\n"
+ //" -b rB pass band : translation band_center (rd/samp)\n"
+ " -A decalage de la RI (relatif dA)\n"
+ " -F frequ de coupure ou min, rel. Nyquist (Fsamp/2)\n"
+ //" -G frequ max, rel. Nyquist (Fsamp/2)\n"
+"Hertz:\n"
+ " -r Fsamp en Hz\n"
+ " -f frequence de coupure ou min en Hz\n"
+"Filtrage WAV:\n"
+ //" -g frequence de max en Hz\nWAV\n"
+ " -o output file\n"
+ " -c channels in saved file\n"
+ " <input file> (sinon, seulement FFT)\n"
+ "NOTE: -P, -F et -f sont incompatibles, et -P force le mode \"classic\"\n"
+ );
 }
 
 int main( int argc, char *argv[] )
