@@ -35,6 +35,11 @@ double mysinc( double A ) {
 		return 1.0;
 	return ( sin(A) / A );
 	};
+// facteur cos pour filtre passe-bande
+double mycos( double A, double rel_shift ) {
+	return cos( A * rel_shift );
+	};
+ 
 void init_window() {	// please add Lanczos https://en.wikipedia.org/wiki/Lanczos_resampling
 	switch	( window_type )		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
 		{
@@ -143,26 +148,44 @@ int general_fir() {
 	int i = cnt_left;
 	double A_half_span = M_PI * (qpis/2);
 	// right side (incl ref sample @ -A0)
-	while	( A < A_half_span )
-		{
-		if	( i >= (int)qfir )
-			{ printf("note: evitage debordement fir a droite\n"); break; }
-		FENbuf[i] = mywindow( khann, A );
-		FIRbuf[i] = FENbuf[i] * mysinc( A );
-		A += dA; i++;
-		}
+	if	( rB == 0.0 )
+		while	( A < A_half_span )
+			{
+			if	( i >= (int)qfir )
+				{ printf("note: evitage debordement fir a droite\n"); break; }
+			FENbuf[i] = mywindow( khann, A );
+			FIRbuf[i] = FENbuf[i] * mysinc( A );
+			A += dA; i++;
+			}
+	else	while	( A < A_half_span )
+			{
+			if	( i >= (int)qfir )
+				{ printf("note: evitage debordement fir a droite\n"); break; }
+			FENbuf[i] = mywindow( khann, A );
+			FIRbuf[i] = FENbuf[i] * mysinc( A ) * mycos( A, rB );
+			A += dA; i++;
+			}
 	int iend = i;
 	// left side (excl ref sample @ -A0)
 	A = - A0 - dA;
 	i = cnt_left - 1;
-	while	( A > (-A_half_span) ) 
-		{
-		if	( i < 0 )
-			{ printf("note: evitage debordement fir a gauche\n"); break; }
-		FENbuf[i] = mywindow( khann, A );
-		FIRbuf[i] = FENbuf[i] * mysinc( A );
-		A -= dA; i--;
-		}
+	if	( rB == 0.0 )
+		while	( A > (-A_half_span) ) 
+			{
+			if	( i < 0 )
+				{ printf("note: evitage debordement fir a gauche\n"); break; }
+			FENbuf[i] = mywindow( khann, A );
+			FIRbuf[i] = FENbuf[i] * mysinc( A );
+			A -= dA; i--;
+			}
+	else	while	( A > (-A_half_span) ) 
+			{
+			if	( i < 0 )
+				{ printf("note: evitage debordement fir a gauche\n"); break; }
+			FENbuf[i] = mywindow( khann, A );
+			FIRbuf[i] = FENbuf[i] * mysinc( A ) * mycos( A, rB );
+			A -= dA; i--;
+			}
 	// verifications
 	if	( i != -1 )
 		printf("suspect: anomalie gauche i = %d\n", i );

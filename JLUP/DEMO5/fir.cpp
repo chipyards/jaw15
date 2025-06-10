@@ -60,8 +60,11 @@ else	{
 		if	( ( qfir & 1 ) == 0 )
 			printf("warning : qfir not odd\n");
 		}
-	snprintf( description, sizeof(description), "FIR %s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g (rel. %g), window %d %s",
-		((classic)?("classic "):("")), qfir, qpis, dA, pispan, A0, A0/dA, window_type, window_name[window_type] );
+	if	( rB == 0.0 )
+		snprintf( description, sizeof(description), "FIR%s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g (rel. %g), window %d %s",
+			((classic)?(" classic "):("")), qfir, qpis, dA, pispan, A0, A0/dA, window_type, window_name[window_type] );
+	else	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), A0 rel. %g, rB %g, window %d %s",
+			qfir, qpis, dA, pispan, A0/dA, rB, window_type, window_name[window_type] );
 	printf("%s\n", description );
 	}
 // ouf, ici qfir est enfin stable
@@ -104,22 +107,6 @@ else if	( ( window_type == 8 ) || ( window_type == 9 ) )
 		}
 	}
 else	{ qfir = 0; return -666; }
-
-// mode passe_bande : multiplier le FIR par une sinusoide pour translater la reponse frequentielle
-if	( rB > 0.0 )
-	{ printf("band-pass disabled in this version\n"); return -111; }
-	/*
-	{
-	double x;
-	// le "sommet" du sinc est a i = (qfir-1)/2 => x = 0 => cos(x) = 1
-	for	( int i = 0; i < (int)qfir; ++i )
-		{
-		x = rB * ( double( i - int((qfir-1)/2) ) );
-		FIRbuf[i] *= cos( x ); 
-		}	// ainsi on preserve le sommet du sinc
-	printf("bande translatee de %g rd/samp\n", rB );
-	}
-	*/
 
 fflush(stdout);
 return 0;

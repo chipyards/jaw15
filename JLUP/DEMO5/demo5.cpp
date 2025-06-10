@@ -633,7 +633,7 @@ curcour->scan();	// alors on peut faire un scan
 
 void glostru::layout2()
 {
-// layout jluplot pour panneau2
+// layout jluplot pour panneau2 : reponse frequentielle = resultat FFT
 panneau2.offscreen_flag = 0;
 // normalisation d'echelle horizontale t.q. Fc theorique <==> 1.0
 panneau2.kq = qFFT / ( 2 * lefir.pispan );
@@ -691,19 +691,20 @@ printf("// Usage //\n"
  " -a A0 decalage du centre de la RI (rd/samp)\n"
  " -d dA increment angulaire(rd/samp)\n"
 "Relatif:\n"
- //" -b rB pass band : translation band_center (rd/samp)\n"
+ " -b rB pass band : translation band_center (relatif dA)\n"
  " -A decalage de la RI (relatif dA)\n"
  " -F frequ de coupure ou min, rel. Nyquist (Fsamp/2)\n"
- //" -G frequ max, rel. Nyquist (Fsamp/2)\n"
+ " -G frequ max, rel. Nyquist (Fsamp/2)(incompat. -P, -f)\n"
 "Hertz:\n"
  " -r Fsamp en Hz\n"
  " -f frequence de coupure ou min en Hz\n"
+ " -g frequence max bande en Hz (incompat. -P, -F)\n"
 "Filtrage WAV:\n"
- //" -g frequence de max en Hz\nWAV\n"
  " -o output file\n"
  " -c channels in saved file\n"
  " <input file> (sinon, seulement FFT)\n"
  "NOTE: -P, -F et -f sont incompatibles, et -P force le mode \"classic\"\n"
+ "      -b, -g, -G transforment passe-bas en passe-bande\n"
  );
 }
 
@@ -815,7 +816,7 @@ if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );	// 0 = rect, etc...
 if	( ( val = lepar->get( 'a' ) ) )	lefir.A0 = strtod( val, NULL );		// A0 decalage du centre de la RI (rd)
 if	( ( val = lepar->get( 'd' ) ) )	lefir.dA = strtod( val, NULL );		// dA increment angulaire (rd/samp)
-if	( ( val = lepar->get( 'b' ) ) )	lefir.rB = strtod( val, NULL );		// rB translation band_center (rd/samp)
+if	( ( val = lepar->get( 'b' ) ) )	lefir.rB = strtod( val, NULL );		// rB translation band_center (relatif dA)
 
 if	( ( val = lepar->get( 'A' ) ) )	relA0 = strtod( val, NULL );		// decalage de la RI (relatif dA)
 if	( ( val = lepar->get( 'F' ) ) )	F0_rny = strtod( val, NULL );		// frequ de coupure ou min, rel. Nyquist (Fsamp/2)
@@ -834,29 +835,27 @@ if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 
-if	( F0_rny > 0.0 )
+if	( ( F0_rny > 0.0 ) || ( F1_rny > 0.0 ) )
 	{
 	if	( F1_rny == 0.0 )
 		{			// low-pass
 		lefir.dA = M_PI * F0_rny;
-		lefir.rB = 0.0;
 		}
 	else	{			// band-pass
 		lefir.dA = M_PI * 0.5 * (F1_rny-F0_rny);
-		lefir.rB = M_PI * 0.5 * (F1_rny+F0_rny);
+		lefir.rB = M_PI * 0.5 * (F1_rny+F0_rny) / lefir.dA;
 		}
 	}
 
-if	( ( F0_Hz > 0.0 ) && ( glo->Fsamp > 0 ) )
+if	( ( ( F0_Hz > 0.0 ) || ( F1_Hz > 0.0 ) ) && ( glo->Fsamp > 0 ) )
 	{
 	if	( F1_Hz == 0.0 )
 		{			// low-pass
 		lefir.dA = 2.0 * M_PI * F0_Hz / (double)glo->Fsamp;
-		lefir.rB = 0.0;
 		}
 	else	{			// band-pass
 		lefir.dA = M_PI * (F1_Hz-F0_Hz) / (double)glo->Fsamp; 
-		lefir.rB = M_PI * (F1_Hz+F0_Hz) / (double)glo->Fsamp; 
+		lefir.rB = M_PI * (F1_Hz+F0_Hz) / ( (double)glo->Fsamp * lefir.dA ); 
 		}
 	}
 if	( relA0 != 0.0 )
