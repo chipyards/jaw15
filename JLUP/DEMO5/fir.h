@@ -1,3 +1,17 @@
+#include "demo5_coeff.h"
+
+typedef struct {
+	int qpis;	// 4 * cycles
+	int qtable;	// sommet inclus
+	const double * table;
+	int incr;
+	} castrable;
+
+// data from demo5_coeff.h
+const castrable castroz[] = {
+	{ 4*8, sizeof(fastest_coeffs.coeffs) / sizeof(double), fastest_coeffs.coeffs, fastest_coeffs.increment },
+	{ 4*21, sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double), slow_mid_qual_coeffs.coeffs, slow_mid_qual_coeffs.increment }
+	};
 
 class fir {
 public:
@@ -35,6 +49,27 @@ double mysinc( double A ) {
 		return 1.0;
 	return ( sin(A) / A );
 	};
+
+// interpolation sur table pour winw_type = 6 ou 7
+double myCastro( double A ) {
+	const castrable * cas = &castroz[window_type-6];
+	double A_half_span = M_PI * (cas->qpis/2);
+	double k = double(cas->qtable-1) / A_half_span;
+	A = fabs(A);	// symetrie pour pas cher !
+	double dindex = k * A;
+	// interpolation
+	double di = floor(dindex);
+	double df = dindex - di;
+	int i = (int)di; 
+	double C0, C1;
+	C0 = cas->table[i++];
+	if	( i < cas->qtable )
+		C1 = cas->table[i];
+	else	C1 = C0;
+	double C = C0 + ( (C1-C0) * df ); 
+	return C;
+	}
+
 // facteur cos pour filtre passe-bande
 double mycos( double A, double rel_shift ) {
 	return cos( A * rel_shift );
@@ -90,6 +125,12 @@ void classic_fir() {
 // le filtrage n'a pas besoin de ce calcul preliminaire, on le fait pour avoir la longueur qfir
 // en vue d'allouer le buffer pour stockage des coeffs
 void general_fir_init() {
+	if	( window_type >= 6 )
+		{
+		const castrable * cas = &castroz[window_type-6];
+		qpis = cas->qpis;
+		castro_inc = cas->incr;
+		}
 	double A_half_span = M_PI * (qpis/2);
 	// methode 1 : calcul analytique
 	double R = ( A_half_span + A0 ) / dA;
@@ -184,6 +225,57 @@ int general_fir() {
 				{ printf("note: evitage debordement fir a gauche\n"); break; }
 			FENbuf[i] = mywindow( khann, A );
 			FIRbuf[i] = FENbuf[i] * mysinc( A ) * mycos( A, rB );
+			A -= dA; i--;
+			}
+	// verifications
+	if	( i != -1 )
+		printf("suspect: anomalie gauche i = %d\n", i );
+	if	( iend != (int)qfir )
+		printf("suspect: anomalie droite cnt = %d vs %d\n", iend, qfir );
+	return iend;
+	};	// general_fir()
+
+int general_fir_castro() {	// seulement pour window_type = 6 ou 7
+	double A = -A0;		// angle of ref sample
+	int i = cnt_left;
+	double A_half_span = M_PI * (qpis/2);
+	// right side (incl ref sample @ -A0)
+	if	( rB == 0.0 )
+		while	( A < A_half_span )
+			{
+			if	( i >= (int)qfir )
+				{ printf("note: evitage debordement fir a droite\n"); break; }
+			FENbuf[i] = 0.0;
+			FIRbuf[i] = myCastro(A);
+			A += dA; i++;
+			}
+	else	while	( A < A_half_span )
+			{
+			if	( i >= (int)qfir )
+				{ printf("note: evitage debordement fir a droite\n"); break; }
+			FENbuf[i] = 0.0;
+			FIRbuf[i] = myCastro(A) * mycos( A, rB );
+			A += dA; i++;
+			}
+	int iend = i;
+	// left side (excl ref sample @ -A0)
+	A = - A0 - dA;
+	i = cnt_left - 1;
+	if	( rB == 0.0 )
+		while	( A > (-A_half_span) ) 
+			{
+			if	( i < 0 )
+				{ printf("note: evitage debordement fir a gauche\n"); break; }
+			FENbuf[i] = 0.0;
+			FIRbuf[i] = myCastro(A);
+			A -= dA; i--;
+			}
+	else	while	( A > (-A_half_span) ) 
+			{
+			if	( i < 0 )
+				{ printf("note: evitage debordement fir a gauche\n"); break; }
+			FENbuf[i] = 0.0;
+			FIRbuf[i] = myCastro(A) * mycos( A, rB );
 			A -= dA; i--;
 			}
 	// verifications

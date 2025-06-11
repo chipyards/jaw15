@@ -76,7 +76,6 @@ mais il est tres augmente par la fenetre (presque triple avec Hamming).
 	32	fast		1.188			1.200		153.9375	128	1.2026
 	84	mid_qual	1.082			1.090		534.2143	491	1.0880
   La transition intercepte toujours Fc à -6dB !
-  La reponse est hyper "lisse" : pas d'ondulation dans la bande passante, ni dans la bande coupee
   La reponse est similaire à blackman @ qpis = 32 de 0 a -75 dB
   Notes sur les parametres :
 	- Castro ne stocke qu'une demi-table qui commence au top du sinc (commun aux 2 moities donc)
@@ -312,9 +311,11 @@ fftw_execute( plan );
 // calcul magnitudes sur place (FFTout contient des valeurs complexes)
 unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( lefir.window_type < 8 )
+if	( lefir.window_type < 6 )			// cas "normal"
 	k = 1.0 / lefir.pispan;
-else	k = 1.0 / lefir.castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
+else if	( lefir.window_type < 8 )			// interpolation sur table castro (coeffs denormalises)
+	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+else	k = 1.0 / lefir.castro_inc;			// table castro in extenso
 if	( lefir.rB > 0.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 for	( unsigned int j = 0; j <= qFFT/2; ++j )
@@ -831,7 +832,8 @@ if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in sa
 
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
-if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) || ( saved_qchan > 2 ) )
+if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( ( lefir.qpis < 4 ) && ( lefir.window_type < 6 ) ) ||
+	( lefir.qpis & 1 ) || ( saved_qchan > 2 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 

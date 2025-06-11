@@ -2,42 +2,26 @@
 #include <math.h>
 
 #include "fir.h"
-#include "demo5_coeff.h"
 
 const char * window_name[] = {
-	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "", "", "", 
+	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "lanczos", "kaiser (castro fast)", "kaiser (castro mid_qual)", 
 	"kaiser (castro fast)", "kaiser (castro mid_qual)", "kaiser (castro high_qual)" };
 
 int fir::generate()
 {
 // preparation parametres
-unsigned int halfqfir = 0;
-const double * castroeffs;
 if	( ( window_type == 8 ) || ( window_type == 9 ) )
 	{
-	unsigned int cycles;
-	if	( window_type == 8 )
-		{
-		castroeffs = fastest_coeffs.coeffs;
-		halfqfir = sizeof(fastest_coeffs.coeffs) / sizeof(double);
-		cycles = 8;	// selon comments de Castro
-		castro_inc = fastest_coeffs.increment;
-		}
-	else if	( window_type == 9 )
-		{
-		castroeffs = slow_mid_qual_coeffs.coeffs;
-		halfqfir = sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double);
-		cycles = 21;	// selon comments de Castro
-		castro_inc = slow_mid_qual_coeffs.increment;
-		}
-	qfir = ( halfqfir * 2 ) - 1;
-	qpis = 4 * cycles;
+	const castrable * cas = &castroz[window_type-8];
+	qfir = ( cas->qtable * 2 ) - 1;
+	qpis = cas->qpis;
+	castro_inc = cas->incr;
 	pispan = (double)(qfir-1) / (double)qpis;
 	// NB il y a 2 manieres de calculer pispan d'une table de Castro,
-	// (sans considerer l'intervalle entre les zeros, qui sont invisibles si pispan n'est pas entier)
+	// (la 3eme serait l'intervalle entre zeros consecutifs, mais ils sont invisibles si pispan n'est pas entier)
 	// methode 1 : (qfir - 1)/ qpis : plus logique, mais Castro donne qpis seulement en commentaire (cycles)
 	// methode 2 : on profite du scaling applique aux coeffs par Castro 
-	double pispan_bis = double(castro_inc) / castroeffs[0];
+	double pispan_bis = double(castro_inc) / cas->table[0];
 	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g (%g), qpis %d, window %d %s",
 		qfir, pispan, pispan_bis, qpis, window_type, window_name[window_type] );
 	printf("%s\n", description );
@@ -88,7 +72,9 @@ if	( window_type < 8 )
 	{
 	if	( classic == 0 )
 		{
-		general_fir();
+		if	( window_type < 6 )
+			general_fir();
+		else	general_fir_castro();
 		}
 	else	{
 		classic_fir();
@@ -96,14 +82,15 @@ if	( window_type < 8 )
 	}
 else if	( ( window_type == 8 ) || ( window_type == 9 ) )
 	{
-	// halfqfir = (qfir+1)/2 est la taille d'une "moitie" de RI fournie par Castro
+	const castrable * cas = &castroz[window_type-8];
+	// cas->qtable = (qfir+1)/2 est la taille d'une "moitie" de RI fournie par Castro
 	// ce n'est pas la moitie de qfir (qui est impair), les 2 "moities" se recouvrent sur le coeff central
-	// qui est a (qfir-1)/2 = halfqfir - 1
-	for	( unsigned int i = 0; i < halfqfir; ++i )
+	// qui est a (qfir-1)/2 = cas->qtable - 1
+	for	( int i = 0; i < cas->qtable; ++i )
 		{	// le "sommet" du sinc est a halfqfir-1, on l'ecrit 2 fois (c'est pas grave ;-)
-		double c = castroeffs[i];
-		FIRbuf[halfqfir-1+i] = c;	// remplir de halfqfir-1 a qfir-1 inclus
-		FIRbuf[halfqfir-1-i] = c;	// remplir de halfqfir-1 a 0 inclus
+		double c = cas->table[i];
+		FIRbuf[cas->qtable-1+i] = c;	// remplir de cas->qtable-1 a qfir-1 inclus
+		FIRbuf[cas->qtable-1-i] = c;	// remplir de cas->qtable-1 a 0 inclus
 		}
 	}
 else	{ qfir = 0; return -666; }
