@@ -307,9 +307,13 @@ plan = fftw_plan_dft_r2c_1d( qFFT, FFTin, (fftw_complex*)FFTout, FFTW_ESTIMATE )
 if	( plan == NULL )
 	{ printf("fftw plan failed\n"); return -3; }
 
-// copier reponse impulsionnelle
+// copier reponse impulsionnelle (et calculer l'integrale)
+firtot = 0.0;
 for	( unsigned int i = 0; i < firsize; ++i )
+	{
 	FFTin[i] = firbuf[i];
+	firtot += firbuf[i];
+	}
 // completer avec beaucoup de zeros pour une bonne resolution FFT 
 for	( unsigned int i = firsize; i < qFFT; ++i )
 	FFTin[i] = 0;
@@ -332,6 +336,7 @@ for	( unsigned int j = 0; j <= qFFT/2; ++j )
 	FFTout[j] = k * hypot( FFTout[a], FFTout[a+1] ); // magnitude (conversion en dB sera faite par layer_u)
 	a += 2;
 	}
+firtotnorm = firtot * k;
 return 0;
 }
 
@@ -907,6 +912,7 @@ gtk_entry_set_text( GTK_ENTRY( glo->edesc ), lefir.description );
 retval = glo->fft_on_FIR( lefir.qfir, lefir.FIRbuf );
 if	( retval )
 	gasp(" erreur %d", retval );
+printf("reponse DC = (somme coeffs) / pispan (ou equiv Castro) %g\n", glo->firtotnorm ); 
 
 // filtrage audio
 if	( glo->ifnam )
