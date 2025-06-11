@@ -20,9 +20,9 @@ GtkWidget *      edesc;
 gpanel panneau1;	// panneau1 dans darea1
 gzoombar zbar;		// sa zoombar
 gpanel panneau2;	// panneau2 dans darea2
-
 int idle_id;		// id pour la fonction idle du timeout
 
+int hscale;		// '6' = relatif Fc a -6dB, 'N' = relatif Nyquist = Fsamp/2, 'H' = Hertz 
 unsigned int Fsamp;	// frequ ech.
 const char * ifnam;	// nom de fichier wav a filtrer
 const char * ofnam;	// nom de fichier wav a sauver
@@ -37,7 +37,7 @@ autobuf <float> Ybuf;	// audio apres filtrage
 wavio wavp;		// objet audiofile pour lecture wav
 
 // constructeur
-glostru() : Fsamp(44100), ifnam(NULL), ofnam(NULL),
+glostru() : hscale('c'), Fsamp(44100), ifnam(NULL), ofnam(NULL),
 	    qFFT(1<<20), FFTin(NULL), FFTout(NULL), plan(NULL) {};
 
 // methodes
@@ -49,6 +49,7 @@ int audiofile_save( int monosamplesize, int qchan );
 
 void layout1();
 void layout1W();
+void update_f_scale();
 void layout2();
 
 };

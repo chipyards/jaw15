@@ -261,6 +261,15 @@ void key_call_back2( int v, void * vglo )
 glostru * glo = (glostru *)vglo;
 switch	( v )
 	{
+	// horiz. scale pour panneau 2
+	case '6' :
+	case 'N' :
+	case 'H' :
+		glo->hscale = v; glo->update_f_scale();
+		glo->panneau2.fullMN();
+		glo->panneau2.force_repaint = 1;
+		glo->panneau2.force_redraw = 1;
+		break;
 	// le dump, aussi utile pour faire un flush de stdout
 	case 'd' :
 		glo->panneau2.dump(); fflush(stdout);
@@ -315,7 +324,7 @@ if	( lefir.window_type < 6 )			// cas "normal"
 	k = 1.0 / lefir.pispan;
 else if	( lefir.window_type < 8 )			// interpolation sur table castro (coeffs denormalises)
 	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
-else	k = 1.0 / lefir.castro_inc;			// table castro in extenso
+else	k = 1.0 / lefir.castro_inc;			// table castro in extenso sans interpolation
 if	( lefir.rB > 0.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 for	( unsigned int j = 0; j <= qFFT/2; ++j )
@@ -540,7 +549,7 @@ if	( lefir.classic )	// mettre le sommet du sinc a l'abcisse 0
 else	panneau1.q0 = - double( lefir.cnt_left + (lefir.A0/lefir.dA) ); 
 // configurer le strip
 curbande->bgcolor.set( 0.92, 0.98, 1.0 );
-curbande->Ylabel = "val";
+curbande->Ylabel = "coef";
 curbande->optX = 1;
 curbande->subtk = 1;
 
@@ -631,21 +640,31 @@ curcour->scan();	// alors on peut faire un scan
 
 }
 
+void glostru::update_f_scale()
+{
+switch	( hscale )
+	{
+ 	case 'N': panneau2.kq = double(qFFT) / 2.0;			// relatif Fnyquist = Fsamp/2
+		break;
+	case 'H': panneau2.kq = double(qFFT) / double(Fsamp);		// Hertz
+		break;
+	case '6':
+	default:  panneau2.kq = double(qFFT) / ( 2.0 * lefir.pispan );	// t.q. Fc "-6dB" <==> 1.0
+	}
+}
 
 void glostru::layout2()
 {
-// layout jluplot pour panneau2 : reponse frequentielle = resultat FFT
+// layout jluplot pour reponse frequentielle = resultat FFT
 panneau2.offscreen_flag = 0;
-// normalisation d'echelle horizontale t.q. Fc theorique <==> 1.0
-panneau2.kq = qFFT / ( 2 * lefir.pispan );
- 
 // creer le strip
 gstrip * curbande;
 curbande = new gstrip;
 panneau2.add_strip( curbande );
+panneau2.bandes[0]->subtk = 2.0;
 
 // configurer le strip
-curbande->Ylabel = "val";
+curbande->Ylabel = "dB";
 curbande->optX = 1;
 
 // creer un layer
@@ -662,18 +681,21 @@ curcour->fgcolor.set( 0.0, 0.0, 0.8 );
 curcour->style = 2;			// echelle verticale en dB
 // connexion layout - data
 curcour->V = FFTout;
-// normalisation d'echelle horizontale affichee, t.q. Fc theorique <==> 1.0
-panneau2.kq = qFFT / ( 2 * lefir.pispan );
+// normalisation d'echelle horizontale
+update_f_scale();
 // limitation d'etendue horizontale via qu, notamment pour le full zoom horizontal (fullM)
+curcour->qu = qFFT/2;	// DFT de real rend un spectre pair -> fftw3 rend seulement une moitié
+/*
 double limit;				// limite en unites affichees (Fc <==> 1.0) 
 limit = lefir.pispan;				// pour que le fullM (horiz.) se limite a Fsamp/2 (pispan = Fsamp/2 / Fc) 
 if	( limit > 8.0 + lefir.rB )
 	limit = 8.0 + lefir.rB;	// pour que le fullM (horiz.) se limite a 8 * Fc
 // appliquer limit a qu
 curcour->qu = floor( panneau2.kq * limit ); 
+*/
 // precaution
-if	( (unsigned int)curcour->qu > qFFT )
-	curcour->qu = qFFT;
+if	( (unsigned int)curcour->qu > qFFT/2 )
+	curcour->qu = qFFT/2;
 curcour->Vfloor = 1e-6;		// pour plancher a -120dB au lieu de -100dB
 curcour->scan();		// alors on peut faire un scan
 }
@@ -704,6 +726,10 @@ printf("// Usage //\n"
  " -o output file\n"
  " -c channels in saved file\n"
  " <input file> (sinon, seulement FFT)\n"
+"Echelle horiz. frequence (aussi au clavier a chaud)\n"
+ " -6 rel Fc a -6dB\n"
+ " -N rel. Nyquist\n"
+ " -H Hertz\n"
  "NOTE: -P, -F et -f sont incompatibles, et -P force le mode \"classic\"\n"
  "      -b, -g, -G transforment passe-bas en passe-bande\n"
  );
@@ -829,6 +855,10 @@ if	( ( val = lepar->get( 'g' ) ) )	F1_Hz  = strtod( val, NULL );		// frequence m
 
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
+
+if	( lepar->get( '6' ) )	glo->hscale = '6';
+if	( lepar->get( 'N' ) )	glo->hscale = 'N';
+if	( lepar->get( 'H' ) )	glo->hscale = 'H';
 
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
