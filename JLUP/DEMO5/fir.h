@@ -90,11 +90,18 @@ double mywindow( double khann, double A ) {
 	// normalement khann = 2 / qpis, sauf experimentation speciale
 	// en effet le terme en a1 couvre 2 * PI pendant que A couvre qpis * PI
 	double fen;
-	A *= khann;
-	fen =	  a0			// (method from spectro::window_precalc() de JAW15)
-		+ a1 * cos(     A )
-		+ a2 * cos( 2 * A )
-		+ a3 * cos( 3 * A );
+	if	( window_type == 5 )
+		{
+		A *= khann;
+		fen = mysinc( A );		// Lanczos window (le coeff de lanczos est qpis/2)
+		}
+	else	{
+		A *= khann;
+		fen =	  a0			// (method from spectro::window_precalc() de JAW15)
+			+ a1 * cos(     A )
+			+ a2 * cos( 2 * A )
+			+ a3 * cos( 3 * A );
+		}
 	return fen;
 	};
 
