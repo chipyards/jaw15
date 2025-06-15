@@ -37,7 +37,7 @@ LIBS= -L$(GTKBASE)/lib \
 
 # options
 # INCS= `pkg-config --cflags gtk+-2.0`
-INCS= -Wall -Wno-parentheses -Wno-deprecated-declarations -O2 -mms-bitfields \
+INCS= -Wall -Wno-parentheses -Wno-deprecated-declarations -O3 -mms-bitfields \
 -I$(GTKBASE)/include \
 -I$(GTKBASE)/include/atk-1.0 \
 -I$(GTKBASE)/include/cairo \

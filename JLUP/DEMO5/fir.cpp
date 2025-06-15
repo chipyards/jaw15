@@ -44,11 +44,11 @@ else	{
 		if	( ( qfir & 1 ) == 0 )
 			printf("warning : qfir not odd\n");
 		}
-	if	( rB == 0.0 )
-		snprintf( description, sizeof(description), "FIR%s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g (rel. %g), window %d %s",
-			((classic)?(" classic "):("")), qfir, qpis, dA, pispan, A0, A0/dA, window_type, window_name[window_type] );
-	else	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), A0 rel. %g, rB %g, window %d %s",
-			qfir, qpis, dA, pispan, A0/dA, rB, window_type, window_name[window_type] );
+	if	( window_type == 11 )
+		snprintf( description, sizeof(description), "FIR%s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d Kaiser analytic beta=%g",
+			((classic)?(" classic "):("")), qfir, qpis, dA, pispan, A0/dA, rB, window_type, Kbeta );		
+	else	snprintf( description, sizeof(description), "FIR%s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d %s",
+			((classic)?(" classic "):("")), qfir, qpis, dA, pispan, A0/dA, rB, window_type, window_name[window_type] );
 	printf("%s\n", description );
 	}
 // ouf, ici qfir est enfin stable
