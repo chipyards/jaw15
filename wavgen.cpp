@@ -105,8 +105,8 @@ for	( i = 0; i < d->realpfr; ++i )
 void bal_f_lin( wavio *d, int duree )
 {
 // parametres de generation
-double f0 = 20.0;
-double f1 = 15000;
+double f0 = 0.0;
+double f1 = 22000;
 double finc = (f1-f0)/(double)(d->fsamp*duree);
 double amplitude = 0.7;
 
@@ -118,7 +118,7 @@ double phi, v, f;
 d->realpfr = d->fsamp * duree;	// nombre de frames
 d->WAVwriteHeader();
 
-amplitude *= 32767.0;
+amplitude *= 30000.0;
 f = f0;
 phi = 0.0; 
 for	( i = 0; i < d->realpfr; ++i )
@@ -269,8 +269,13 @@ wavio d;
 d.type = 1;
 d.monosamplesize = 2;	// 16 bits
 d.fsamp = 44100;
-d.qchan = 2;
-
+d.qchan = 2;	// (lettre minuscule pour mono au lieu de stereo)
+/*
+d.type = 3;	// not supported
+d.monosamplesize = 4;	// 32 bits
+d.fsamp = 44100;
+d.qchan = 1;
+*/
 d.hand = open( argv[2], O_RDWR | O_BINARY | O_CREAT | O_TRUNC, 0666 );
 if	( d.hand == -1 )
 	gasp("echec ouverture ecriture %s", argv[2] );

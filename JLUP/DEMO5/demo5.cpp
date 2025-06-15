@@ -324,13 +324,15 @@ fftw_execute( plan );
 // calcul magnitudes sur place (FFTout contient des valeurs complexes)
 unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( lefir.window_type < 6 )			// cas "normal"
-	k = 1.0 / lefir.pispan;
-else if	( lefir.window_type < 8 )			// interpolation sur table castro (coeffs denormalises)
+if	( ( lefir.window_type >= 6 ) && ( lefir.window_type < 8 ) )	// interpolation sur table castro (coeffs denormalises)
 	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
-else	k = 1.0 / lefir.castro_inc;			// table castro in extenso sans interpolation
+else if	( ( lefir.window_type >= 8 ) && ( lefir.window_type < 11 ) )	// table castro in extenso sans interpolation
+	k = 1.0 / lefir.castro_inc;		
+else	k = 1.0 / lefir.pispan;						// cas "normal"
+// passe -bande
 if	( lefir.rB > 0.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
+// le calcul
 for	( unsigned int j = 0; j <= qFFT/2; ++j )
 	{
 	FFTout[j] = k * hypot( FFTout[a], FFTout[a+1] ); // magnitude (conversion en dB sera faite par layer_u)
@@ -439,7 +441,7 @@ if	( wavp.realpfr > Ybuf.capa )
 	}
 int i, j, j0, k;
 double sum, K;
-if	( lefir.window_type < 8 )
+if	( ( lefir.window_type < 8 ) || ( lefir.window_type > 10 ) )
 	K = 1.0 / lefir.pispan;
 else	K = 1.0 / lefir.castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
 if	( lefir.rB > 0.0 )
@@ -705,6 +707,87 @@ curcour->Vfloor = 1e-6;		// pour plancher a -120dB au lieu de -100dB
 curcour->scan();		// alors on peut faire un scan
 }
 
+void glostru::build_gui()
+{
+GtkWidget *curwidg;
+
+curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
+
+gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
+                    GTK_SIGNAL_FUNC( close_event_call ), NULL );
+gtk_signal_connect( GTK_OBJECT(curwidg), "destroy",
+                    GTK_SIGNAL_FUNC( gtk_main_quit ), NULL );
+
+gtk_window_set_title( GTK_WINDOW (curwidg), "JAW");
+gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 10 );
+wmain = curwidg;
+global_main_window = (GtkWindow *)curwidg;
+
+// creer boite verticale pour : en haut plot panels, en bas boutons et entries
+curwidg = gtk_vbox_new( FALSE, 5 ); /* spacing ENTRE objets */
+gtk_container_add( GTK_CONTAINER( wmain ), curwidg );
+vmain = curwidg;
+
+// creer boite verticale pour panel superieur et sa zoombar
+curwidg = gtk_vbox_new( FALSE, 0 ); /* spacing ENTRE objets */
+// gtk_paned_pack1( GTK_PANED(vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
+vpan1 = curwidg;
+
+/* creer une drawing area resizable depuis la fenetre */
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, VIEW_W, 200 );	// hauteur mini, la hauteur initiale fixee par parent
+gtk_box_pack_start( GTK_BOX( vpan1 ), curwidg, TRUE, TRUE, 0 );
+darea1 = curwidg;
+
+/* creer une drawing area pour la zoombar */
+curwidg = gtk_drawing_area_new();
+zbar.events_connect( GTK_DRAWING_AREA( curwidg ) );
+gtk_box_pack_start( GTK_BOX( vpan1 ), curwidg, FALSE, FALSE, 0 );
+zarea1 = curwidg;
+
+/* creer une drawing area pour panel inferieur */
+curwidg = gtk_drawing_area_new();
+gtk_widget_set_size_request( curwidg, VIEW_W, VIEW_H / 2 );	// hauteur mini, la hauteur initiale fixee par parent
+// gtk_paned_pack2( GTK_PANED(vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
+darea2 = curwidg;
+// option paned
+	{		// paire verticale "paned"
+	curwidg = gtk_vpaned_new ();
+	gtk_box_pack_start( GTK_BOX( vmain ), curwidg, TRUE, TRUE, 0 );
+	// gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 5 );	// le tour exterieur
+	gtk_widget_set_size_request( curwidg, VIEW_W, VIEW_H );
+	vpans = curwidg;
+	// y placer les deux panels
+	gtk_paned_pack1( GTK_PANED(vpans), vpan1, TRUE, FALSE ); // resizable, not shrinkable
+	gtk_paned_pack2( GTK_PANED(vpans), darea2, TRUE, FALSE ); // resizable, not shrinkable
+	}
+
+/* creer boite horizontale */
+curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
+gtk_container_set_border_width( GTK_CONTAINER (curwidg), 5);
+gtk_box_pack_start( GTK_BOX( vmain ), curwidg, FALSE, FALSE, 0 );
+hbut = curwidg;
+
+/* texte descriptif */
+curwidg = gtk_entry_new();
+gtk_entry_set_editable( GTK_ENTRY(curwidg), FALSE );
+gtk_entry_set_max_length( GTK_ENTRY(curwidg), 128 );
+gtk_widget_set_size_request( curwidg, VIEW_W, -1 );
+gtk_box_pack_start( GTK_BOX( hbut ), curwidg, FALSE, FALSE, 5 );
+edesc = curwidg;
+
+// connecter la zoombar au panel et inversement
+panneau1.zoombar = &zbar;
+panneau1.zbarcall = gzoombar_zoom;
+zbar.panneau = &panneau1;
+// connecter les callbacks events --> appli
+panneau1.clic_callback_register( clic_call_back1, (void *)this );
+panneau1.key_callback_register( key_call_back1, (void *)this );
+panneau2.key_callback_register( key_call_back2, (void *)this );
+
+panneau1.events_connect( GTK_DRAWING_AREA( darea1 ) );
+panneau2.events_connect( GTK_DRAWING_AREA( darea2 ) );
+}
 
 /** ============================ main, quoi ======================= */
 
@@ -715,6 +798,7 @@ printf("// Usage //\n"
  " -P pispan = taille de PI en samples pour calcul RI\n"
  " -Z qpis = taille de RI en PIs\n"
  " -w fenetre 0 = rect, etc...\n"
+ " -B param de la fentre de Kaiser\n"
 "Radian:\n"
  " -a A0 decalage du centre de la RI (rd/samp)\n"
  " -d dA increment angulaire(rd/samp)\n"
@@ -743,92 +827,14 @@ printf("// Usage //\n"
 int main( int argc, char *argv[] )
 {
 glostru * glo = &theglo;
-GtkWidget *curwidg;
 
 gtk_init(&argc,&argv);
 setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
 
-curwidg = gtk_window_new( GTK_WINDOW_TOPLEVEL );
-
-gtk_signal_connect( GTK_OBJECT(curwidg), "delete_event",
-                    GTK_SIGNAL_FUNC( close_event_call ), NULL );
-gtk_signal_connect( GTK_OBJECT(curwidg), "destroy",
-                    GTK_SIGNAL_FUNC( gtk_main_quit ), NULL );
-
-gtk_window_set_title( GTK_WINDOW (curwidg), "JAW");
-gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 10 );
-glo->wmain = curwidg;
-global_main_window = (GtkWindow *)curwidg;
-
-// creer boite verticale pour : en haut plot panels, en bas boutons et entries
-curwidg = gtk_vbox_new( FALSE, 5 ); /* spacing ENTRE objets */
-gtk_container_add( GTK_CONTAINER( glo->wmain ), curwidg );
-glo->vmain = curwidg;
-
-// creer boite verticale pour panel superieur et sa zoombar
-curwidg = gtk_vbox_new( FALSE, 0 ); /* spacing ENTRE objets */
-// gtk_paned_pack1( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
-glo->vpan1 = curwidg;
-
-/* creer une drawing area resizable depuis la fenetre */
-curwidg = gtk_drawing_area_new();
-gtk_widget_set_size_request( curwidg, VIEW_W, 200 );	// hauteur mini, la hauteur initiale fixee par parent
-gtk_box_pack_start( GTK_BOX( glo->vpan1 ), curwidg, TRUE, TRUE, 0 );
-glo->darea1 = curwidg;
-
-/* creer une drawing area pour la zoombar */
-curwidg = gtk_drawing_area_new();
-glo->zbar.events_connect( GTK_DRAWING_AREA( curwidg ) );
-gtk_box_pack_start( GTK_BOX( glo->vpan1 ), curwidg, FALSE, FALSE, 0 );
-glo->zarea1 = curwidg;
-
-/* creer une drawing area pour panel inferieur */
-curwidg = gtk_drawing_area_new();
-gtk_widget_set_size_request( curwidg, VIEW_W, VIEW_H / 2 );	// hauteur mini, la hauteur initiale fixee par parent
-// gtk_paned_pack2( GTK_PANED(glo->vpans), curwidg, TRUE, FALSE ); // resizable, not shrinkable
-glo->darea2 = curwidg;
-// option paned
-	{		// paire verticale "paned"
-	curwidg = gtk_vpaned_new ();
-	gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, TRUE, TRUE, 0 );
-	// gtk_container_set_border_width( GTK_CONTAINER( curwidg ), 5 );	// le tour exterieur
-	gtk_widget_set_size_request( curwidg, VIEW_W, VIEW_H );
-	glo->vpans = curwidg;
-	// y placer les deux panels
-	gtk_paned_pack1( GTK_PANED(glo->vpans), glo->vpan1, TRUE, FALSE ); // resizable, not shrinkable
-	gtk_paned_pack2( GTK_PANED(glo->vpans), glo->darea2, TRUE, FALSE ); // resizable, not shrinkable
-	}
-
-/* creer boite horizontale */
-curwidg = gtk_hbox_new( FALSE, 10 ); /* spacing ENTRE objets */
-gtk_container_set_border_width( GTK_CONTAINER (curwidg), 5);
-gtk_box_pack_start( GTK_BOX( glo->vmain ), curwidg, FALSE, FALSE, 0 );
-glo->hbut = curwidg;
-
-/* texte descriptif */
-curwidg = gtk_entry_new();
-gtk_entry_set_editable( GTK_ENTRY(curwidg), FALSE );
-gtk_entry_set_max_length( GTK_ENTRY(curwidg), 128 );
-gtk_widget_set_size_request( curwidg, VIEW_W, -1 );
-gtk_box_pack_start( GTK_BOX( glo->hbut ), curwidg, FALSE, FALSE, 5 );
-glo->edesc = curwidg;
-
-// connecter la zoombar au panel et inversement
-glo->panneau1.zoombar = &glo->zbar;
-glo->panneau1.zbarcall = gzoombar_zoom;
-glo->zbar.panneau = &glo->panneau1;
-// connecter les callbacks events --> appli
-glo->panneau1.clic_callback_register( clic_call_back1, (void *)glo );
-glo->panneau1.key_callback_register( key_call_back1, (void *)glo );
-glo->panneau2.key_callback_register( key_call_back2, (void *)glo );
-
-glo->panneau1.events_connect( GTK_DRAWING_AREA( glo->darea1 ) );
-glo->panneau2.events_connect( GTK_DRAWING_AREA( glo->darea2 ) );
-
 // traiter arguments
 if	( argc < 2 )
 	{ usage(); return 0; }
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwadbAFGrfgoc" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBadbAFGrfgoc" );
 const char * val;
 int qFFTlog = 20;
 unsigned int saved_qchan = 1;
@@ -846,6 +852,8 @@ if	( ( val = lepar->get( 'P' ) ) )	{
 					}
 if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );	// 0 = rect, etc...
+if	( ( val = lepar->get( 'B' ) ) )	lefir.Kbeta = strtod( val, NULL );	// param de la fentre de Kaiser
+
 if	( ( val = lepar->get( 'a' ) ) )	lefir.A0 = strtod( val, NULL );		// A0 decalage du centre de la RI (rd)
 if	( ( val = lepar->get( 'd' ) ) )	lefir.dA = strtod( val, NULL );		// dA increment angulaire (rd/samp)
 if	( ( val = lepar->get( 'b' ) ) )	lefir.rB = strtod( val, NULL );		// rB translation band_center (relatif dA)
@@ -867,8 +875,8 @@ if	( lepar->get( 'H' ) )	glo->hscale = 'H';
 
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
-if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( ( lefir.qpis < 4 ) && ( lefir.window_type < 6 ) ) ||
-	( lefir.qpis & 1 ) || ( saved_qchan > 2 ) )
+if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) ||
+	  ( lefir.Kbeta > 13.0 ) || ( saved_qchan > 2 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 
@@ -902,6 +910,10 @@ if	( lefir.dA == 0.0 )
 	lefir.dA = M_PI / lefir.pispan;
 else	lefir.pispan = M_PI / lefir.dA;
 
+// on a fini avec les arguments... on cree une fenetre ?
+
+glo->build_gui();
+
 // generer FIR
 int retval = lefir.generate();
 if	( retval )
@@ -914,39 +926,32 @@ if	( retval )
 	gasp(" erreur %d", retval );
 printf("reponse DC = (somme coeffs) / pispan (ou equiv Castro) %g\n", glo->firtotnorm ); 
 
-// filtrage audio
-if	( glo->ifnam )
-	{
+glo->layout2();			// afficher FFT
+
+if	( glo->ifnam == NULL )
+	{			// afficher fenetre et RI
+	glo->layout1();
+	}
+else	{			// filtrage audio
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
 	retval = glo->audiofile_load( 1 );
 	if	( retval )
 		glo->ifnam = NULL;	// abandon lecture fichier
-	}
-
-if	( glo->ifnam )
-	{
-	glo->audiofile_process();
-	glo->layout1W();
-	if	( glo->ofnam )
-		glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
-	}
-else	{
-	glo->layout1();
+	else	{
+		glo->audiofile_process();
+		glo->layout1W();
+		if	( glo->ofnam )
+			glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
+		}
 	}
 
 gtk_widget_show_all( glo->wmain );
 
-glo->layout2();
-
 glo->idle_id = g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
 // cet id servira pour deconnecter l'idle_call : g_source_remove( glo->idle_id );
-
 fflush(stdout);
-
 gtk_main();
-
 g_source_remove( glo->idle_id );
-
 return(0);
 }
 

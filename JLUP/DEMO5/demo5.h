@@ -54,6 +54,6 @@ void layout1();
 void layout1W();
 void update_f_scale();
 void layout2();
-
+void build_gui();
 };
 

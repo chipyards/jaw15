@@ -5,7 +5,7 @@
 
 const char * window_name[] = {
 	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "lanczos", "kaiser (castro fast)", "kaiser (castro mid_qual)", 
-	"kaiser (castro fast)", "kaiser (castro mid_qual)", "kaiser (castro high_qual)" };
+	"kaiser (castro fast)", "kaiser (castro mid_qual)", "kaiser (castro high_qual)", "Kaiser analytic" };
 
 int fir::generate()
 {
@@ -58,7 +58,7 @@ if	( FIRbuf == NULL )
 	FIRbuf = (double *)malloc( qfir * sizeof(double) );
 if	( FIRbuf == NULL )
 	{ printf("malloc failed\n"); return -1; }
-if	( window_type < 8 )
+if	( ( window_type < 8 ) || ( window_type > 10 ) )
 	{
 	if	( FENbuf == NULL )
 		FENbuf = (double *)malloc( qfir * sizeof(double) );
@@ -68,11 +68,11 @@ if	( window_type < 8 )
 else	FENbuf = NULL;
 
 // calcul coeffs
-if	( window_type < 8 )
+if	( ( window_type < 8 ) || ( window_type > 10 ) )
 	{
 	if	( classic == 0 )
 		{
-		if	( window_type < 6 )
+		if	( ( window_type < 6 ) || ( window_type > 10 ) )
 			general_fir();
 		else	general_fir_castro();
 		}

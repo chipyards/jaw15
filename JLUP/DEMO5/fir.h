@@ -29,6 +29,8 @@ double a0;		// coeff pour calcul fenetres 0..4
 double a1;
 double a2;
 double a3;
+double Kbeta;		// specifique Kaiser, beta = PI * alpha
+double mJ0Kbeta;	// pre-calcul de mJ0(Kbeta)
 double * FENbuf;	// fenetre
 double * FIRbuf;	// impulse response
 double rB;		// passe-bande : reponse translatee (rd/samp)
@@ -36,9 +38,9 @@ double rB;		// passe-bande : reponse translatee (rd/samp)
 char description[128];
 
 // constructeur
-fir() : classic(0), pispan(1.0), qpis(2), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
-	window_type(0), a0(1), a1(0), a2(0), a3(0),
-	FENbuf(NULL), FIRbuf(NULL), rB(0.0) {};
+fir() : classic(0), pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
+	window_type(0), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
+	FENbuf(NULL), FIRbuf(NULL), rB(0.0) { mJ0Kbeta = mJ0( Kbeta ); };
 
 // methodes
 
@@ -75,13 +77,50 @@ double mycos( double A, double rel_shift ) {
 	return cos( A * rel_shift );
 	};
  
-void init_window() {	// please add Lanczos https://en.wikipedia.org/wiki/Lanczos_resampling
+// Modified Bessel function of 1st kind, order zero, for Kaiser
+// - dans le cas normal (not modified), apres avoir diverge tant que k < x/2,
+//   la somme converge, donc le nombre d'iterations requises augmente avec x !
+//   Même ainsi la precision diminue fortement pour les grandes valeurs de x,
+//   car on calcule des petites differences de grands nombre pendant l'etape divergente.
+// - dans le cas modified, l'alternance de signe est supprimee, la somme diverge toujours
+//   mais en ralentissant, et il n'y a plus d'asymptote horizontale pour x->inf.
+//   Dans l'application Kaiser, il est normal d'avoir des mJ0 aussi elevees que 25000 (Kbeta=12.3)
+double mJ0( double x )
+{
+double x2, J0, facto, puiss;
+J0 = 1.0; x2 = x / 2;
+facto = 1.0;     /* soit k! pour k=0 */
+puiss = 1.0;     /* soit (x/2)^^k pour k=0 */
+for	( int k = 1; k < 50; k++ )
+	{
+	facto *= k; puiss *= x2;
+	double dJ;
+	dJ = puiss / facto;
+	// printf("k=%2d -> %g/%g = %g\n", k, puiss, facto, dJ );
+	if	( dJ < 3e-8 )
+		break;		// note : squared, it is 1e-15
+	dJ *= dJ;
+	#ifdef BESSEL_NORMAL
+	if	( k & 1 )	// k impair
+		J0 -= dJ;
+	else	J0 += dJ;
+	#else
+	J0 += dJ;
+	#endif
+	};
+// printf("mJO(%g) = %g\n", x, J0 );
+return( J0 );
+}
+
+void init_window() {	// Lanczos needs nothing here, but Kaiser does
 	switch	( window_type )		// 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris
 		{
+		case 0: a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	; break; // rect
 		case 1: a0 = 0.50	; a1 =  0.50	; a2 =  0.0	; a3 =  0.0	; break; // hann
 		case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
 		case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
 		case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
+		case 11: mJ0Kbeta = mJ0( Kbeta ); 					  break; // Kaiser analytic							
 		default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
 		}
 	};
@@ -94,6 +133,20 @@ double mywindow( double khann, double A ) {
 		{
 		A *= khann;
 		fen = mysinc( A );		// Lanczos window (le coeff de lanczos est qpis/2)
+		}
+	else if	( window_type == 11 )
+		{
+		// Kaiser n'est pas la fonction d'un angle, mais de x relatif a sa demi-largeur
+		// t.q. 0 <= x <= 1.0
+		// OBS : comparaison avec la formule B=0.1102(q-8.7) vue dans la These de JL :
+		//	Kbeta = 10.1 ok avec Castro fast,
+		// 		12.3 ok avec Castro mid_qual
+		double x = A / ( 0.5 * M_PI * qpis );
+		double top = 1.0 - x*x;
+		if	( top < 0.0 )	top = 0.0;	// mefiance cas limite
+		else			top = sqrt( top );
+		top = mJ0( Kbeta * top );
+		fen = top / mJ0Kbeta;
 		}
 	else	{
 		A *= khann;
@@ -132,7 +185,7 @@ void classic_fir() {
 // le filtrage n'a pas besoin de ce calcul preliminaire, on le fait pour avoir la longueur qfir
 // en vue d'allouer le buffer pour stockage des coeffs
 void general_fir_init() {
-	if	( window_type >= 6 )
+	if	( ( window_type >= 6 ) && ( window_type < 11 ) )
 		{
 		const castrable * cas = &castroz[window_type-6];
 		qpis = cas->qpis;
