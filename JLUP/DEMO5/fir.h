@@ -15,7 +15,6 @@ const castrable castroz[] = {
 
 class fir {
 public:
-int classic;		// mode classic
 double pispan;		// taille de PI dans la reponse impulsionnelle
 unsigned int qpis;	// nombre de fois pi dans le sinc de la RI, dit "nombre de zeros
 unsigned int castro_inc;// increment unitaire dans la reponse impulsionnelle pour Castro (i.e. Kaiser)
@@ -38,7 +37,7 @@ double rB;		// passe-bande : reponse translatee (rd/samp)
 char description[128];
 
 // constructeur
-fir() : classic(0), pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
+fir() : pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
 	window_type(0), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
 	FENbuf(NULL), FIRbuf(NULL), rB(0.0) { mJ0Kbeta = mJ0( Kbeta ); };
 
@@ -110,7 +109,7 @@ for	( k = 1; k < 40; k++ )
 		break;		// dJ became too small to have any effect
 	oldJ0 = J0;
 	};
-printf("x=%g last k=%d\n", x, k );
+// printf("x=%g last k=%d\n", x, k );
 // printf("mJO(%g) = %g\n", x, J0 );
 return( J0 );
 }
@@ -161,24 +160,6 @@ double mywindow( double khann, double A ) {
 	return fen;
 	};
 
-// echantillonner une RI "conventionnelle", symetrique, avec un coeff au centre et un a chaque bout 
-void classic_fir() {
-	double dA = M_PI / pispan;
-	init_window();
-	double khann = 2.0 / qpis;
-	// on part du sommet
-	int topi = (qfir-1)/2;
-	double A = 0.0;
-	FENbuf[topi] = mywindow( khann, A );
-	FIRbuf[topi] = FENbuf[topi];
-	for	( int i = 1; i <= topi; ++i )
-		{
-		A += dA;
-		double f = mywindow( khann, A );
-		FENbuf[topi+i] = FENbuf[topi-i] = f;
-		FIRbuf[topi+i] = FIRbuf[topi-i] = f * mysinc( A );
-		}	
-	};
 // preparer general_fir(), pour avoir qfir pret pour alloc memoire
 // Note 1 : A0 est le déplacement angulaire du sommet du sinc par rapport a un sample voisin
 // 	pris comme référence (le plus proche, mais ce n'est pas obligé)

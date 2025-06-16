@@ -40,7 +40,7 @@ autobuf <float> Ybuf;	// audio apres filtrage
 wavio wavp;		// objet audiofile pour lecture wav
 
 // constructeur
-glostru() : hscale('c'), Fsamp(44100), ifnam(NULL), ofnam(NULL),
+glostru() : hscale('N'), Fsamp(44100), ifnam(NULL), ofnam(NULL),
 	    qFFT(1<<20), FFTin(NULL), FFTout(NULL), plan(NULL) {};
 
 // methodes

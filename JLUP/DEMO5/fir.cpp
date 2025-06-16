@@ -4,8 +4,8 @@
 #include "fir.h"
 
 const char * window_name[] = {
-	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "lanczos", "kaiser (castro fast)", "kaiser (castro mid_qual)", 
-	"kaiser (castro fast)", "kaiser (castro mid_qual)", "kaiser (castro high_qual)", "Kaiser analytic" };
+	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "lanczos", "kaiser interpol (castro fast)", "kaiser interpol (castro mid_qual)", 
+	"kaiser raw (castro fast)", "kaiser raw (castro mid_qual)", "kaiser (castro high_qual)", "Kaiser analytic" };
 
 int fir::generate()
 {
@@ -20,35 +20,21 @@ if	( ( window_type == 8 ) || ( window_type == 9 ) )
 	// NB il y a 2 manieres de calculer pispan d'une table de Castro,
 	// (la 3eme serait l'intervalle entre zeros consecutifs, mais ils sont invisibles si pispan n'est pas entier)
 	// methode 1 : (qfir - 1)/ qpis : plus logique, mais Castro donne qpis seulement en commentaire (cycles)
-	// methode 2 : on profite du scaling applique aux coeffs par Castro 
+	// methode 2 : on profite du scaling applique aux coeffs par Castro (ce n'est pas aussi fiable)
 	double pispan_bis = double(castro_inc) / cas->table[0];
-	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %g (%g), qpis %d, window %d %s",
+	snprintf( description, sizeof(description), "FIR %u coeffs, pispan %.14f (%g), qpis %d, window %d %s",
 		qfir, pispan, pispan_bis, qpis, window_type, window_name[window_type] );
 	printf("%s\n", description );
 	}
 else	{
-	if	( classic == 0 )
-		{		// generalized style
-		if	( fabs(A0) >= dA )
-			{ printf("A0 too big %g vs %g\n", A0, dA ); return -43; }
-		general_fir_init();
-		}
-	else	{		// legacy style
-		double dqfir = 1.0 + (double)qpis * pispan;
-		qfir = round(dqfir);
-		// N.B. qfir doit etre entier et impair, c'est assuré si pispan est entier vu que qpis est pair
-		// si pispan est fractionnaire, il doit etre calcule pour que pispan * qpis soit entier et pair
-		double fract_qfir = fabs( dqfir - (double)qfir );
-		if	( fract_qfir > 1e-5 )
-			printf("warning : residu qfir = %g\n", fract_qfir );
-		if	( ( qfir & 1 ) == 0 )
-			printf("warning : qfir not odd\n");
-		}
+	if	( fabs(A0) >= dA )
+		{ printf("A0 too big %g vs %g\n", A0, dA ); return -43; }
+	general_fir_init();
 	if	( window_type == 11 )
-		snprintf( description, sizeof(description), "FIR%s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d Kaiser analytic beta=%g",
-			((classic)?(" classic "):("")), qfir, qpis, dA, pispan, A0/dA, rB, window_type, Kbeta );		
-	else	snprintf( description, sizeof(description), "FIR%s, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d %s",
-			((classic)?(" classic "):("")), qfir, qpis, dA, pispan, A0/dA, rB, window_type, window_name[window_type] );
+		snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d Kaiser analytic beta=%g",
+			qfir, qpis, dA, pispan, A0/dA, rB, window_type, Kbeta );		
+	else	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d %s",
+			qfir, qpis, dA, pispan, A0/dA, rB, window_type, window_name[window_type] );
 	printf("%s\n", description );
 	}
 // ouf, ici qfir est enfin stable
@@ -70,15 +56,9 @@ else	FENbuf = NULL;
 // calcul coeffs
 if	( ( window_type < 8 ) || ( window_type > 10 ) )
 	{
-	if	( classic == 0 )
-		{
-		if	( ( window_type < 6 ) || ( window_type > 10 ) )
-			general_fir();
-		else	general_fir_castro();
-		}
-	else	{
-		classic_fir();
-		}
+	if	( ( window_type < 6 ) || ( window_type > 10 ) )
+		general_fir();
+	else	general_fir_castro();
 	}
 else if	( ( window_type == 8 ) || ( window_type == 9 ) )
 	{

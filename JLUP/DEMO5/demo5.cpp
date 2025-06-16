@@ -259,6 +259,7 @@ switch	( v )
 void key_call_back2( int v, void * vglo )
 {
 glostru * glo = (glostru *)vglo;
+// WARNING : les chiffres marchent SEULEMENT sur la top row du clavier, PAS sur le num keypad avec num lock
 switch	( v )
 	{
 	// horiz. scale pour panneau 2
@@ -270,6 +271,16 @@ switch	( v )
 		glo->panneau2.force_repaint = 1;
 		glo->panneau2.force_redraw = 1;
 		break;
+	// zoom sur multiple de Fc pour comparaison fenetres (passe en echelle relative Fc)
+	case '8' :
+	case '4' :
+	case '2' : {
+		glo->hscale = '6'; glo->update_f_scale();
+		double maxM = glo->panneau2.kq * double(v-'0');	// Note : kq = dM / dQ selon JLUPLOT
+		glo->panneau2.zoomM( 0.0, maxM );		
+		glo->panneau2.force_repaint = 1;
+		glo->panneau2.force_redraw = 1;
+		} break;
 	// le dump, aussi utile pour faire un flush de stdout
 	case 'd' :
 		glo->panneau2.dump(); fflush(stdout);
@@ -551,9 +562,8 @@ panneau1.offscreen_flag = 0;
 gstrip * curbande;
 curbande = new gstrip;
 panneau1.add_strip( curbande );
-if	( lefir.classic )	// mettre le sommet du sinc a l'abcisse 0 
-	panneau1.q0 = - double( (lefir.qfir-1) / 2 );	// l'abcisse 0 au sommet du sinc 
-else	panneau1.q0 = - double( lefir.cnt_left + (lefir.A0/lefir.dA) ); 
+// mettre le sommet du sinc a l'abcisse 0 
+panneau1.q0 = - double( lefir.cnt_left + (lefir.A0/lefir.dA) ); 
 // configurer le strip
 curbande->bgcolor.set( 0.92, 0.98, 1.0 );
 curbande->Ylabel = "coef";
@@ -647,8 +657,11 @@ curcour->scan();	// alors on peut faire un scan
 
 }
 
+// echelle graduations axe horizontal sortie FFT  
 void glostru::update_f_scale()
 {
+// Note : kq = dM / dQ selon JLUPLOT
+// M est en increments de FFT out, i.e. 1 unite = Fsamp/qFFT 
 switch	( hscale )
 	{
  	case 'N': panneau2.kq = double(qFFT) / 2.0;			// relatif Fnyquist = Fsamp/2
@@ -688,22 +701,23 @@ curcour->fgcolor.set( 0.0, 0.0, 0.8 );
 curcour->style = 2;			// echelle verticale en dB
 // connexion layout - data
 curcour->V = FFTout;
-// normalisation d'echelle horizontale
-update_f_scale();
 // limitation d'etendue horizontale via qu, notamment pour le full zoom horizontal (fullM)
 curcour->qu = qFFT/2;	// DFT de real rend un spectre pair -> fftw3 rend seulement une moitié
-/*
-double limit;				// limite en unites affichees (Fc <==> 1.0) 
-limit = lefir.pispan;				// pour que le fullM (horiz.) se limite a Fsamp/2 (pispan = Fsamp/2 / Fc) 
-if	( limit > 8.0 + lefir.rB )
-	limit = 8.0 + lefir.rB;	// pour que le fullM (horiz.) se limite a 8 * Fc
-// appliquer limit a qu
-curcour->qu = floor( panneau2.kq * limit ); 
-*/
-// precaution
-if	( (unsigned int)curcour->qu > qFFT/2 )
-	curcour->qu = qFFT/2;
-curcour->Vfloor = 1e-6;		// pour plancher a -120dB au lieu de -100dB
+// pour plancher a -120dB 
+curcour->Vfloor = 1e-6;		
+// normalisation d'echelle horizontale
+update_f_scale();
+// CLI options -2, -4, -8 : limiteur  de full zoom special pour comparaison fenetres
+// (contrairement aux touches 2, 4, 6 ces CLI options limitent irreversiblement le zoom via qu)
+switch	( hscale )
+	{
+	case '2' :
+	case '4' :
+	case '8' :
+		double maxM = panneau2.kq * double(hscale-'0');	// Note : kq = dM / dQ selon JLUPLOT
+		if	( maxM < curcour->qu )
+			curcour->qu = maxM;
+	}
 curcour->scan();		// alors on peut faire un scan
 }
 
@@ -819,7 +833,10 @@ printf("// Usage //\n"
  " -6 rel Fc a -6dB\n"
  " -N rel. Nyquist\n"
  " -H Hertz\n"
- "NOTE: -P, -F et -f sont incompatibles, et -P force le mode \"classic\"\n"
+ " -2 zoom horiz limite a 2 Fc\n"
+ " -4 zoom horiz limite a 4 Fc\n"
+ " -8 zoom horiz limite a 8 Fc\n"
+ "NOTE: -P, -F et -f sont incompatibles\n"
  "      -b, -g, -G transforment passe-bas en passe-bande\n"
  );
 }
@@ -846,10 +863,7 @@ double F0_Hz  = 0.0;
 double F1_Hz  = 0.0;
 
 if	( ( val = lepar->get( 'L' ) ) )	qFFTlog = atoi( val );			// log de fftsize
-if	( ( val = lepar->get( 'P' ) ) )	{
-					lefir.pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
-					lefir.classic = 1;
-					}
+if	( ( val = lepar->get( 'P' ) ) )	lefir.pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
 if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );	// 0 = rect, etc...
 if	( ( val = lepar->get( 'B' ) ) )	lefir.Kbeta = strtod( val, NULL );	// param de la fentre de Kaiser
@@ -869,9 +883,12 @@ if	( ( val = lepar->get( 'g' ) ) )	F1_Hz  = strtod( val, NULL );		// frequence m
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
 
-if	( lepar->get( '6' ) )	glo->hscale = '6';
-if	( lepar->get( 'N' ) )	glo->hscale = 'N';
-if	( lepar->get( 'H' ) )	glo->hscale = 'H';
+if	( lepar->get( '6' ) )	glo->hscale = '6';	// echelle frequ relative Fc (-6dB)
+if	( lepar->get( 'N' ) )	glo->hscale = 'N';	// echelle frequ relative Nyquist
+if	( lepar->get( 'H' ) )	glo->hscale = 'H';	// echelle frequ Hertz
+if	( lepar->get( '2' ) )	glo->hscale = '2';	// zoom horiz limite a 2 Fc
+if	( lepar->get( '4' ) )	glo->hscale = '4';	// zoom horiz limite a 4 Fc
+if	( lepar->get( '8' ) )	glo->hscale = '8';	// zoom horiz limite a 8 Fc
 
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
@@ -905,7 +922,7 @@ if	( ( ( F0_Hz > 0.0 ) || ( F1_Hz > 0.0 ) ) && ( glo->Fsamp > 0 ) )
 	}
 if	( relA0 != 0.0 )
 	lefir.A0 = relA0 * lefir.dA;
-// s'assurer que dA et pispan sont tous les deux definis
+// s'assurer que dA et pispan sont tous les deux definis et coherents
 if	( lefir.dA == 0.0 )
 	lefir.dA = M_PI / lefir.pispan;
 else	lefir.pispan = M_PI / lefir.dA;
