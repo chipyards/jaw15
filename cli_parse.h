@@ -1,4 +1,4 @@
-// Parseur d'arguments de ligne de commande rustique
+// Parseur d'arguments de ligne de commande rustique *** version 2025 ***
 
 // accepte dans n'importe quel ordre :
 //	- des options sans valeur, de la forme -X ou -Xblabla
@@ -26,19 +26,18 @@ class cli_parse {
 
 private:
 
-const char * vals[64];	// valeur associee a chaque clef
-char val_flags[64];	// indique pour chaque clef si elle attend une valeur
+const char * vals[128];	// valeur (string) associee a chaque clef
+char val_flags[128];	// indique pour chaque clef si elle attend une valeur
 
-// comprimer lettres ascii sur [0:63]
-// N.B. les car de ponctuation sont replies, par exemple '-' <==> 'm' 
-int c2i( char c ) { return ( c - 0x40 ) & 0x3F; };
+// restreindre ascii sur [0:127]
+int c2i( char c ) { return ( c & 0x3F ); };
 
 public:
 
 // constructeur, effectue le parsage et memorise les resultats
 cli_parse( int argc, const char ** argv, const char * value_expecting_keys )
 {
-for	( int i = 0; i < 64; ++i )
+for	( int i = 0; i < 128; ++i )
 	{ vals[i] = NULL; val_flags[i] = 0; }
 char key;
 const char * val;

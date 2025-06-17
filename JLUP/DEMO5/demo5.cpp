@@ -920,12 +920,13 @@ if	( ( ( F0_Hz > 0.0 ) || ( F1_Hz > 0.0 ) ) && ( glo->Fsamp > 0 ) )
 		lefir.rB = M_PI * (F1_Hz+F0_Hz) / ( (double)glo->Fsamp * lefir.dA ); 
 		}
 	}
-if	( relA0 != 0.0 )
-	lefir.A0 = relA0 * lefir.dA;
 // s'assurer que dA et pispan sont tous les deux definis et coherents
 if	( lefir.dA == 0.0 )
 	lefir.dA = M_PI / lefir.pispan;
 else	lefir.pispan = M_PI / lefir.dA;
+// alors calculer A0 qui depend de dA
+if	( relA0 != 0.0 )
+	lefir.A0 = relA0 * lefir.dA;
 
 // on a fini avec les arguments... on cree une fenetre ?
 

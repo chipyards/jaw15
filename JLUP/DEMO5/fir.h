@@ -13,6 +13,8 @@ const castrable castroz[] = {
 	{ 4*21, sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double), slow_mid_qual_coeffs.coeffs, slow_mid_qual_coeffs.increment }
 	};
 
+enum firmode_t { ANALYTIC, INTERPOL };
+
 class fir {
 public:
 double pispan;		// taille de PI dans la reponse impulsionnelle
@@ -23,7 +25,8 @@ unsigned int cnt_left;	// part de qfir a gauche du coeff de ref (exclus)
 unsigned int cnt_right;	// part de qfir a droite du coeff de ref (inclus)
 double A0;		// decalage angulaire du coeff "central" -dA < A0 < dA
 double dA;		// increment angulaire (rd/samp)
-int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 8 et 9 = Castro
+int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 5=Lanczos, 11=kaiser
+firmode_t firmode;	// ANALYTIC ou INTERPOL
 double a0;		// coeff pour calcul fenetres 0..4
 double a1;
 double a2;
@@ -38,7 +41,7 @@ char description[128];
 
 // constructeur
 fir() : pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
-	window_type(0), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
+	window_type(0), firmode(ANALYTIC), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
 	FENbuf(NULL), FIRbuf(NULL), rB(0.0) { mJ0Kbeta = mJ0( Kbeta ); };
 
 // methodes
@@ -51,8 +54,9 @@ double mysinc( double A ) {
 	return ( sin(A) / A );
 	};
 
-// interpolation sur table pour winw_type = 6 ou 7
-double myCastro( double A ) {
+// interpolation sur table, pour le moment celles de Castro
+double myinterpol( double A ) {
+	// pour le moment, supporte window_type 6 & 7
 	const castrable * cas = &castroz[window_type-6];
 	double A_half_span = M_PI * (cas->qpis/2);
 	double k = double(cas->qtable-1) / A_half_span;
@@ -169,8 +173,9 @@ double mywindow( double khann, double A ) {
 // le filtrage n'a pas besoin de ce calcul preliminaire, on le fait pour avoir la longueur qfir
 // en vue d'allouer le buffer pour stockage des coeffs
 void general_fir_init() {
-	if	( ( window_type >= 6 ) && ( window_type < 11 ) )
+	if	( firmode == INTERPOL )
 		{
+		// pour le moment, supporte window_type 6 & 7
 		const castrable * cas = &castroz[window_type-6];
 		qpis = cas->qpis;
 		castro_inc = cas->incr;
@@ -279,7 +284,7 @@ int general_fir() {
 	return iend;
 	};	// general_fir()
 
-int general_fir_castro() {	// seulement pour window_type = 6 ou 7
+int general_fir_interpol() {
 	double A = -A0;		// angle of ref sample
 	int i = cnt_left;
 	double A_half_span = M_PI * (qpis/2);
@@ -290,7 +295,7 @@ int general_fir_castro() {	// seulement pour window_type = 6 ou 7
 			if	( i >= (int)qfir )
 				{ printf("note: evitage debordement fir a droite\n"); break; }
 			FENbuf[i] = 0.0;
-			FIRbuf[i] = myCastro(A);
+			FIRbuf[i] = myinterpol(A);
 			A += dA; i++;
 			}
 	else	while	( A < A_half_span )
@@ -298,7 +303,7 @@ int general_fir_castro() {	// seulement pour window_type = 6 ou 7
 			if	( i >= (int)qfir )
 				{ printf("note: evitage debordement fir a droite\n"); break; }
 			FENbuf[i] = 0.0;
-			FIRbuf[i] = myCastro(A) * mycos( A, rB );
+			FIRbuf[i] = myinterpol(A) * mycos( A, rB );
 			A += dA; i++;
 			}
 	int iend = i;
@@ -311,7 +316,7 @@ int general_fir_castro() {	// seulement pour window_type = 6 ou 7
 			if	( i < 0 )
 				{ printf("note: evitage debordement fir a gauche\n"); break; }
 			FENbuf[i] = 0.0;
-			FIRbuf[i] = myCastro(A);
+			FIRbuf[i] = myinterpol(A);
 			A -= dA; i--;
 			}
 	else	while	( A > (-A_half_span) ) 
@@ -319,7 +324,7 @@ int general_fir_castro() {	// seulement pour window_type = 6 ou 7
 			if	( i < 0 )
 				{ printf("note: evitage debordement fir a gauche\n"); break; }
 			FENbuf[i] = 0.0;
-			FIRbuf[i] = myCastro(A) * mycos( A, rB );
+			FIRbuf[i] = myinterpol(A) * mycos( A, rB );
 			A -= dA; i--;
 			}
 	// verifications
