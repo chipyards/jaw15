@@ -30,7 +30,7 @@ const char * vals[128];	// valeur (string) associee a chaque clef
 char val_flags[128];	// indique pour chaque clef si elle attend une valeur
 
 // restreindre ascii sur [0:127]
-int c2i( char c ) { return ( c & 0x3F ); };
+int c2i( char c ) { return ( c & 0x7F ); };
 
 public:
 
@@ -62,7 +62,7 @@ for	( int iopt = 1; iopt < argc; ++iopt )
 		else	val = (const char *)1;		// indique juste presence de la clef
 		vals[c2i(key)] = val;
 		}
-	else	vals[0] = argv[iopt];			// clef '@' <==> chaine nue (file name) 
+	else	vals['@'] = argv[iopt];			// clef '@' <==> chaine nue (file name) 
 	}
 };
 // methode

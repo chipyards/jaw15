@@ -124,12 +124,25 @@ EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
 
 - arguments de la ligne de commande 
 	-o ""	fichier de sortie sauve
-	-c 1	nombre de canaux sauves : 2 -> stereo {src-filtered}, 1 -> mono filtered
+	-c 1	nombre de canaux sauves : 2 -> stereo {L=src, R=filtered}, 1 -> mono filtered
 		(N.B. si le fichier d'entree est stereo, seul canal L est traite)
   exemple : passe-bande  [2205 Hz 5145 Hz] largeur 2940 Hz, resultat dans fichier mono 
 	./demo5 -Z 32 -P 15 -w 3 -B 2.5 ../../JAW/WAV/logipoS.wav -o pipo.wav
   N.B. accepte fichier 16 bits ou 32 bits, sauve idem
 
+- Note sur la resolution :
+	- les RI sont stockees en double
+	- la FFT est effectuee en double
+	- filtrage wav : chaque sample est calcule en double puis stocke en float
+- Note sur traitement audiofile :
+	- la classe wavio (wavio.h, wavio.cpp) assure lecture et ecriture du header WAV, et des data brutes
+	  cette classe est derivee de la classe audiofile qui est juste une interface (tout y est virtuel)
+	  sont supportes s16le et f32 (pas de 24 bits) 
+	- wavio lit et ecrit les data par paquets de taille libre, la bufferisation est a charge de l'appli
+	- les conversions s16le <-> f32 sont a charge de l'appli :
+	  demo5 convertit tout en f32 a la lecture, et ne retient que le canal L.
+	- demo5 stocke le fichier entier dans 2 buffers f32 Wbuf (src) et Ybuf (filtered) de la classe autobuf (autobuf.h)
+	- demo5 sauve le resultat toujours en f32 (cependant audiofile_save() saurait convertir f32 en s16le si on voulait)
 */
 #include <gdk/gdkkeysyms.h>  
 #include <gtk/gtk.h>
@@ -959,7 +972,8 @@ else	{			// filtrage audio
 		glo->audiofile_process();
 		glo->layout1W();
 		if	( glo->ofnam )
-			glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
+			// glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
+			glo->audiofile_save( 4, saved_qchan );	// on veut f32, et type sera mis a jour par audiofile_save
 		}
 	}
 

@@ -48,8 +48,10 @@ DEMO5/demo5 -Z 32 -F 0.4 -A 0.3 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.5 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.7 -w 4
 # WAV
-#DEMO5/demo5 -Z 32 -P 308 -w 3 -o DEMO5/st308clas.wav DEMO5/stmono39s.wav
-#DEMO5/demo5 -Z 32 -r 44100 -f 71.590909090909091 -w 3 -o DEMO5/st308gen.wav DEMO5/stmono39s.wav
+../wavgen -t I -b 0 -e 6000 -a 0.8 -d 10 DEMO5/lin6000.wav
+DEMO5/demo5 -Z 32 -r 44100 -f 2000 -g 4000 -w 5
+DEMO5/demo5 -Z 32 -r 44100 -f 2000 -g 4000 -w 5 -o DEMO5/filt-2000-4000.wav DEMO5/lin6000.wav
+
 # passe-bande
 DEMO5/demo5 -Z 32 -r 44100 -f 4410 -w 4
 DEMO5/demo5 -Z 32 -r 44100 -f 4410 -b 2 -w 4

@@ -11,6 +11,7 @@ g++ -o wavgen.exe -Wall -O2 wavio.cpp wavgen.cpp -lm
 #include <math.h>
 
 #include "wavio.h"
+#include "cli_parse.h"
 
 /* --------------------------------------- traitement erreur fatale */
 void gasp( const char *fmt, ... )
@@ -24,183 +25,276 @@ void gasp( const char *fmt, ... )
 }
 /* ---------------------------------------------------------------- */
 
-// generation signal sinus frequence fixe f, ou avec vibrato de frequence fv
-// la modulation de frequence est "logarithmique" (en fait exponentielle)
-void gen_fix_f( wavio *d, double f, double fv, int duree )
-{
-// parametres de generation
-double amplitude = 1.0;
-
-// variables temporaires
-short frame[2];		// left et right...
-unsigned int writcnt, i, j;
-double phi0, phi1, phiv;	// phase ch0, ch1, lfo
-double v0, v1, vv;		// valeur instantannee ch0, ch1, lfo
-double vamp;			// amplitude lfo en semitones
-double kf;			// coeff instantanne de variation de freq.
-
-d->realpfr = d->fsamp * duree;	// nombre de frames
-d->WAVwriteHeader();
-
-amplitude *= 32767.0;
-phi0 = 0.0; phi1 = 0.0; phiv = 0.0;
-vamp = 1;
-
-for	( i = 0; i < d->realpfr; ++i )
-	{
-	v0 = amplitude * sin( phi0 );	// avec vibrato
-	v1 = amplitude * sin( phi1 );	// sans vibrato, pour reference
-	frame[0] = (short int)round(v0);
-	frame[1] = (short int)round(v1);
-	phi1 += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
-	if	( fv == 0.0 )
-		phi0 += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
-	else	{
-		j = i / ( 2 * d->fsamp );	// temps en unites de 2 secondes
-		vamp = double(j) / 4;		// increment 1/4 de demi-ton ==> 2 tons en 32s
-		vv = vamp * cos( phiv );	// LFO : oscillateur de vibrato
-		kf = pow( 2.0, vv / 12.0 );
-		phi0 += ( ( f * kf * 2.0 * M_PI ) / (double)d->fsamp );
-		phiv += ( ( fv * 2.0 * M_PI ) / (double)d->fsamp );
-		}
-	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
-	if	( writcnt != ( d->qchan * sizeof(short) ) )
-		gasp("erreur ecriture disque (plein?)");
-	}
-}
-
-// generation signal triangle frequence fixe
-void gen_tri_f( wavio *d, double f, int duree )
-{
-// parametres de generation
-double amplitude = 1.0;
-
-// variables temporaires
-short frame[2];		// left et right...
-unsigned int writcnt, i;
-double phi, v;
-
-d->realpfr = d->fsamp * duree;	// nombre de frames
-d->WAVwriteHeader();
-
-amplitude *= 32767.0;
-phi = 0.0; 
-for	( i = 0; i < d->realpfr; ++i )
-	{
-	if	( phi > 2.0 )
-		phi -= 2.0;
-	v = ( phi > 1 )?( 2.0 - phi ):( phi );
-	v -= 0.5;
-	v *= amplitude;
-	frame[0] = (short int)round(v);
-	frame[1] = frame[0];
-	phi += ( ( f * 2.0 ) / (double)d->fsamp );
-	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
-	if	( writcnt != ( d->qchan * sizeof(short) ) )
-		gasp("erreur ecriture disque (plein?)");
-	}
-}
-
-// generation signal sinus balayage lineaire en frequence
-void bal_f_lin( wavio *d, int duree )
-{
-// parametres de generation
-double f0 = 0.0;
-double f1 = 22000;
-double finc = (f1-f0)/(double)(d->fsamp*duree);
-double amplitude = 0.7;
-
-// variables temporaires
-short frame[2];		// left et right...
-unsigned int writcnt, i;
-double phi, v, f;
-
-d->realpfr = d->fsamp * duree;	// nombre de frames
-d->WAVwriteHeader();
-
-amplitude *= 30000.0;
-f = f0;
-phi = 0.0; 
-for	( i = 0; i < d->realpfr; ++i )
-	{
-	f += finc;
-	v = amplitude * sin( phi );
-	frame[0] = (short int)round(v);
-	frame[1] = frame[0];
-	phi += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
-	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
-	if	( writcnt != ( d->qchan * sizeof(short) ) )
-		gasp("erreur ecriture disque (plein?)");
-	}
-}
-
-// generation signal sinus balayage "log" en frequence
-void bal_f_log( wavio *d, int duree )
-{
-// parametres de generation
-double f0 = 20.0;
-double f1 = 15000;
-double loginc = log( f1 / f0 ) / (double)(d->fsamp*duree);
-double amplitude = 0.7;
-
-// variables temporaires
-short frame[2];		// left et right...
-unsigned int writcnt, i;
-double phi, v, flog, f;
-
-d->realpfr = d->fsamp * duree;	// nombre de frames
-d->WAVwriteHeader();
-
-amplitude *= 32767.0;
-flog = log( f0 );
-phi = 0.0; 
-for	( i = 0; i < d->realpfr; ++i )
-	{
-	flog += loginc;
-	f = exp( flog );
-	v = amplitude * sin( phi );
-	frame[0] = (short int)round(v);
-	frame[1] = frame[0];
-	phi += ( ( f * 2.0 * M_PI ) / (double)d->fsamp );
-	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
-	if	( writcnt != ( d->qchan * sizeof(short) ) )
-		gasp("erreur ecriture disque (plein?)");
-	}
-}
-
 double midi2Hz( int midinote )
 {	// knowing that A4 = 440 Hz = note 69
 return 440.0 * pow( 2.0, ( ( midinote - 69 ) / 12.0 ) );
 }
 
+class CLI_params {
+	public:
+	double d;	// duree, totale ou note, toujours en s
+	double b;	// begin, frequence ou midinote
+	double e;	// end, frequence ou midinote
+	double a;	// amplitude
+	int mss;	// monosamplesize, 2 pour s16le, 4 pour f32
+	int c;		// 1 pour mono, 2 pour stereo
+	int f;		// fsamp
+	char type;	// t.q. F pour sin frequ. fixe
+	const char * fnam;
+
+	// constructeur
+	CLI_params() : d(1.0), b(440), e(440), a(0.5), mss(2), c(1), f(44100), type('F'), fnam(NULL) {};
+
+	void parse( int argc, char **argv )
+	{
+	if	( argc < 2 )
+		{ usage(); exit(0); }
+	cli_parse * lepar = new cli_parse( argc, (const char **)argv, "dbeaft" );
+	const char * val;
+	if	( ( val = lepar->get( 'd' ) ) )	d = strtod( val, NULL );
+	if	( ( val = lepar->get( 'b' ) ) )	b = strtod( val, NULL );
+	if	( ( val = lepar->get( 'e' ) ) )	e = strtod( val, NULL );
+	if	( ( val = lepar->get( 'a' ) ) )	a = strtod( val, NULL );
+	if	( ( val = lepar->get( 'f' ) ) )	f = atoi( val );
+	if	( ( val = lepar->get( 't' ) ) )	type = val[0];
+	if		( lepar->get( 'F' ) )	mss = 4; else mss = 2;
+	if		( lepar->get( 'S' ) )	c = 2;	 else c = 1;
+	fnam = lepar->get( '@' );		// naked string = input file
+	};
+
+	void usage()
+	{
+	printf("// Usage //\n"
+	" -d duree, totale ou note, toujours en s\n"
+	" -b begin, frequence ou midinote\n"
+	" -e end, frequence ou midinote\n"
+	" -a amplitude\n"
+	" -f fsamp\n"
+	" -t type {}\n"
+	"    L   bal. log\n"
+	"    I   bal. lin\n"
+	"    F   sin. fix\n"
+	"    T   tri. fix\n"
+	"    G   demitons (midinotes)\n"
+	"    H   tierces  (midinotes)\n"
+	"    Q   quartes  (midinotes)\n"
+	"    D   quintes  (midinotes)\n"
+	" -F float out\n"
+	" -S stereo out\n" );
+	};
+
+	void dump()
+	{
+	printf(" d = %g\n", d );
+	printf(" b = %g\n", b );
+	printf(" e = %g\n", e );
+	printf(" a = %g\n", a );
+	printf(" f = %d\n", f );
+	printf(" type = %c\n", type );
+	printf(" mss = %d\n", mss );
+	printf(" c = %d\n", c );
+	if ( fnam ) printf(" fnam = %s\n", fnam );
+	};
+};	// class CLI_params
+
+
+// buffer pour accelerer l'ecriture disk, et encapsuler la conversion f32 -> s16le
+// pcmbuf n'a pas vraiment besoin de savoir combien de canaux il y a,
+// l'entrelacement est a la charge du client
+// mais il a besoin de l'adresse du wavio
+#define QBUF 4096
+class pcmbuf {
+	public:
+	wavio * d;
+	int monosamplesize;
+	int lebuf[QBUF];
+	int i;			// index prochaine position
+	// init
+	void init( wavio * w ) {
+		d = w;
+		monosamplesize = d->monosamplesize;
+		i = 0;
+		}
+	// injecteur
+	void add( double val ) {
+		if	( monosamplesize == 2 )
+			{
+			short s = round(32767.0 *val);
+			short * ibuf = (short *)lebuf;
+			ibuf[i++] = s;
+			if	( i >= (QBUF*2) )
+				flush();
+			}
+		else if	( monosamplesize == 4 )
+			{
+			float * fbuf = (float *)lebuf;
+			fbuf[i++] = (float)val;
+			if	( i >= QBUF )
+				flush();
+			}
+		};
+	// vidage
+	void flush() {
+		int qpfr = i / d->qchan;
+		int retval = d->write_data_p( lebuf, qpfr );
+		if	( retval < 0 )
+			gasp("pcmbuf write failed");
+		i = 0;
+		};
+};	// class pcmbuf
+
+// une ou deux deux variables globales pour les generateurs
+double amplitude;
+// pcmbuf * P;
+
+// generation signal sinus frequence fixe f, ou avec vibrato de frequence fv
+// la modulation de frequence est "logarithmique" (en fait exponentielle)
+// l'amplitude augmente par bond de 1/4 demi-ton toutes les 2s.
+void gen_fix_f( pcmbuf *p, double f, double fv, int duree )
+{
+// variables temporaires
+unsigned int i, j;
+double phi0, phi1, phiv;	// phase ch0, ch1, lfo
+double v0, v1, vv;		// valeur instantannee ch0, ch1, lfo
+double vamp;			// amplitude lfo en semitones
+double kf;			// coeff instantanne de variation de freq.
+
+unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
+
+phi0 = 0.0; phi1 = 0.0; phiv = 0.0;
+vamp = 1;
+
+for	( i = 0; i < estpfr; ++i )
+	{
+	v0 = amplitude * sin( phi0 );	// avec vibrato
+	v1 = amplitude * sin( phi1 );	// sans vibrato, pour reference
+	// sortir 1 ou 2 signaux
+	p->add( v0 );
+	if	( p->d->qchan == 2 )
+		p->add( v1 );
+	// mettre a jour les phases
+	phi1 += ( ( f * 2.0 * M_PI ) / (double)p->d->fsamp );
+	if	( fv == 0.0 )
+		phi0 += ( ( f * 2.0 * M_PI ) / (double)p->d->fsamp );
+	else	{
+		j = i / ( 2 * p->d->fsamp );	// temps en unites de 2 secondes
+		vamp = double(j) / 4;		// increment 1/4 de demi-ton ==> 2 tons en 32s
+		vv = vamp * cos( phiv );	// LFO : oscillateur de vibrato
+		kf = pow( 2.0, vv / 12.0 );
+		phi0 += ( ( f * kf * 2.0 * M_PI ) / (double)p->d->fsamp );
+		phiv += ( ( fv * 2.0 * M_PI ) / (double)p->d->fsamp );
+		}
+	}
+}
+
+// generation signal triangle frequence fixe
+void gen_tri_f( pcmbuf *p, double f, int duree )
+{
+// variables temporaires
+unsigned int i;
+double phi, v;
+
+unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
+
+phi = 0.0; 
+for	( i = 0; i < estpfr; ++i )
+	{
+	if	( phi > 2.0 )			// dent de scie de 0 a 2
+		phi -= 2.0;
+	v = ( phi > 1 )?( 2.0 - phi ):( phi );	// pliage de 0 a 1
+	v -= 0.5;				// centrage
+	v *= 2.0 * amplitude;
+	// sortir 1 ou 2 signaux
+	p->add( v );
+	if	( p->d->qchan == 2 )
+		p->add( v );
+	// mettre a jour les phases
+	phi += ( ( f * 2.0 ) / (double)p->d->fsamp );
+	}
+}
+
+// generation signal sinus balayage lineaire en frequence
+void bal_f_lin( pcmbuf *p, int duree, double f0, double f1 )
+{
+// parametres de generation
+double finc = (f1-f0)/(double)(p->d->fsamp*duree);
+
+// variables temporaires
+unsigned int i;
+double phi, v, f;
+
+unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
+
+f = f0;
+phi = 0.0; 
+for	( i = 0; i < estpfr; ++i )
+	{
+	f += finc;
+	v = amplitude * sin( phi );
+	// sortir 1 ou 2 signaux
+	p->add( v );
+	if	( p->d->qchan == 2 )
+		p->add( v );
+	// mettre a jour les phases
+	phi += ( ( f * 2.0 * M_PI ) / (double)p->d->fsamp );
+	}
+}
+
+// generation signal sinus balayage "log" en frequence
+void bal_f_log( pcmbuf *p, int duree, double f0, double f1 )
+{
+// parametres de generation
+if	( ( f0 == 0.0 ) || ( f1 == 0.0 ) )
+	gasp("freq zero interdite pour balayage log");
+double loginc = log( f1 / f0 ) / (double)(p->d->fsamp*duree);
+
+// variables temporaires
+unsigned int i;
+double phi, v, flog, f;
+
+unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
+
+flog = log( f0 );
+phi = 0.0; 
+for	( i = 0; i < estpfr; ++i )
+	{
+	flog += loginc;
+	f = exp( flog );
+	v = amplitude * sin( phi );
+	// sortir 1 ou 2 signaux
+	p->add( v );
+	if	( p->d->qchan == 2 )
+		p->add( v );
+	// mettre a jour les phases
+	phi += ( ( f * 2.0 * M_PI ) / (double)p->d->fsamp );
+	}
+}
+
+
 // generation signal sinus gamme a intervale uniforme specifie en demi-tons,
 // debut et fin specifies en midi (A4 = 440Hz = midi 69)
 // stereo, mouvement ascendant en L, descendant en R
 // mono, mouvements montant et descendant superposes
-void bal_gamme( wavio *d, double duree_note, int interval, int midi0, int midi1 )
+void bal_gamme( pcmbuf *p, double duree_note, int interval, int midi0, int midi1 )
 {
 // parametres de generation
 int qnotes = 1 + ( midi1 - midi0 ) / interval;
 if	( qnotes <= 0 )
 	gasp("trop peu de notes");
-double amplitude = 0.966;	// -0.3dB
-if	( d->qchan <= 1 )
-	amplitude *= 0.5;	// mono
-unsigned int samp_per_note = (int)( ((double)d->fsamp) * duree_note );
+if	( p->d->qchan <= 1 )
+	amplitude *= 0.5;	// 0.5 en mono, car on somme les 2 canaux !
+unsigned int samp_per_note = (int)( ((double)p->d->fsamp) * duree_note );
 
 // variables temporaires
-short frame[2];		// left et right...
 unsigned int n[2];
 double phi[2];		// left et right...
 double f[2];
 
-double v;
-unsigned int writcnt, i, j;
+double vL, vR;
+unsigned int i, j;
 
-d->realpfr = samp_per_note * qnotes;	// nombre total de frames
-d->WAVwriteHeader();
+unsigned int estpfr = samp_per_note * qnotes;	// nombre total de frames
 
-amplitude *= 32767.0;
 n[0] = midi0;
 f[0] = midi2Hz( n[0] );
 n[1] = midi1;
@@ -209,28 +303,26 @@ phi[0] = 0.0;
 phi[1] = 0.0;
 
 j = 0;
-for	( i = 0; i < d->realpfr; ++i )
+for	( i = 0; i < estpfr; ++i )
 	{
 	// produire 1 echantillon L ascendant et le sauver
-	v = amplitude * sin( phi[0] );
-	frame[0] = (short int)round(v);
+	vL = amplitude * sin( phi[0] );
 	// incrementer la phase
-	phi[0] += ( ( f[0] * 2.0 * M_PI ) / (double)d->fsamp );
+	phi[0] += ( ( f[0] * 2.0 * M_PI ) / (double)p->d->fsamp );
 	if	( phi[0] > ( 2.0 * M_PI ) )
 		phi[0] -= ( 2.0 * M_PI );
 	// produire 1 echantillon descendant R et le sauver
-	v = amplitude * sin( phi[1] );
-	if	( d->qchan > 1 )
-		frame[1] = (short int)round(v);		// stereo
-	else	frame[0] += (short int)round(v);	// mono
+	vR = amplitude * sin( phi[1] );
+	if	( p->d->qchan > 1 )
+		{
+		p->add( vL );		// stereo
+		p->add( vR );
+		}
+	else	p->add( vL + vR );	// mono
 	// incrementer la phase
-	phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)d->fsamp );
+	phi[1] += ( ( f[1] * 2.0 * M_PI ) / (double)p->d->fsamp );
 	if	( phi[1] > ( 2.0 * M_PI ) )
 		phi[1] -= ( 2.0 * M_PI );
-	// ecrire sur le disk
-	writcnt = write( d->hand, frame, d->qchan * sizeof(short) );
-	if	( writcnt != ( d->qchan * sizeof(short) ) )
-		gasp("erreur ecriture disque (plein?)");
 	// gerer la note
 	if	( ++j == samp_per_note )
 		{
@@ -248,74 +340,52 @@ for	( i = 0; i < d->realpfr; ++i )
 
 int main( int argc, char **argv )
 {
-if	( argc < 4 )
-	{
-	printf(	"usage :\n"
-		"  bal. log : wavgen L <fichier_dest> <duree>\n"
-		"  bal. lin : wavgen I <fichier_dest> <duree>\n"
-		"  sin. fix : wavgen F <fichier_dest> <frequ> {<freq. vibrato>}\n"
-		"  tri. fix : wavgen T <fichier_dest> <frequ>\n"
-		"  demitons : wavgen G <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
-		"  tierces  : wavgen H <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
-		"  quartes  : wavgen Q <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
-		"  quintes  : wavgen D <fichier_dest> <duree_note> <midi_note0> <midi_note1>\n"
-		"(lettre minuscule pour mono au lieu de stereo)\n"
-		);
-	return 1;
-	}
-
+CLI_params clic;
 wavio d;
+pcmbuf p	;
 
-d.type = 1;
-d.monosamplesize = 2;	// 16 bits
-d.fsamp = 44100;
-d.qchan = 2;	// (lettre minuscule pour mono au lieu de stereo)
-/*
-d.type = 3;	// not supported
-d.monosamplesize = 4;	// 32 bits
-d.fsamp = 44100;
-d.qchan = 1;
-*/
-d.hand = open( argv[2], O_RDWR | O_BINARY | O_CREAT | O_TRUNC, 0666 );
-if	( d.hand == -1 )
-	gasp("echec ouverture ecriture %s", argv[2] );
+clic.parse( argc, argv );
+clic.dump();
 
-int opt = argv[1][0];
-if	( opt >= 'a' )
+if	( clic.fnam == NULL )
+	gasp("manque nom de fichier");
+if	( strlen( clic.fnam ) < 4 )
+	gasp("bad nom de fichier");
+
+
+d.monosamplesize = clic.mss;
+d.type = (d.monosamplesize==4)?3:1;
+d.fsamp = clic.f;
+d.qchan = clic.c;
+
+d.write_head( clic.fnam );
+p.init( &d );
+
+amplitude = clic.a;	// global amplitude
+
+switch	( clic.type )
 	{
-	opt -= ('a'-'A');
-	d.qchan = 1;
-	}
-
-switch	( opt )
-	{
-	case 'L' : bal_f_log( &d, (int)strtod( argv[3], NULL ) );
+	case 'L' : bal_f_log( &p, (int)clic.d, clic.b, clic.e );
 		break;
-	case 'I' : bal_f_lin( &d, (int)strtod( argv[3], NULL ) );
+	case 'I' : bal_f_lin( &p, (int)clic.d, clic.b, clic.e );
 		break;
-	case 'F' : if	( argc == 5 )
-			gen_fix_f( &d, strtod( argv[3], NULL ), strtod( argv[4], NULL ), 32 );
-		   else	gen_fix_f( &d, strtod( argv[3], NULL ), 0, 20 );
+	case 'F' : gen_fix_f( &p, clic.b, clic.e, (int)clic.d );
 		break;
-	case 'T' : gen_tri_f( &d, strtod( argv[3], NULL ), 20 );
+	case 'T' : gen_tri_f( &p, clic.b, (int)clic.d );
 		break;
-	case 'G' : if	( argc == 6 )
-			bal_gamme( &d, strtod( argv[3], NULL ), 1, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
-		break;
-	case 'H' : if	( argc == 6 )
-			bal_gamme( &d, strtod( argv[3], NULL ), 4, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
-		break;
-	case 'Q' : if	( argc == 6 )
-			bal_gamme( &d, strtod( argv[3], NULL ), 5, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
-		break;
-	case 'D' : if	( argc == 6 )
-			bal_gamme( &d, strtod( argv[3], NULL ), 7, (int)strtod( argv[4], NULL ), (int)strtod( argv[5], NULL ) );
+	case 'G' : bal_gamme( &p, clic.d, 1, (int)clic.b, (int)clic.e );
+		break;            
+	case 'H' : bal_gamme( &p, clic.d, 4, (int)clic.b, (int)clic.e );
+		break;            
+	case 'Q' : bal_gamme( &p, clic.d, 5, (int)clic.b, (int)clic.e );
+		break;            
+	case 'D' : bal_gamme( &p, clic.d, 7, (int)clic.b, (int)clic.e );
 		break;
 	}
 
-// cloture du travail
-// close( d.hand ); NOOOON ne pas faire cela
-d.afclose();	// chucksize et filesize seront calcules par WAVwriteHeader en fonction de d.realpfr
+p.flush();
+// ici d.realpfr est a jour grace a d.write_data_p() appele par p->flush()
+d.afclose();	// chucksize et filesize seront calcules en fonction de d.realpfr
  
 printf("audio file closed, %d frames\n", d.realpfr );
 return 0;
