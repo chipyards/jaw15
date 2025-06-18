@@ -47,7 +47,8 @@ glostru() : hscale('N'), Fsamp(44100), ifnam(NULL), ofnam(NULL),
 // calcul FFT pour visu reponse frequentielle
 int fft_on_FIR( unsigned int firsize, double * firbuf );
 int audiofile_load( int verbose );
-int audiofile_process();
+int audiofile_filter();
+int audiofile_resamp();
 int audiofile_save( int monosamplesize, int qchan );
 
 void layout1();

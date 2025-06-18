@@ -348,12 +348,10 @@ fftw_execute( plan );
 // calcul magnitudes sur place (FFTout contient des valeurs complexes)
 unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( ( lefir.window_type >= 6 ) && ( lefir.window_type < 8 ) )	// interpolation sur table castro (coeffs denormalises)
+if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
 	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
-else if	( ( lefir.window_type >= 8 ) && ( lefir.window_type < 11 ) )	// table castro in extenso sans interpolation
-	k = 1.0 / lefir.castro_inc;		
 else	k = 1.0 / lefir.pispan;						// cas "normal"
-// passe -bande
+// passe-bande
 if	( lefir.rB > 0.0 )
 	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 // le calcul
@@ -448,13 +446,12 @@ fflush(stdout);
 return 0;
 }
 
-
-int glostru::audiofile_process()
+// filtrage simple d'un fichier audio
+// utilise une RI pre-calculee dans lefir.FIRbuf
+int glostru::audiofile_filter()
 {
 double Fc = double(wavp.fsamp)/(2.0*lefir.pispan);
 printf("Fc @ -6dB : %g Hz\n", Fc );
-//if	( lefir.rB > 0.0 )
-//	printf("bande [%g %g] largeur %g\n", Fc * ( lefir.band_center - 1.0 ), Fc * ( lefir.band_center + 1.0 ), Fc * 2.0 );
 fflush(stdout);
 // allocation buffer pour l'audio entier
 if	( wavp.realpfr > Ybuf.capa )
@@ -465,9 +462,11 @@ if	( wavp.realpfr > Ybuf.capa )
 	}
 int i, j, j0, k;
 double sum, K;
-if	( ( lefir.window_type < 8 ) || ( lefir.window_type > 10 ) )
-	K = 1.0 / lefir.pispan;
-else	K = 1.0 / lefir.castro_inc;	// Castro a corrige la valeur centrale du sinc pour matcher son "increment"
+// ici un coeff pour ramener la reponse DC a 1.0 (0dB)
+if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
+	K = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+else	K = 1.0 / lefir.pispan;						// cas "normal"
+// passe-bande
 if	( lefir.rB > 0.0 )
 	K *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
 
@@ -487,9 +486,55 @@ Ybuf.size = wavp.realpfr;
 return 0;
 }
 
+// resampling d'un fichier audio, ce qui peut avoir 2 interpretations :
+// - changer Fsamp sans changer le contenu, alors Kr = Fsamp_src / Fsamp_dest
+// - transposer le contenu sans changer Fsamp, alors :
+//	- frequence des composantes du contenu multipliee par Kr
+//	- duree divisee par Kr
+// le process est identique dans les 2 cas, seule change la declaration de Fsam_dest
+// au moment de sauver le resultat
+//	Kr < 1 : interpolation : la bande doit etre limitee a Fsamp_src/2
+//		on veut simplement interpoler des samples du signal continu "ideal" sous-jacent
+//		==> pispan  = fudge factor (legerement superieur a 1), indep. de Kr
+//	Kr > 1 : decimation : la bande doit etre limitee a Fsamp_dest/2 < Fsamp_src/2
+//		pour eviter un aliasing genre effet stroboscopique
+//		==> multiplier pispan par Kr (<==> diviser dA)
+// N.B. resampling n'utilise pas de RI pre-calculee, mais est base sur les memes params (objet lefir)
+// N.B. on doit avoir fourni lefir.dA = M_PI/fudge_factor, en accord avec les choix de qpis et fenetre.
+// Alors cette fonction effectue sur lefir.dA et lefir.pispan la correction dans le cas decimation.
+int glostru::audiofile_resamp()
+{
+// correction pour decimation (abaissement de la bande passante) :
+if	( lefir.Kr > 1 )
+	{ lefir.dA /= lefir.Kr; lefir.pispan *= lefir.Kr; }
+lefir.init_window();
+
+// allocation buffer pour l'audio entier
+unsigned int destsize = floor( double(Wbuf.size) / lefir.Kr ); 
+if	( destsize > Ybuf.capa )
+	{
+	Ybuf.reset();	// pour eviter realloc, qui serait inefficace ici
+	if	( Ybuf.more( destsize ) )
+		gasp("echec alloc Ybuf %d samples", (int)destsize );
+	}
+Ybuf.size = Ybuf.capa;
+
+printf("resampling: %s par %g, %d output samples\n", ((lefir.Kr>1)?("decimation"):("interpolation")), lefir.Kr, Ybuf.size );
+
+// la boucle va "tirer" chaque sample dest,
+// resamp_one() va tirer les sample src selon ses besoins, en gerant les bord sans debordement
+double spos;	// index source fractionnaire
+for	( int id = 0; id < (int)Ybuf.size; ++id )
+	{
+	spos = double(id) * lefir.Kr;
+	Ybuf.data[id] = (float)lefir.resamp_one( Wbuf.data, spos, 0, Wbuf.size );
+	}
+return 0;
+}
+
 int glostru::audiofile_save( int monosamplesize, int qchan )
 {
-if	( ( ofnam == NULL ) || ( Ybuf.size == 0 ) || ( Ybuf.size != Wbuf.size ) )
+if	( ( ofnam == NULL ) || ( Ybuf.size == 0 ) )
 	return 0;
 int retval;
 unsigned int qpfr, i, j;
@@ -839,6 +884,7 @@ printf("// Usage //\n"
  " -f frequence de coupure ou min en Hz\n"
  " -g frequence max bande en Hz (incompat. -P, -F)\n"
 "Filtrage WAV:\n"
+ " -K coeff de resampling ( Kr > 1 ==> decimation )\n"
  " -o output file\n"
  " -c channels in saved file\n"
  " <input file> (sinon, seulement FFT)\n"
@@ -864,7 +910,7 @@ setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
 // traiter arguments
 if	( argc < 2 )
 	{ usage(); return 0; }
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBadbAFGrfgoc" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBadbAFGrfgKoc" );
 const char * val;
 int qFFTlog = 20;
 unsigned int saved_qchan = 1;
@@ -893,6 +939,7 @@ if	( ( val = lepar->get( 'r' ) ) )	glo->Fsamp  = atoi( val );		// Fsamp en Hz
 if	( ( val = lepar->get( 'f' ) ) )	F0_Hz  = strtod( val, NULL );		// frequence de coupure ou min (Hz)
 if	( ( val = lepar->get( 'g' ) ) )	F1_Hz  = strtod( val, NULL );		// frequence max (band) (Hz)
 
+if	( ( val = lepar->get( 'K' ) ) )	lefir.Kr = strtod( val, NULL );		// coeff de resampling ( Kr > 1 ==> decimation )
 if	( ( val = lepar->get( 'o' ) ) )	glo->ofnam = val;			// output file
 if	( ( val = lepar->get( 'c' ) ) )	saved_qchan = atoi( val );		// channels in saved file
 
@@ -951,7 +998,7 @@ if	( retval )
 	gasp(" erreur %d", retval );
 gtk_entry_set_text( GTK_ENTRY( glo->edesc ), lefir.description );
 
-// FFT pour reponse freqentielle
+// FFT pour reponse frequentielle
 retval = glo->fft_on_FIR( lefir.qfir, lefir.FIRbuf );
 if	( retval )
 	gasp(" erreur %d", retval );
@@ -969,7 +1016,9 @@ else	{			// filtrage audio
 	if	( retval )
 		glo->ifnam = NULL;	// abandon lecture fichier
 	else	{
-		glo->audiofile_process();
+		if	( lefir.Kr != 0.0 )
+			glo->audiofile_resamp();
+		else	glo->audiofile_filter();
 		glo->layout1W();
 		if	( glo->ofnam )
 			// glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );

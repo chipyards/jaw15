@@ -36,13 +36,13 @@ double mJ0Kbeta;	// pre-calcul de mJ0(Kbeta)
 double * FENbuf;	// fenetre
 double * FIRbuf;	// impulse response
 double rB;		// passe-bande : reponse translatee (rd/samp)
-
+double Kr;		// resampling Kr > 1 <==> decimation
 char description[128];
 
 // constructeur
-fir() : pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
+fir() : pispan(1.0), qpis(4), castro_inc(0), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
 	window_type(0), firmode(ANALYTIC), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
-	FENbuf(NULL), FIRbuf(NULL), rB(0.0) { mJ0Kbeta = mJ0( Kbeta ); };
+	FENbuf(NULL), FIRbuf(NULL), rB(0.0), Kr(0.0) { mJ0Kbeta = mJ0( Kbeta ); };
 
 // methodes
 
@@ -230,7 +230,8 @@ void general_fir_init() {
 	*/
 	};	// general_fir_init()
 
-// echantillonner une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire 
+// echantillonner une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire
+// en vue FFT pour eval reponse, et filtrage simple (methode analytique)
 int general_fir() {
 	init_window();
 	double khann = 2.0 / qpis;
@@ -284,6 +285,8 @@ int general_fir() {
 	return iend;
 	};	// general_fir()
 
+// echantillonner une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire
+// en vue FFT pour eval reponse, et filtrage simple (methode interpolation sur table)
 int general_fir_interpol() {
 	double A = -A0;		// angle of ref sample
 	int i = cnt_left;
@@ -334,6 +337,40 @@ int general_fir_interpol() {
 		printf("suspect: anomalie droite cnt = %d vs %d\n", iend, qfir );
 	return iend;
 	};	// general_fir()
+
+// calculer 1 sample en resampling, methode analytic
+// spos est la position du sample dest par rapport aux index src
+// ismin et ismax sont les limites d'index utilisables dans srcbuf
+// "ref sample" = plus proche sample src a gauche de spos
+double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
+	double khann = 2.0 / qpis;
+	double fis0 = floor(spos);	// index of ref sample in src
+	A0 = (spos-fis0) * dA;		// angle of ref sample
+	int is0 = (int)floor(spos);	// index of ref sample in src
+	double A_half_span = M_PI * (qpis/2);
+	double sum = 0.0;
+	// right side (incl ref sample @ -A0)
+	double A = -A0;
+	int is = is0;
+	while	( A < A_half_span )
+		{
+		if	( is < ismax )
+			sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+		A += dA; is++;
+		}
+	// left side (excl ref sample @ -A0)
+	A = - A0 - dA;
+	is = is0 - 1;
+	while	( A > (-A_half_span) ) 
+		{
+		if	( is >= ismin )
+			sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+		A -= dA; is--;
+		}
+	return sum / pispan;
+	};
+
+
 
 int generate();
 

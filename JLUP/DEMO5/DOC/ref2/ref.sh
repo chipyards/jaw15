@@ -47,10 +47,17 @@ DEMO5/demo5 -Z 32 -F 0.4 -A -0.7 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.3 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.5 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.7 -w 4
-# WAV
+# WAV filtrage
 ../wavgen -t I -b 0 -e 6000 -a 0.8 -d 10 DEMO5/lin6000.wav
 DEMO5/demo5 -Z 32 -r 44100 -f 2000 -g 4000 -w 5
 DEMO5/demo5 -Z 32 -r 44100 -f 2000 -g 4000 -w 5 -o DEMO5/filt-2000-4000.wav DEMO5/lin6000.wav
+# WAV resample
+DEMO5/demo5 -Z 16 -P 1.4 -w 4
+DEMO5/demo5 -Z 16 -P 1.16 -w 5
+../wavgen -t T -b 100 -a 0.8 -d 1 -F DEMO5/triang100.wav
+DEMO5/demo5 -Z 16 -P 1.16 -w 5 -K 1.1 -o DEMO5/resamp1.2.wav DEMO5/triang100.wav
+DEMO5/demo5 -Z 16 -P 1.16 -w 5 -K 0.8 -o DEMO5/resamp0.8.wav DEMO5/triang100.wav
+
 
 # passe-bande
 DEMO5/demo5 -Z 32 -r 44100 -f 4410 -w 4
