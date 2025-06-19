@@ -21,9 +21,9 @@ switch	( window_type ) {
 
 general_fir_init();
 if	( window_type == 11 )
-	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d Kaiser analytic beta=%g",
+	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), relA0 %g, rB %g, window %d Kaiser analytic beta=%g",
 		qfir, qpis, dA, pispan, A0/dA, rB, window_type, Kbeta );		
-else	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), A0 %g, rB %g, window %d %s",
+else	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), relA0 %g, rB %g, window %d %s",
 		qfir, qpis, dA, pispan, A0/dA, rB, window_type, window_name[window_type] );
 printf("%s\n", description );
 // ouf, ici qfir est enfin stable

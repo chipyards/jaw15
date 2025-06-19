@@ -79,6 +79,7 @@ class CLI_params {
 	"    H   tierces  (midinotes)\n"
 	"    Q   quartes  (midinotes)\n"
 	"    D   quintes  (midinotes)\n"
+	"    P   pulses	  (ton, toff)\n"
 	" -F float out\n"
 	" -S stereo out\n" );
 	};
@@ -145,7 +146,6 @@ class pcmbuf {
 
 // une ou deux deux variables globales pour les generateurs
 double amplitude;
-// pcmbuf * P;
 
 // generation signal sinus frequence fixe f, ou avec vibrato de frequence fv
 // la modulation de frequence est "logarithmique" (en fait exponentielle)
@@ -186,6 +186,37 @@ for	( i = 0; i < estpfr; ++i )
 		}
 	}
 }
+
+// generation signal pulse frequence fixe
+// mettre ton a zero pour pulse unitaire
+void gen_pulse( pcmbuf *p, double ton, double toff, double duree )
+{
+// variables temporaires
+unsigned int i, nexti, iton, itoff;
+
+iton  = round( double(p->d->fsamp) * ton );
+itoff = round( double(p->d->fsamp) * toff );
+if 	( iton == 0 )
+	iton = 1;
+
+unsigned int estpfr = floor( double(p->d->fsamp) * duree );	// nombre de frames
+
+int v = 0;
+nexti = itoff;
+for	( i = 0; i < estpfr; ++i )
+	{
+	if	( i == nexti )
+		{
+		if	( v )
+			{ v = 0; nexti += itoff; }
+		else	{ v = 1; nexti += iton; }
+		}
+	p->add( v * amplitude );
+	if	( p->d->qchan == 2 )
+		p->add( v );
+	}
+}
+
 
 // generation signal triangle frequence fixe
 void gen_tri_f( pcmbuf *p, double f, int duree )
@@ -380,6 +411,8 @@ switch	( clic.type )
 	case 'Q' : bal_gamme( &p, clic.d, 5, (int)clic.b, (int)clic.e );
 		break;            
 	case 'D' : bal_gamme( &p, clic.d, 7, (int)clic.b, (int)clic.e );
+		break;
+	case 'P' : gen_pulse( &p, clic.b, clic.e, clic.d );
 		break;
 	}
 

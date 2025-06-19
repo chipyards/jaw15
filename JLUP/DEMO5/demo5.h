@@ -46,6 +46,7 @@ glostru() : hscale('N'), Fsamp(44100), ifnam(NULL), ofnam(NULL),
 // methodes
 // calcul FFT pour visu reponse frequentielle
 int fft_on_FIR( unsigned int firsize, double * firbuf );
+void dc_noise_eval( unsigned int cnt );
 int audiofile_load( int verbose );
 int audiofile_filter();
 int audiofile_resamp();

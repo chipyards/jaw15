@@ -370,6 +370,28 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 	return sum / pispan;
 	};
 
+// calculer 1 sample de reponse DC, methode analytic
+// le but est de verifier qu'il depend peu (idealement pas) de A0
+double DCsamp_one() {
+	double khann = 2.0 / qpis;
+	double A_half_span = M_PI * (qpis/2);
+	double sum = 0.0;
+	// right side (incl ref sample @ -A0)
+	double A = -A0;
+	while	( A < A_half_span )
+		{
+		sum += mywindow( khann, A ) * mysinc( A );
+		A += dA;
+		}
+	// left side (excl ref sample @ -A0)
+	A = - A0 - dA;
+	while	( A > (-A_half_span) ) 
+		{
+		sum += mywindow( khann, A ) * mysinc( A );
+		A -= dA;
+		}
+	return sum / pispan;
+	};
 
 
 int generate();

@@ -533,6 +533,35 @@ for	( int id = 0; id < (int)Ybuf.size; ++id )
 return 0;
 }
 
+// cette fonction evalue l'oscillation de la reponse DC en fonction de A0 
+void glostru::dc_noise_eval( unsigned int cnt )
+{
+// buffer pour resultat
+if	( cnt > Ybuf.capa )
+	{
+	Ybuf.reset();	// pour eviter realloc, qui serait inefficace ici
+	if	( Ybuf.more( cnt ) )
+		gasp("echec alloc Ybuf %d samples", (int)cnt );
+	}
+Ybuf.size = Ybuf.capa;
+// init
+double dA0 = lefir.dA / cnt;
+double DCmin = 2.0;
+double DCmax = 0.0;
+// boucle principale
+for	( int i = 0; i < (int)cnt; i++ )
+	{
+	lefir.A0 = double(i) * dA0;
+	double Y = lefir.DCsamp_one();
+	Ybuf.data[i] = Y;
+	if	( DCmin > Y )
+		DCmin = Y;
+	if	( DCmax < Y )
+		DCmax = Y;
+	}
+printf("DCmin = %.14f, DCmax = %.14f, diff = %g\n", DCmin, DCmax, DCmax - DCmin );
+}
+
 int glostru::audiofile_save( int monosamplesize, int qchan )
 {
 if	( ( ofnam == NULL ) || ( Ybuf.size == 0 ) )
@@ -1015,6 +1044,8 @@ glo->layout2();			// afficher FFT
 if	( glo->ifnam == NULL )
 	{			// afficher fenetre et RI
 	glo->layout1();
+	if	( lefir.firmode == ANALYTIC )
+		glo->dc_noise_eval( 500 );
 	}
 else	{			// filtrage audio
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
@@ -1023,7 +1054,11 @@ else	{			// filtrage audio
 		glo->ifnam = NULL;	// abandon lecture fichier
 	else	{
 		if	( lefir.Kr != 0.0 )
-			glo->audiofile_resamp();
+			{
+			if	( lefir.firmode == ANALYTIC )
+				glo->audiofile_resamp();
+			else	gasp("resample seulement en mode ANALYTIC" );
+			}
 		else	glo->audiofile_filter();
 		glo->layout1W();
 		if	( glo->ofnam )
