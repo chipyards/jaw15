@@ -55,9 +55,14 @@ DEMO5/demo5 -Z 32 -r 44100 -f 2000 -g 4000 -w 5 -o DEMO5/filt-2000-4000.wav DEMO
 DEMO5/demo5 -Z 16 -P 1.4 -w 4
 DEMO5/demo5 -Z 16 -P 1.16 -w 5
 ../wavgen -t T -b 100 -a 0.8 -d 1 -F DEMO5/triang100.wav
-DEMO5/demo5 -Z 16 -P 1.16 -w 5 -K 1.1 -o DEMO5/resamp1.2.wav DEMO5/triang100.wav
+DEMO5/demo5 -Z 16 -P 1.16 -w 5 -K 1.2 -o DEMO5/resamp1.2.wav DEMO5/triang100.wav
 DEMO5/demo5 -Z 16 -P 1.16 -w 5 -K 0.8 -o DEMO5/resamp0.8.wav DEMO5/triang100.wav
-
+DEMO5/demo5 -Z 16 -P 1.16 -w 5 -K 1.01 -o DEMO5/resamp1.01.wav DEMO5/triang100.wav
+../wavgen -t I -b 0 -e 22000 -a 0.8 -d 10 -F DEMO5/lin22k.wav
+DEMO5/demo5 -Z 16 -P 1.4 -w 4 -K 1.2 -o DEMO5/resamp1.2.wav DEMO5/lin22k.wav
+DEMO5/demo5 -Z 16 -P 1.4 -w 4 -K 0.8 -o DEMO5/resamp0.8.wav DEMO5/lin22k.wav
+DEMO5/demo5 -Z 32 -P 1.24 -w 4 
+DEMO5/demo5 -Z 32 -P 1.1 -w 7  -K 1.2 -o DEMO5/resamp1.2.wav DEMO5/lin20.wav
 
 # passe-bande
 DEMO5/demo5 -Z 32 -r 44100 -f 4410 -w 4

@@ -346,7 +346,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 	double khann = 2.0 / qpis;
 	double fis0 = floor(spos);	// index of ref sample in src
 	A0 = (spos-fis0) * dA;		// angle of ref sample
-	int is0 = (int)floor(spos);	// index of ref sample in src
+	int is0 = (int)fis0;		// index of ref sample in src
 	double A_half_span = M_PI * (qpis/2);
 	double sum = 0.0;
 	// right side (incl ref sample @ -A0)

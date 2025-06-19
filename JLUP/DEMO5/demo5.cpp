@@ -165,6 +165,7 @@ using namespace std;
 #include "gluplot.h"
 
 #include "layer_u.h"
+#include "layer_lod.h"
 
 #include "../modpop3.h"
 #include "../cli_parse.h"
@@ -682,8 +683,8 @@ curbande->optX = 1;
 curbande->subtk = 1;
 
 // creer un layer
-layer_u<float> * curcour;
-curcour = new layer_u<float>;
+layer_lod<float> * curcour;
+curcour = new layer_lod<float>;
 curbande->add_layer( curcour, "src" );
 
 // configurer le layer
@@ -696,9 +697,13 @@ curcour->fgcolor.set( 0.75, 0.0, 0.0 );
 // connexion layout - data
 curcour->V = Wbuf.data;
 curcour->qu = Wbuf.size;
-curcour->scan();	// alors on peut faire un scan
+int retval = curcour->make_lods( 4, 4, 2000 );
+if	( retval )
+	{ gasp("echec make_lods err %d", retval ); }
+// N.B. make_lods() inclut scan()
+// curcour->scan();	// alors on peut faire un scan
 
-curcour = new layer_u<float>;
+curcour = new layer_lod<float>;
 curbande->add_layer( curcour, "resu" );
 
 // configurer le layer
@@ -711,8 +716,9 @@ curcour->fgcolor.set( 0.0, 0.0, 0.8 );
 // connexion layout - data
 curcour->V = Ybuf.data;
 curcour->qu = Ybuf.size;
-curcour->scan();	// alors on peut faire un scan
-
+retval = curcour->make_lods( 4, 4, 2000 );
+if	( retval )
+	{ gasp("echec make_lods err %d", retval ); }
 }
 
 // echelle graduations axe horizontal sortie FFT  
