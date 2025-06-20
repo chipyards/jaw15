@@ -522,44 +522,58 @@ Ybuf.size = Ybuf.capa;
 
 printf("resampling: %s par %g, %d output samples\n", ((lefir.Kr>1)?("decimation"):("interpolation")), lefir.Kr, Ybuf.size );
 
+// ici un coeff pour ramener la reponse DC a 1.0 (0dB)
+double k;
+if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
+	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+else	k = 1.0 / lefir.pispan;						// cas "normal"
+
 // la boucle va "tirer" chaque sample dest,
 // resamp_one() va tirer les sample src selon ses besoins, en gerant les bord sans debordement
 double spos;	// index source fractionnaire
 for	( int id = 0; id < (int)Ybuf.size; ++id )
 	{
 	spos = double(id) * lefir.Kr;
-	Ybuf.data[id] = (float)lefir.resamp_one( Wbuf.data, spos, 0, Wbuf.size );
+	Ybuf.data[id] = (float)( k * lefir.resamp_one( Wbuf.data, spos, 0, Wbuf.size ) );
 	}
 return 0;
 }
 
-// cette fonction evalue l'oscillation de la reponse DC en fonction de A0 
+// cette fonction evalue la flucuation de la reponse DC en fonction de A0
+// donne le min et le max, et la fonction dans Zbuf
 void glostru::dc_noise_eval( unsigned int cnt )
 {
 // buffer pour resultat
-if	( cnt > Ybuf.capa )
+if	( cnt > Zbuf.capa )
 	{
-	Ybuf.reset();	// pour eviter realloc, qui serait inefficace ici
-	if	( Ybuf.more( cnt ) )
-		gasp("echec alloc Ybuf %d samples", (int)cnt );
+	Zbuf.reset();	// pour eviter realloc, qui serait inefficace ici
+	if	( Zbuf.more( cnt ) )
+		gasp("echec alloc Zbuf %d samples", (int)cnt );
 	}
-Ybuf.size = Ybuf.capa;
+Zbuf.size = Zbuf.capa;
 // init
 double dA0 = lefir.dA / cnt;
-double DCmin = 2.0;
+double DCmin = 2000000000.0;
 double DCmax = 0.0;
+// ici un coeff pour ramener la reponse DC a 1.0 (0dB)
+double k;
+if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
+	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+else	k = 1.0 / lefir.pispan;						// cas "normal"
+
 // boucle principale
 for	( int i = 0; i < (int)cnt; i++ )
 	{
 	lefir.A0 = double(i) * dA0;
-	double Y = lefir.DCsamp_one();
-	Ybuf.data[i] = Y;
+	double Y = k * lefir.DCsamp_one();
+	Zbuf.data[i] = Y;
 	if	( DCmin > Y )
 		DCmin = Y;
 	if	( DCmax < Y )
 		DCmax = Y;
 	}
-printf("DCmin = %.14f, DCmax = %.14f, diff = %g\n", DCmin, DCmax, DCmax - DCmin );
+double dBval = 20.0 * log10(DCmax - DCmin);
+printf("DCmin = %.10f, DCmax = %.10f, diff = %g (%.2f dB)\n", DCmin, DCmax, DCmax - DCmin, dBval );
 }
 
 int glostru::audiofile_save( int monosamplesize, int qchan )
@@ -641,7 +655,7 @@ printf("finished writing WAV %s, %d bits, %d ch.\n", ofnam, neww.monosamplesize 
 return 0;
 }
 
-// layout pour reponse impulsionnelle
+// layout pour reponse impulsionnelle et fenetre
 void glostru::layout1()
 {
 panneau1.offscreen_flag = 0;
@@ -675,27 +689,50 @@ curcour->V = lefir.FIRbuf;
 curcour->qu = lefir.qfir;
 curcour->scan();	// alors on peut faire un scan
 
-if	( lefir.FENbuf == NULL )
-	return;
+if	( lefir.FENbuf )
+	{
+	// creer un layer
+	curcour = new layer_u<double>;
+	curbande->add_layer( curcour, "win" );
 
-// creer un layer
-curcour = new layer_u<double>;
-curbande->add_layer( curcour, "win" );
+	// configurer le layer
+	curcour->set_km( 1.0 );			// sets APRES add_layer
+	curcour->set_m0( 0.0 );
+	curcour->set_kn( 1.0 );
+	curcour->set_n0( 0.0 );
+	curcour->fgcolor.set( 0.0, 0.5, 0.3 );
 
-// configurer le layer
-curcour->set_km( 1.0 );			// sets APRES add_layer
-curcour->set_m0( 0.0 );
-curcour->set_kn( 1.0 );
-curcour->set_n0( 0.0 );
-curcour->fgcolor.set( 0.0, 0.5, 0.3 );
+	// connexion layout - data
+	curcour->V = lefir.FENbuf;
+	curcour->qu = lefir.qfir;
+	curcour->scan();	// alors on peut faire un scan
+	}
 
-// connexion layout - data
-curcour->V = lefir.FENbuf;
-curcour->qu = lefir.qfir;
-curcour->scan();	// alors on peut faire un scan
+if	( Zbuf.size )
+	{
+	// creer un layer
+	curcour = new layer_u<double>;
+	curbande->add_layer( curcour, "dc_noise" );
+
+	// configurer le layer
+	curcour->set_km( 1.0 );			// sets APRES add_layer
+	curcour->set_m0( 0.0 );
+	curcour->set_kn( 1.0 );
+	curcour->set_n0( 0.0 );
+	curcour->fgcolor.set( 0.0, 0.0, 0.8 );
+
+	// connexion layout - data
+	curcour->V = Zbuf.data;
+	curcour->qu = Zbuf.size;
+	curcour->scan();	// alors on peut faire un scan
+
+	// invisible par defaut
+	unsigned int ic = curbande->courbes.size() - 1;	// index de ce layer
+	panneau1.set_layer_vis( 0, ic, 0 );
+	}
 }
 
-// layout pour WAV
+// layout pour WAV (in et out)
 void glostru::layout1W()
 {
 panneau1.offscreen_flag = 0;
@@ -992,6 +1029,12 @@ if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 
+switch	( lefir.window_type ) {
+	case 6:
+	case 7:	 lefir.firmode = INTERPOL; break;
+	default: lefir.firmode = ANALYTIC;
+	}
+
 if	( ( F0_rny > 0.0 ) || ( F1_rny > 0.0 ) )
 	{
 	if	( F1_rny == 0.0 )
@@ -1037,15 +1080,14 @@ gtk_entry_set_text( GTK_ENTRY( glo->edesc ), lefir.description );
 retval = glo->fft_on_FIR( lefir.qfir, lefir.FIRbuf );
 if	( retval )
 	gasp(" erreur %d", retval );
-printf("reponse DC = (somme coeffs) / pispan (ou equiv Castro) %g\n", glo->firtotnorm ); 
+printf("reponse DC = (somme coeffs) / pispan (ou equiv Castro) %.10f\n", glo->firtotnorm ); 
 
 glo->layout2();			// afficher FFT
 
 if	( glo->ifnam == NULL )
 	{			// afficher fenetre et RI
+	glo->dc_noise_eval( 500 );
 	glo->layout1();
-	if	( lefir.firmode == ANALYTIC )
-		glo->dc_noise_eval( 500 );
 	}
 else	{			// filtrage audio
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
@@ -1055,9 +1097,7 @@ else	{			// filtrage audio
 	else	{
 		if	( lefir.Kr != 0.0 )
 			{
-			if	( lefir.firmode == ANALYTIC )
-				glo->audiofile_resamp();
-			else	gasp("resample seulement en mode ANALYTIC" );
+			glo->audiofile_resamp();
 			}
 		else	glo->audiofile_filter();
 		glo->layout1W();

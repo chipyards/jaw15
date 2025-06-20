@@ -338,59 +338,99 @@ int general_fir_interpol() {
 	return iend;
 	};	// general_fir()
 
-// calculer 1 sample en resampling, methode analytic
+// calculer 1 sample en resampling, methode analytic ou interpol
 // spos est la position du sample dest par rapport aux index src
 // ismin et ismax sont les limites d'index utilisables dans srcbuf
 // "ref sample" = plus proche sample src a gauche de spos
 double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
-	double khann = 2.0 / qpis;
 	double fis0 = floor(spos);	// index of ref sample in src
 	A0 = (spos-fis0) * dA;		// angle of ref sample
 	int is0 = (int)fis0;		// index of ref sample in src
 	double A_half_span = M_PI * (qpis/2);
 	double sum = 0.0;
-	// right side (incl ref sample @ -A0)
-	double A = -A0;
-	int is = is0;
-	while	( A < A_half_span )
+	if	( firmode == ANALYTIC )
 		{
-		if	( is < ismax )
-			sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
-		A += dA; is++;
+		// right side (incl ref sample @ -A0)
+		double khann = 2.0 / qpis;
+		double A = -A0;	int is = is0;
+		while	( A < A_half_span )
+			{
+			if	( is < ismax )
+				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+			A += dA; is++;
+			}
+		// left side (excl ref sample @ -A0)
+		A = - A0 - dA;	is = is0 - 1;
+		while	( A > (-A_half_span) ) 
+			{
+			if	( is >= ismin )
+				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+			A -= dA; is--;
+			}
 		}
-	// left side (excl ref sample @ -A0)
-	A = - A0 - dA;
-	is = is0 - 1;
-	while	( A > (-A_half_span) ) 
-		{
-		if	( is >= ismin )
-			sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
-		A -= dA; is--;
+	else	{
+		// right side (incl ref sample @ -A0)
+		double A = -A0;	int is = is0;
+		while	( A < A_half_span )
+			{
+			if	( is < ismax )
+				sum += srcbuf[is] * myinterpol( A );
+			A += dA; is++;
+			}
+		// left side (excl ref sample @ -A0)
+		A = - A0 - dA;	is = is0 - 1;
+		while	( A > (-A_half_span) ) 
+			{
+			if	( is >= ismin )
+				sum += srcbuf[is] * myinterpol( A );
+			A -= dA; is--;
+			}
 		}
-	return sum / pispan;
+	// return sum / pispan;
+	return sum;	// l'ajustement a 0dB est differe au niveau superieur a cause de la variante Castro
 	};
 
-// calculer 1 sample de reponse DC, methode analytic
-// le but est de verifier qu'il depend peu (idealement pas) de A0
+// calculer 1 sample de reponse DC, methode analytic ou interpol
+// le but est de verifier que cette reponse depend peu (idealement pas du tout) de A0
 double DCsamp_one() {
-	double khann = 2.0 / qpis;
 	double A_half_span = M_PI * (qpis/2);
 	double sum = 0.0;
-	// right side (incl ref sample @ -A0)
-	double A = -A0;
-	while	( A < A_half_span )
+	if	( firmode == ANALYTIC )
 		{
-		sum += mywindow( khann, A ) * mysinc( A );
-		A += dA;
+		// right side (incl ref sample @ -A0)
+		double khann = 2.0 / qpis;
+		double A = -A0;
+		while	( A < A_half_span )
+			{
+			sum += mywindow( khann, A ) * mysinc( A );
+			A += dA;
+			}
+		// left side (excl ref sample @ -A0)
+		A = - A0 - dA;
+		while	( A > (-A_half_span) ) 
+			{
+			sum += mywindow( khann, A ) * mysinc( A );
+			A -= dA;
+			}
 		}
-	// left side (excl ref sample @ -A0)
-	A = - A0 - dA;
-	while	( A > (-A_half_span) ) 
-		{
-		sum += mywindow( khann, A ) * mysinc( A );
-		A -= dA;
+	else	{
+		// right side (incl ref sample @ -A0)
+		double A = -A0;
+		while	( A < A_half_span )
+			{
+			sum += myinterpol( A );
+			A += dA;
+			}
+		// left side (excl ref sample @ -A0)
+		A = - A0 - dA;
+		while	( A > (-A_half_span) ) 
+			{
+			sum += myinterpol( A );
+			A -= dA;
+			}
 		}
-	return sum / pispan;
+	// return sum / pispan;
+	return sum;	// l'ajustement a 0dB est differe au niveau superieur a cause de la variante Castro
 	};
 
 

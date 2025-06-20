@@ -13,12 +13,6 @@ int fir::generate()
 if	( fabs(A0) >= dA )
 	{ printf("A0 too big %g vs %g\n", A0, dA ); return -43; }
 
-switch	( window_type ) {
-	case 6:
-	case 7:	 firmode = INTERPOL; break;
-	default: firmode = ANALYTIC;
-	}
-
 general_fir_init();
 if	( window_type == 11 )
 	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), relA0 %g, rB %g, window %d Kaiser analytic beta=%g",

@@ -58,8 +58,9 @@ DEMO5/demo5 -Z 32 -P 1.25 -w 11 -B 10.083 -4 -K 1.2 -o DEMO5/resamp1.2.wav DEMO5
 DEMO5/demo5 -Z 32 -P 1.25 -w 11 -B 10.083 -4 -K 0.8 -o DEMO5/resamp0.8.wav DEMO5/lin22k.wav
 DEMO5/demo5 -Z 32 -P 1.25 -w 11 -B 10.083 -4 -K 9.9 -o DEMO5/resamp9.9.wav DEMO5/lin22k.wav
 DEMO5/demo5 -Z 32 -P 1.25 -w 11 -B 10.083 -4 -K 0.11 -o DEMO5/resamp0.11.wav DEMO5/lin22k.wav
-
-
+DEMO5/demo5 -Z 32 -P 1.25 -w 6 -4 -K 1.2 -o DEMO5/resamp1.2i.wav DEMO5/lin22k.wav
+DEMO5/demo5 -Z 32 -P 1.25 -w 4 -4 -K 1.2 -o DEMO5/resamp1.2b.wav DEMO5/lin22k.wav
+rubberband -f 1.2 -T 1.2 DEMO5/lin22k.wav DEMO5/resamp1.2r.wav
 
 
 # passe-bande

@@ -37,6 +37,7 @@ fftw_plan plan;
 
 autobuf <float> Wbuf;	// audio brut a filtrer 
 autobuf <float> Ybuf;	// audio apres filtrage
+autobuf <double> Zbuf;	// buffer pour fluctuation DC
 wavio wavp;		// objet audiofile pour lecture wav
 
 // constructeur
