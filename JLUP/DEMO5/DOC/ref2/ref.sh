@@ -47,6 +47,16 @@ DEMO5/demo5 -Z 32 -F 0.4 -A -0.7 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.3 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.5 -w 4
 DEMO5/demo5 -Z 32 -F 0.4 -A 0.7 -w 4
+# recherche fudge factor de base
+DEMO5/demo5 -Z 32 -P 1.04 -w 0 -6
+DEMO5/demo5 -Z 32 -P 1.11 -w 1 -6
+DEMO5/demo5 -Z 32 -P 1.109 -w 2 -6
+DEMO5/demo5 -Z 32 -P 1.185 -w 3 -6
+DEMO5/demo5 -Z 32 -P 1.25 -w 4 -6
+DEMO5/demo5 -Z 32 -P 1.083 -w 5 -6
+DEMO5/demo5 -Z 32 -P 1.2031 -w 6 -6
+DEMO5/demo5 -Z 32 -P 1.2031 -w 11 -B 10.083 -6
+
 # WAV filtrage
 ../wavgen -t I -b 0 -e 6000 -a 0.8 -d 10 DEMO5/lin6000.wav
 DEMO5/demo5 -Z 32 -r 44100 -f 2000 -g 4000 -w 5
@@ -61,7 +71,24 @@ DEMO5/demo5 -Z 32 -P 1.25 -w 11 -B 10.083 -4 -K 0.11 -o DEMO5/resamp0.11.wav DEM
 DEMO5/demo5 -Z 32 -P 1.25 -w 6 -4 -K 1.2 -o DEMO5/resamp1.2i.wav DEMO5/lin22k.wav
 DEMO5/demo5 -Z 32 -P 1.25 -w 4 -4 -K 1.2 -o DEMO5/resamp1.2b.wav DEMO5/lin22k.wav
 rubberband -f 1.2 -T 1.2 DEMO5/lin22k.wav DEMO5/resamp1.2r.wav
-
+# Lo-Fi pour image
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6
+DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6
+DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6
+DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 1.2 -o DEMO5/resimg1.2.wav DEMO5/carr9.wav
+DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 0.8 -o DEMO5/resimg0.8.wav DEMO5/carr9.wav
+DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 0.101 -o DEMO5/resimg0.101.wav DEMO5/carr9.wav
+DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 9.901 -o DEMO5/resimg9.901.wav DEMO5/resimg0.101.wav
+DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 0.101 -o DEMO5/resimg0.101bis.wav DEMO5/resimg9.901.wav
+DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 9.901 -o DEMO5/resimg9.901bis.wav DEMO5/resimg0.101bis.wav
+DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 0.101 -o DEMO5/ressimg0.101.wav DEMO5/carr9.wav
+DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 9.901 -o DEMO5/ressimg9.901.wav DEMO5/ressimg0.101.wav
+DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 0.101 -o DEMO5/ressimg0.101bis.wav DEMO5/ressimg9.901.wav
+DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 9.901 -o DEMO5/ressimg9.901bis.wav DEMO5/ressimg0.101bis.wav
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 0.101 -o DEMO5/resssimg0.101.wav DEMO5/carr9.wav
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 9.901 -o DEMO5/resssimg9.901.wav DEMO5/resssimg0.101.wav
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 0.101 -o DEMO5/resssimg0.101bis.wav DEMO5/resssimg9.901.wav
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 9.901 -o DEMO5/resssimg9.901bis.wav DEMO5/resssimg0.101bis.wav
 
 # passe-bande
 DEMO5/demo5 -Z 32 -r 44100 -f 4410 -w 4

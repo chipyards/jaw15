@@ -967,6 +967,7 @@ printf("// Usage //\n"
  " -2 zoom horiz limite a 2 Fc\n"
  " -4 zoom horiz limite a 4 Fc\n"
  " -8 zoom horiz limite a 8 Fc\n"
+ " -n no GUI\n"
  "NOTE: -P, -F et -f sont incompatibles\n"
  "      -b, -g, -G transforment passe-bas en passe-bande\n"
  );
@@ -976,8 +977,7 @@ int main( int argc, char *argv[] )
 {
 glostru * glo = &theglo;
 
-gtk_init(&argc,&argv);
-setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
+setlocale( LC_ALL, "C" );       // kill the frog, to be sure
 
 // traiter arguments
 if	( argc < 2 )
@@ -1021,6 +1021,8 @@ if	( lepar->get( 'H' ) )	glo->hscale = 'H';	// echelle frequ Hertz
 if	( lepar->get( '2' ) )	glo->hscale = '2';	// zoom horiz limite a 2 Fc
 if	( lepar->get( '4' ) )	glo->hscale = '4';	// zoom horiz limite a 4 Fc
 if	( lepar->get( '8' ) )	glo->hscale = '8';	// zoom horiz limite a 8 Fc
+
+if	( lepar->get( 'n' ) )	glo->nogui = 1;		// no GUI
 
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
@@ -1067,14 +1069,19 @@ if	( relA0 != 0.0 )
 	lefir.A0 = relA0 * lefir.dA;
 
 // on a fini avec les arguments... on cree une fenetre ?
-
-glo->build_gui();
+if	( glo->nogui == 0 )
+	{
+	gtk_init(&argc,&argv);
+	setlocale( LC_ALL, "C" );       // kill the frog, AFTER gtk_init
+	glo->build_gui();
+	}
 
 // generer FIR
 int retval = lefir.generate();
 if	( retval )
 	gasp(" erreur %d", retval );
-gtk_entry_set_text( GTK_ENTRY( glo->edesc ), lefir.description );
+if	( glo->nogui == 0 )
+	gtk_entry_set_text( GTK_ENTRY( glo->edesc ), lefir.description );
 
 // FFT pour reponse frequentielle
 retval = glo->fft_on_FIR( lefir.qfir, lefir.FIRbuf );
@@ -1082,12 +1089,14 @@ if	( retval )
 	gasp(" erreur %d", retval );
 printf("reponse DC = (somme coeffs) / pispan (ou equiv Castro) %.10f\n", glo->firtotnorm ); 
 
-glo->layout2();			// afficher FFT
+if	( glo->nogui == 0 )
+	glo->layout2();			// afficher FFT
 
 if	( glo->ifnam == NULL )
 	{			// afficher fenetre et RI
 	glo->dc_noise_eval( 500 );
-	glo->layout1();
+	if	( glo->nogui == 0 )
+		glo->layout1();
 	}
 else	{			// filtrage audio
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
@@ -1100,20 +1109,23 @@ else	{			// filtrage audio
 			glo->audiofile_resamp();
 			}
 		else	glo->audiofile_filter();
-		glo->layout1W();
+		if	( glo->nogui == 0 )
+			glo->layout1W();
 		if	( glo->ofnam )
 			// glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
 			glo->audiofile_save( 4, saved_qchan );	// on veut f32, et type sera mis a jour par audiofile_save
 		}
 	}
 
-gtk_widget_show_all( glo->wmain );
-
-glo->idle_id = g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
-// cet id servira pour deconnecter l'idle_call : g_source_remove( glo->idle_id );
-fflush(stdout);
-gtk_main();
-g_source_remove( glo->idle_id );
+if	( glo->nogui == 0 )
+	{
+	gtk_widget_show_all( glo->wmain );
+	glo->idle_id = g_timeout_add( 31, (GSourceFunc)(idle_call), (gpointer)glo );
+	// cet id servira pour deconnecter l'idle_call : g_source_remove( glo->idle_id );
+	fflush(stdout);
+	gtk_main();
+	g_source_remove( glo->idle_id );
+	}
 return(0);
 }
 

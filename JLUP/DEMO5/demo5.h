@@ -21,6 +21,7 @@ gpanel panneau1;	// panneau1 dans darea1
 gzoombar zbar;		// sa zoombar
 gpanel panneau2;	// panneau2 dans darea2
 int idle_id;		// id pour la fonction idle du timeout
+int nogui;
 
 int hscale;		// '6' = relatif Fc a -6dB, 'N' = relatif Nyquist = Fsamp/2, 'H' = Hertz 
 unsigned int Fsamp;	// frequ ech.
@@ -41,7 +42,7 @@ autobuf <double> Zbuf;	// buffer pour fluctuation DC
 wavio wavp;		// objet audiofile pour lecture wav
 
 // constructeur
-glostru() : hscale('N'), Fsamp(44100), ifnam(NULL), ofnam(NULL),
+glostru() : nogui(0), hscale('N'), Fsamp(44100), ifnam(NULL), ofnam(NULL),
 	    qFFT(1<<20), FFTin(NULL), FFTout(NULL), plan(NULL) {};
 
 // methodes
