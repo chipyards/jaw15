@@ -6,9 +6,11 @@ DEMO5/demo5 -Z 32 -P 1.203 -w 11 -B 10.083 -4
 # test interpolation de la RI avec forte decimation
 DEMO5/demo5 -Z 32 -P 3 -w 6 -4
 DEMO5/demo5 -Z 32 -P 3 -w 6 -4 -A 0.5
-DEMO5/demo5 -Z 84 -P 3 -L 22 -w 7 -2 
+
 #DEMO5/demo5 -Z 32 -P 3 -w 11 -B 10.083 -4
 #DEMO5/demo5 -Z 32 -P 3 -w 11 -B 10.083 -4 -A 0.5
+DEMO5/demo5 -Z 84 -P 3 -L 22 -w 7 -2 
+DEMO5/demo5 -Z 84 -P 3 -L 22 -w 11 -B 12.25 -2 
 DEMO5/demo5 -Z 32 -P 33 -w 6 -4
 DEMO5/demo5 -Z 32 -P 33 -w 6 -4 -A 0.5
 DEMO5/demo5 -Z 32 -P 33 -w 11 -B 10.083 -4

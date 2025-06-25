@@ -35,8 +35,16 @@ if	( FENbuf == NULL )
 // calcul coeffs
 if	( firmode == ANALYTIC )
 	general_fir();
-else	general_fir_interpol();
-
+else	{
+	if	( firmode != CASTROL )
+		{
+		deftable.data = (double *)malloc( (deftable.qtable+1) * sizeof(double) );
+		if	( deftable.data == NULL )
+			{ printf("malloc failed\n"); return -1; }
+		general_fir_table( &deftable );
+		}
+	general_fir_interpol();
+	}
 fflush(stdout);
 return 0;
 }

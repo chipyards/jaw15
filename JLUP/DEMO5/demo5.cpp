@@ -349,8 +349,8 @@ fftw_execute( plan );
 // calcul magnitudes sur place (FFTout contient des valeurs complexes)
 unsigned int a = 0; double k;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
-	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
+	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
 else	k = 1.0 / lefir.pispan;						// cas "normal"
 // passe-bande
 if	( lefir.rB > 0.0 )
@@ -464,8 +464,8 @@ if	( wavp.realpfr > Ybuf.capa )
 int i, j, j0, k;
 double sum, K;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
-	K = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
+	K = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
 else	K = 1.0 / lefir.pispan;						// cas "normal"
 // passe-bande
 if	( lefir.rB > 0.0 )
@@ -524,8 +524,8 @@ printf("resampling: %s par %g, %d output samples\n", ((lefir.Kr>1)?("decimation"
 
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
 double k;
-if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
-	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
+	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
 else	k = 1.0 / lefir.pispan;						// cas "normal"
 
 // la boucle va "tirer" chaque sample dest,
@@ -557,8 +557,8 @@ double DCmin = 2000000000.0;
 double DCmax = 0.0;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
 double k;
-if	( lefir.castro_inc )	// interpolation sur table castro (coeffs denormalises)
-	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].table[0] );
+if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
+	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
 else	k = 1.0 / lefir.pispan;						// cas "normal"
 
 // boucle principale
@@ -942,7 +942,8 @@ printf("// Usage //\n"
  " -P pispan = taille de PI en samples pour calcul RI\n"
  " -Z qpis = taille de RI en PIs\n"
  " -w fenetre 0 = rect, etc...\n"
- " -B param de la fentre de Kaiser\n"
+ " -B param Beta de la fenetre de Kaiser\n"
+ " -i taille table pour interpolation des coeffs\n"
 "Radian:\n"
  " -a A0 decalage du centre de la RI (rd/samp)\n"
  " -d dA increment angulaire(rd/samp)\n"
@@ -982,7 +983,7 @@ setlocale( LC_ALL, "C" );       // kill the frog, to be sure
 // traiter arguments
 if	( argc < 2 )
 	{ usage(); return 0; }
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBadbAFGrfgKoc" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBiadbAFGrfgKoc" );
 const char * val;
 int qFFTlog = 20;
 unsigned int saved_qchan = 1;
@@ -992,12 +993,15 @@ double F1_rny = 0.0;
 glo->Fsamp = 44100;
 double F0_Hz  = 0.0;
 double F1_Hz  = 0.0;
+int qtable = 0;
 
 if	( ( val = lepar->get( 'L' ) ) )	qFFTlog = atoi( val );			// log de fftsize
 if	( ( val = lepar->get( 'P' ) ) )	lefir.pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
 if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );	// 0 = rect, etc...
-if	( ( val = lepar->get( 'B' ) ) )	lefir.Kbeta = strtod( val, NULL );	// param de la fentre de Kaiser
+if	( ( val = lepar->get( 'B' ) ) )	lefir.Kbeta = strtod( val, NULL );	// param Beta de la fenetre de Kaiser
+if	( ( val = lepar->get( 'i' ) ) )	qtable = atoi( val );			// taille table pour interpolation
+
 
 if	( ( val = lepar->get( 'a' ) ) )	lefir.A0 = strtod( val, NULL );		// A0 decalage du centre de la RI (rd)
 if	( ( val = lepar->get( 'd' ) ) )	lefir.dA = strtod( val, NULL );		// dA increment angulaire (rd/samp)
@@ -1033,8 +1037,14 @@ glo->qFFT = 1 << qFFTlog;
 
 switch	( lefir.window_type ) {
 	case 6:
-	case 7:	 lefir.firmode = INTERPOL; break;
-	default: lefir.firmode = ANALYTIC;
+	case 7:	 lefir.firmode = CASTROL; break;
+	default: lefir.firmode = ((qtable)?(INTERPOL):(ANALYTIC));
+	}
+
+if	( lefir.firmode == INTERPOL )
+	{
+	lefir.deftable.qtable = qtable;
+	lefir.deftable.qpis = lefir.qpis;
 	}
 
 if	( ( F0_rny > 0.0 ) || ( F1_rny > 0.0 ) )

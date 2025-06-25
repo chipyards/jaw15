@@ -2,31 +2,29 @@
 
 typedef struct {
 	int qpis;	// 4 * cycles
-	int qtable;	// sommet inclus
-	const double * table;
-	int incr;
-	} castrable;
+	int qtable;	// taille de moitie RI, sommet inclus
+	double * data; // doit avoir la capacite pour qtable+1 coeffs, pour effet de bord ambigu
+	} firtable;
 
 // data from demo5_coeff.h
-const castrable castroz[] = {
-	{ 4*8, sizeof(fastest_coeffs.coeffs) / sizeof(double), fastest_coeffs.coeffs, fastest_coeffs.increment },
-	{ 4*21, sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double), slow_mid_qual_coeffs.coeffs, slow_mid_qual_coeffs.increment }
+const firtable castroz[] = {
+	{ 4*8, sizeof(fastest_coeffs.coeffs) / sizeof(double), (double *)fastest_coeffs.coeffs },
+	{ 4*21, sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double), (double *)slow_mid_qual_coeffs.coeffs }
 	};
 
-enum firmode_t { ANALYTIC, INTERPOL };
+enum firmode_t { ANALYTIC, INTERPOL, CASTROL };
 
 class fir {
 public:
 double pispan;		// taille de PI dans la reponse impulsionnelle
 unsigned int qpis;	// nombre de fois pi dans le sinc de la RI, dit "nombre de zeros
-unsigned int castro_inc;// increment unitaire dans la reponse impulsionnelle pour Castro (i.e. Kaiser)
 unsigned int qfir;	// taille de la reponse impulsionnelle ( cnt_left + cnt_right )
 unsigned int cnt_left;	// part de qfir a gauche du coeff de ref (exclus)
 unsigned int cnt_right;	// part de qfir a droite du coeff de ref (inclus)
 double A0;		// decalage angulaire du coeff "central" -dA < A0 < dA
 double dA;		// increment angulaire (rd/samp)
 int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 5=Lanczos, 11=kaiser
-firmode_t firmode;	// ANALYTIC ou INTERPOL
+firmode_t firmode;	// ANALYTIC, INTERPOL, CASTROL
 double a0;		// coeff pour calcul fenetres 0..4
 double a1;
 double a2;
@@ -37,12 +35,18 @@ double * FENbuf;	// fenetre
 double * FIRbuf;	// impulse response
 double rB;		// passe-bande : reponse translatee (rd/samp)
 double Kr;		// resampling Kr > 1 <==> decimation
+firtable deftable;	// default table for interpol 
+double i_A_half_span;	// cache pour alleger myinterpol
+double i_k;		// cache pour alleger myinterpol
+double * i_table;	// cache pour alleger myinterpol
+int i_qtable;		// cache pour alleger myinterpol
 char description[128];
 
 // constructeur
-fir() : pispan(1.0), qpis(4), castro_inc(0), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
+fir() : pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
 	window_type(0), firmode(ANALYTIC), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
-	FENbuf(NULL), FIRbuf(NULL), rB(0.0), Kr(0.0) { mJ0Kbeta = mJ0( Kbeta ); };
+	FENbuf(NULL), FIRbuf(NULL), rB(0.0), Kr(0.0),
+	i_A_half_span(0.0), i_k(0.0), i_qtable(0) { mJ0Kbeta = mJ0( Kbeta ); };
 
 // methodes
 
@@ -54,22 +58,27 @@ double mysinc( double A ) {
 	return ( sin(A) / A );
 	};
 
-// interpolation sur table, pour le moment celles de Castro
+// interpolation, pour le moment, supporte window_type 6 & 7
+// tbl = &castroz[window_type-6];
+void init_interpol_caches( firtable * tbl ) {
+	// caches pour alleger myinterpol
+	i_A_half_span = M_PI * (tbl->qpis/2);
+	i_k = double(tbl->qtable-1) / i_A_half_span;
+	i_table = tbl->data;
+	i_qtable = tbl->qtable;
+	}
+// interpolation sur table (necessite init_interpol_caches)
 double myinterpol( double A ) {
-	// pour le moment, supporte window_type 6 & 7
-	const castrable * cas = &castroz[window_type-6];
-	double A_half_span = M_PI * (cas->qpis/2);
-	double k = double(cas->qtable-1) / A_half_span;
 	A = fabs(A);	// symetrie pour pas cher !
-	double dindex = k * A;
+	double dindex = i_k * A;
 	// interpolation
 	double di = floor(dindex);
 	double df = dindex - di;
 	int i = (int)di; 
 	double C0, C1;
-	C0 = cas->table[i++];
-	if	( i < cas->qtable )
-		C1 = cas->table[i];
+	C0 = i_table[i++];
+	if	( i < i_qtable )	// A SUPPRIMER avec table etendue
+		C1 = i_table[i];
 	else	C1 = C0;
 	double C = C0 + ( (C1-C0) * df ); 
 	return C;
@@ -173,12 +182,12 @@ double mywindow( double khann, double A ) {
 // le filtrage n'a pas besoin de ce calcul preliminaire, on le fait pour avoir la longueur qfir
 // en vue d'allouer le buffer pour stockage des coeffs
 void general_fir_init() {
-	if	( firmode == INTERPOL )
+	if	( firmode == CASTROL )
 		{
-		// pour le moment, supporte window_type 6 & 7
-		const castrable * cas = &castroz[window_type-6];
+		// mode interpolation sur table codee en dur, supporte window_type 6 & 7
+		firtable * cas = (firtable *)&castroz[window_type-6];
 		qpis = cas->qpis;
-		castro_inc = cas->incr;
+		init_interpol_caches( cas );
 		}
 	double A_half_span = M_PI * (qpis/2);
 	// methode 1 : calcul analytique
@@ -284,9 +293,34 @@ int general_fir() {
 		printf("suspect: anomalie droite cnt = %d vs %d\n", iend, qfir );
 	return iend;
 	};	// general_fir()
-
-// echantillonner une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire
-// en vue FFT pour eval reponse, et filtrage simple (methode interpolation sur table)
+// creer une table de RI destinee a l'interpolation (demi-table en fait)
+// basee sur l'objet firtable fourni (qui doit avoir la memoire allouee), et le choix de window_type courant
+void general_fir_table( firtable * tbl ) {
+	init_window();
+	double khann = 2.0 / tbl->qpis;
+	double k = M_PI * (tbl->qpis/2) / ( tbl->qtable-1 );
+	double A;
+	for	( int i = 0; i < tbl->qtable; i++ )
+		{
+		A = (double)i * k;
+		tbl->data[i] = mywindow( khann, A ) * mysinc( A );
+		}
+	tbl->data[tbl->qtable] = 0.0;	// coeff supplementaire en cas d'ambiguite sur le bord
+	init_interpol_caches( tbl );
+	// auto-critique : evaluation de la qualite d'interpolation
+	double err, maxerr = 0.0;
+	for	( int i = 0; i < (tbl->qtable - 1); i++ )
+		{
+		A = ( 0.5 + (double)i ) * k;
+		err = fabs( myinterpol(A) - mywindow( khann, A ) * mysinc( A ) );
+		if	( maxerr < err )
+			maxerr = err;
+		}
+	double dBval = 20.0 * log10(maxerr);
+	printf("verif table de %d coeffs : max interpolation err = %g (%g dB)\n", tbl->qtable, maxerr, dBval );
+	}
+// interpoler sur table une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire
+// en vue FFT pour eval reponse, et filtrage simple
 int general_fir_interpol() {
 	double A = -A0;		// angle of ref sample
 	int i = cnt_left;
@@ -346,12 +380,12 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 	double fis0 = floor(spos);	// index of ref sample in src
 	A0 = (spos-fis0) * dA;		// angle of ref sample
 	int is0 = (int)fis0;		// index of ref sample in src
-	double A_half_span = M_PI * (qpis/2);
 	double sum = 0.0;
 	if	( firmode == ANALYTIC )
 		{
-		// right side (incl ref sample @ -A0)
+		double A_half_span = M_PI * (qpis/2);
 		double khann = 2.0 / qpis;
+		// right side (incl ref sample @ -A0)
 		double A = -A0;	int is = is0;
 		while	( A < A_half_span )
 			{
@@ -371,7 +405,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 	else	{
 		// right side (incl ref sample @ -A0)
 		double A = -A0;	int is = is0;
-		while	( A < A_half_span )
+		while	( A < i_A_half_span )
 			{
 			if	( is < ismax )
 				sum += srcbuf[is] * myinterpol( A );
@@ -379,7 +413,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 			}
 		// left side (excl ref sample @ -A0)
 		A = - A0 - dA;	is = is0 - 1;
-		while	( A > (-A_half_span) ) 
+		while	( A > (-i_A_half_span) ) 
 			{
 			if	( is >= ismin )
 				sum += srcbuf[is] * myinterpol( A );
@@ -393,12 +427,12 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 // calculer 1 sample de reponse DC, methode analytic ou interpol
 // le but est de verifier que cette reponse depend peu (idealement pas du tout) de A0
 double DCsamp_one() {
-	double A_half_span = M_PI * (qpis/2);
 	double sum = 0.0;
 	if	( firmode == ANALYTIC )
 		{
-		// right side (incl ref sample @ -A0)
+		double A_half_span = M_PI * (qpis/2);
 		double khann = 2.0 / qpis;
+		// right side (incl ref sample @ -A0)
 		double A = -A0;
 		while	( A < A_half_span )
 			{
@@ -416,14 +450,14 @@ double DCsamp_one() {
 	else	{
 		// right side (incl ref sample @ -A0)
 		double A = -A0;
-		while	( A < A_half_span )
+		while	( A < i_A_half_span )
 			{
 			sum += myinterpol( A );
 			A += dA;
 			}
 		// left side (excl ref sample @ -A0)
 		A = - A0 - dA;
-		while	( A > (-A_half_span) ) 
+		while	( A > (-i_A_half_span) ) 
 			{
 			sum += myinterpol( A );
 			A -= dA;
