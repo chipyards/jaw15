@@ -2,138 +2,59 @@
 	Experiences sur le "filtre passe bas ideal" base sur le sinus cardinal
 	et l'application au resampling a bande limitee (interpolation et decimation)
 
-- theoreme : le filtre ideal est un filtre dont la reponse impulsionnelle finie est la fonction sinc( k * i )
-  avec k = 2 * pi * (Fc/Fsamp)
-       k = pi / pispan, avec pispan = ( Fsamp / 2 ) / Fc = "intervalle entre deux zeros de sinc"
+Ce programme rend les services suivants :
 
-- cas limite : pispan = 1 <==> Fc = Fsamp/2 = limite de Nyquist
-  Un tel filtre ne sert a rien pour filtrer un signal incident, mais il a un sens pour faire de l'interpolation
-  en limitant le bruit d'interpolation a la limite de Nyquist.
-  En pratique on prendra toujours pispan > 1
+1) calcul des coeffs d'un filtre FIR base sur le sinus cardinal et une fenetre choisie parmi
+   plusieurs formules classiques, visualisation de la fenetre et de la réponse impulsionnelle fenetree
+	- ce calcul peut appliquer un offset A0 (nul par defaut), dans le but d'évaluer l'impact (idéalement nul)
+	  de cet offset sur la réponse du filtre
+	- il supprime chaque coeff extreme si nul
+   le calcul est disponible en 2 modes :
+	- ANALYTIC : les calculs utilisent les fonctions trigo standard
+	- INTERPOL : les coeffs calculés analytiquement sont stockés en grand nombre dans une demi-table,
+	  puis la RI demandée est calculée en extrayant les coeffs de la table avec interpolation.
+	  Le but de ce mode est d'évaluer une opportunité d'accélération du filtrage et du resampling.
+	  Ce mode est activé avec l'option -i qui introduit la taille (arbitraire) de la demi-table.
+	  Une évaluation de l'erreur d'interpolation (pire cas) est affichée dans le terminal
+	  Une variante du mode INTERPOL est le mode CASTROL, qui au lieu de générer une table utilise verbatim
+	  une parmi deux tables de libsamplerate de Erik de Castro Lopo, alors qpis est imposé (32 ou 84).
+	  Cette variante est activée pour les fenêtres 8 et 9.
 
-- filtre imparfait : on se limite a une reponse impulsionnelle finie symetrique, avec eventuellement un fenetrage
+2) calcul et affichage de la réponse frequentielle de ce filtre obtenue par FFT
+   l'axe de fréquence offre 3 options de graduation :
+	- fréquence normalisée Fn relative à la fréquence de Nyquist Fsamp/2,  de 0 a 1 (option -N)
+	- fréquence relative à la fréquence Fc de coupure à -6dB, de 0 a pispan (option -6)
+	- fréquence en Hz, pour la frequ. d'échantillonnage courante (defaut 44100Hz) (option -H)
+   Il y a aussi 3 options de zoom : -2, -4, -8 pour un largeur de 2, 4 ou 8 fois Fc 
+   Ces 6 options sont aussi accessibles a chaud avec les touches N, H, 6, 2, 4, 8
 
-EXPERIENCE 1 : FT de la reponse impulsionnelle finie = reponse frequentielle
+3) calculs annexes :
+	- réponse DC en fonction de A0 : la fluctuation de cette réponse est un effet parasite distinct des
+	  non idéalités visibles sur la réponse fréquentielle, et se traduit par des signaux parasites présents
+	  sur les signaux de basse fréquence ou DC non nul (n'impacte que le resampling)
+	  La courbe est dispo dans le panel superieur (cachée par defaut), l'amplitude de la fluctuation est
+	  affichée dans le terminal
 
-- amplitude : on doit diviser le module de la transformee par pispan pour reponse DC a 0dB
-  (l'integrale de sinc correspond a un rectangle de largeur pispan)
+4) filtrage de fichier WAV :
+	- utilise les coeffs du 1), en mode ANALYTIC ou INTERPOL
+	- activé si présence d'un nom de fichier source valide
+	- alors les waveforms in et out sont affichées dans le panel sup à la place de la RI
+	- le résultat est sauvé sur disk si un nom de fichier de sortie est fourni
 
-- frequence : dans le cas ideal la transition est attendue à l'abcisse a = fftsize / ( 2 * pispan ) 
-  (en effet Fc = a * (Fsamp/fftsize) = Fsamp * 1 / ( 2 * pispan ) )
-  On peut donc demander a jluplot une echelle en frequence relative à l'ideal
-
-- incidence de la longueur de la reponse impulsionnelle qfir = 1 + pispan * qpis (@ pispan = 777) (sans fenetre)
-
-	qpis		stopband 1st zero	niveau 1ere bosse
-	5		1.24			0.106
-	6		1.21			0.0751
-	10		1.125			0.0803
-	10.5		1.122			0.0897
-	11		1.112			0.098
-	20		1.0625			0.085
-	30		1.0422			0.086
-	31		1.0407			0.093
-	40		1.0318			0.087
-  conclusion : l'ecart entre Fc et le premier zero est inversement proportionnel a qpis.
-  de plus la transition passe par Fc toujours pres de 0.5 (-6dB)
-  la largeur totale de la transition (de 1.0 a 0) est 25% pour qpis=10, 6.3% pour qpis=40
-  La premiere bosse depend des conditions aux bords, toujours pire avec qpis impair
-
-- fenetrage  (@ pispan = 777)
-
-	qpis   fenetre		stopband 1st zero	niveau 1ere bosse
-	10	rect		1.125			-21.9
-	10	hann		1.336			-44.0 dB
-	10	hamming		1.346			-51.7
-	10	blackman	1.56 @ -75 dB		-75.6
-	10	b-harris	1.66 @ -75 dB		n.a.
-
-	20	rect		1.063			-21.4
-	20	hann		1.167			-44.0 dB
-	20	hamming		1.175			-52.7
-	20	blackman	1.28 @ -75 dB		-75.4
-	20	b-harris	1.34 @ -75 dB		n.a.
-
-	30	rect		1.042			-21.3
-	30	hann		1.113			-44
-	30	hamming		1.117			-53.1
-	30	blackman	1.187 @ -75 dB		-75.3
-	30	b-harris	1.228 @ -75 dB		n.a.
-
-La transition intercepte toujours Fc à -6dB !
-Le niveau DC n'est pas affecté par la fenetre, aucune correction n'est requise !
-Le premier zéro est inexistant avec Blackman et Blackman-Harris, on le remplace par un seuil arbitraire
-L'écart entre Fc et le premier zero est toujours inversement proportionnel a qpis,
-mais il est tres augmente par la fenetre (presque triple avec Hamming).
-
-- coefficients herites de github.com/libsndfile/libsamplerate (Mr Castro)
-
-  On ajoute a l'experience deux type de fenetre, dont les reponses impulsionnelles sont calcules avec Octave
-  (un outil style Matlab) par application de fenetre Kaiser sur sinc.
-  On ne sait pas traduire cela en C, alors on teste deux filtres pre-calcules vus dans libsamplerate.
-  Alors pispan est impose par Castro.
-	qpis   filtre		stopband @ -75 dB    stopband @-100dB	pispan		inc	fudge factor
-	32	fast		1.188			1.200		153.9375	128	1.2026
-	84	mid_qual	1.082			1.090		534.2143	491	1.0880
-  La transition intercepte toujours Fc à -6dB !
-  La reponse est similaire à blackman @ qpis = 32 de 0 a -75 dB
-  Notes sur les parametres :
-	- Castro ne stocke qu'une demi-table qui commence au top du sinc (commun aux 2 moities donc)
-	- Castro ne donne pas pispan, on le lit directement comme distance entre les zeros sur les data
-	- Castro ne donne pas qpis mais cycles = qpis/4 (nombre de 2PI dans un demi-FIR)
-	- Castro definit un increment < pispan, qui est l'increment utilise pour prendre les coeffs dans la table
-	  avec coupure à Fsamp/2 au niveau voulu t.q. -100dB pour le fast plutot que -6dB qu'on aurait avec
-	  increment = pispan, i.e. deplacer le filtre vers la gauche ("fudge factor"), en fonction de l'attenuation desiree.
-	  On observe exactement -100dB @ 1.202 pour le fast, mieux que 120dB pour le mid_qual
-	  Rappel : en 16 bits signes, le bruit de quantification est a -90.3dB
-	  Castro fixe l'increment en premier, et utilise son script Octave pour determiner le fudge factor
-	  (par approximations successives) et en deduire pispan pour calculer le sinc.
-	- Castro pre-divise les coeffs par le fudge factor pour que l'amplitude soit Ok avec l'increment
-	  (pour comparer avec les autres fenetres, nous remultiplions)
-
-- filtrage passe-bande : on multiplie simplement la reponse impulsionnelle par une fonction cosinus
-  pour translater la reponse frequentielle sur l'axe F de B * Fc.
-  A cet effet la periode du cos est 1/B fois celle du sin inclus dans le sinc.
-  La reponse est abaissee de 6dB, mais B < 1.0 la reponse presente un "bump" a 0dB
-  Le programme corrige les -6dB pour B > 1.0
-
-- arguments de la ligne de commande le l'experience 1 (avec les valeurs par defaut) :
-	-L 20	log de fftsize
-	-P 512	pispan = taille de PI en samples pour calcul sinc
-	-Z 6 	nombre de zeros (doit etre pair)
-	-w 0 	0 = rect, etc...
-	-B 0.0	translation band_center * Fc
-  N.B. les normalisations effectuees sur la reponse frequentielles neutralisent l'effet de fftsize et pispan (-L et -P)
-  ces deux params influent sur la qualite du rendu.
-
-  exemple: comparaison entre blackman et castro 'fast' @ qpis = 32
-	./demo5 -P 153.9375 -Z 32 -w 3 
-	./demo5 -Z 32 -w 8
-  N.B. avec -w 8 (castro), pispan est fixe a 153.969, -P serait ignore
-
-  exemple: passe-bande, reponse de 1.5 Fc a 3.5 Fc (la bande a une largeur 2 Fc)
-	./demo5 -P 6 -Z 32 -w 3 -B 2.5
-
-EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
-
-- on utilise un signal echantillonne a fsamp, on le filtre avec la reponse impulsionnelle de taille qfir,
-  on s'attend a une coupure Fc = fsamp/(2*pispan)
-  exemple fsamp = 44100, pispan = 154 ==> fc = 143 Hz
-	  fsamp = 44100, pispan = 50.1136 ==> fc = 440 Hz
-- a chaque extremite du signal, les qfir/2 echantillons manquants sont remplaces par des zeros 
-
-- arguments de la ligne de commande 
-	-o ""	fichier de sortie sauve
-	-c 1	nombre de canaux sauves : 2 -> stereo {L=src, R=filtered}, 1 -> mono filtered
-		(N.B. si le fichier d'entree est stereo, seul canal L est traite)
-  exemple : passe-bande  [2205 Hz 5145 Hz] largeur 2940 Hz, resultat dans fichier mono 
-	./demo5 -Z 32 -P 15 -w 3 -B 2.5 ../../JAW/WAV/logipoS.wav -o pipo.wav
-  N.B. accepte fichier 16 bits ou 32 bits, sauve idem
+5) resampling de fichier WAV
+	- en mode ANALYTIC, n'utilise pas les coeffs du 1), mais les recalcule a chaud (car A0 varie)
+	- en mode INTERPOL, utilise la table du 1)
+	- activé si présence d'un nom de fichier source valide et de l'option -K suivie de la valeur de Kr
+	  Kr = Fs / Fd, tel que si Kr > 1, on a decimation, ou augmentation de la frequence apparente
+	  si le fichier est joué à la meme Fsamp que l'original
+	- alors les waveforms in et out sont affichées dans le panel sup à la place de la RI
+	- le résultat est sauvé sur disk si un nom de fichier de sortie est fourni
 
 - Note sur la resolution :
 	- les RI sont stockees en double
 	- la FFT est effectuee en double
-	- filtrage wav : chaque sample est calcule en double puis stocke en float
+	- la résolution fréquentielle de la FFT est configurable indépendamment (1048576 points par defaut)
+	- filtrage et resampling wav : chaque sample est calcule en double puis stocke en float
 - Note sur traitement audiofile :
 	- la classe wavio (wavio.h, wavio.cpp) assure lecture et ecriture du header WAV, et des data brutes
 	  cette classe est derivee de la classe audiofile qui est juste une interface (tout y est virtuel)
@@ -143,6 +64,62 @@ EXPERIENCE 2 : filtrage d'un signal arbiraire (fichier WAV)
 	  demo5 convertit tout en f32 a la lecture, et ne retient que le canal L.
 	- demo5 stocke le fichier entier dans 2 buffers f32 Wbuf (src) et Ybuf (filtered) de la classe autobuf (autobuf.h)
 	- demo5 sauve le resultat toujours en f32 (cependant audiofile_save() saurait convertir f32 en s16le si on voulait)
+
+- notations
+		qfir	= nombre de coeffs
+		qpis	= nombre d'intervalles d'angle PI (qui est justement le nombre de zeros car il en manque un au milieu)
+		pispan	= demi-periode du sinc exprimee en Tsamp = Fsamp/2Fc	(s'agissant de Fc à 6dB)
+			= distance en samples entre deux zeros de sinc (peut etre fractionnaire, alors les zeros sont virtuels)
+		dA	= intervalle (en radian) entre les coeffs prélevés dans sinc(A)
+		A0	= offset (en radian)
+		Fc	= frequence de coupure à -6dB
+		Fcn	= frequence de coupure normalisée (relative Nyquist) = Fc/(Fsamp/2)
+- formulaire
+		dA	= 2PI * Fc / Fsamp	= PI/pispan		= PI * Fcn
+		pispan	= (Fsamp/2) / Fc	= PI/dA 		= 1/Fcn
+		Fc	= (Fsamp/2)/pispan	= (dA/2PI)/Fsamp	= Fcn * (Fsamp/2)
+		Fcn	= 1/pispan		= dA/PI 		= Fc/(Fsamp/2)
+--------------------------------------------------------------------------------------------------------------
+petit resumé de la theorie de bandlimited interpolation (sinc resampling) :
+- le filtre sinc :
+	- un filtre passe-bas ideal est le produit de convolution par la fonction sinc(A),
+	  sa frequence de coupure theorique Fc est celle dont la periode est egale a la periode du sin dans sinc(A)
+	- si le signal est échantillonné, on aura seulement besoin d'échantillons de la fonction sinc(A), separes par
+	  un intervalle dA = 2 * PI * ( Fc / Fsamp )
+	  on peut aussi definir pispan = "longueur de PI en Tsamp" = PI/dA = Fsamp/2Fc
+	- l'implementation sous forme de filtre FIR va impliquer une RI (réponse impulsionnelle) à support borné,
+	  dont les non-idéalités pourront être atténuées par un fenetrage (bien centré sur le sinc)
+	- on intuite qu'il est bon d'aligner les bornes de ce support sur les zeros de sinc, en definissant
+		qpis = nombre (pair) d'intervalles de valeur PI, t.q le support va de -(qpis*PI)/2 à +(qpis*PI)/2
+	- alors on observe qu'a la coupure Fc, l'attenuation du signal est -6dB (par rapport a la reponse DC),
+	  pour toutes les fenetres usuelles y compris la rectangulaire
+	- en augmentant qpis on augmente la pente de part et d'autre de Fc, tendant vers l'ideal
+	- on observe des "bosses" dans la bande atténuée, qui ne dependent pas ou peu de qpis (-21dB pour la fenetre rect!)
+	- les fenetres servent a abaisser ces bosses, au prix d'une dégradation de la pente
+- l'interpolateur ideal :
+	- la théorie (Shannon) dit que le filtrage ideal à Fsamp/2 a le pouvoir de reconstituer le signal "originel" a partir d'échantillons,
+	  si ce signal originel avait lui-meme une bande limitée à Fsamp/2 avant d'être échantillonné.
+	- avec un filtrage non-ideal, on devra abaisser Fc en dessous de Fsamp/2 pour que l'attenuation a Fsamp/2 soit meilleure que 6dB  
+	  au prix d'un sacrifice bande passante utile. On traduira cela par un coeff > 1 dit "fudge_factor" = (Fsamp/2)/Fc
+	  (Le fudge factor est arbitraire, un compromis entre anti-aliasing et bande passante, qui depend aussi de la fenetre et de qpis)
+- l'application au resampling :
+	- dans le cas général, les instants d'échantillonnage du signal DEST tombent "entre" les échantillons du signal SRC, on peut alors
+	  calculer chacun avec un filtre FIR, en plaçant le "sommet" de ce filtre (A=0) entre les échantillons, ce qui revient à décaler
+	  les échantillons pris sur la fonction sinc(A) fenetrée d'un offset A0 (par convention, |A0| < dA)
+	- ce qui est admirable, c'est que la réponse fréquentielle (en module) n'est pas altérée par cet offset
+	  (si on néglige quelques non-idéalités subtiles)
+	- 2 situations de resampling sont a considerer, notons les 2 frequ. d'echantillonnage Fs (src) et Fd (dest) :
+	  le filtre soit couper à la plus basse des deux limites de Nyquist, Fd ou Fs 
+		- interpolation ( upsampling : Fd > Fs ) :
+		  le filtre doit couper a Fs/2 et les echantillons a filtrer sont à Fs
+		  ==> dA est indépendant de Fd/Fs) et pispan = fudge factor
+		- decimation ( downsampling : Fd < Fs ) :
+		  le filtre doit couper a Fd/2 et les echantillons a filtrer sont à Fs
+		  ==> dA est multiplié par Fd/Fs, pispan = fudge factor * Fs/Fd
+		  le nombre de produits est plus grand, le filtrage est plus couteux
+	- Contrairement a un filtrage simple, le resampling ne peut pas utiliser une table de coeffs calculee a l'avance,
+	  a moins d'avoir une table suréchantillonnée dans laquelle on pique des coeffs approches en temps réel, en faisant ou pas
+	  une interpolation lineaire
 */
 #include <gdk/gdkkeysyms.h>  
 #include <gtk/gtk.h>
