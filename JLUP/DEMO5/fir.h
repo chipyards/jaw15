@@ -6,16 +6,14 @@ typedef struct {
 	double * data; // doit avoir la capacite pour qtable+1 coeffs, pour effet de bord ambigu
 	} firtable;
 
-// data from demo5_coeff.h
-const firtable castroz[] = {
-	{ 4*8, sizeof(fastest_coeffs.coeffs) / sizeof(double), (double *)fastest_coeffs.coeffs },
-	{ 4*21, sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double), (double *)slow_mid_qual_coeffs.coeffs }
-	};
-
 enum firmode_t { ANALYTIC, INTERPOL, CASTROL };
 
 class fir {
 public:
+static constexpr firtable castroz[2] = {	// data from demo5_coeff.h
+	{ 4*8, sizeof(fastest_coeffs.coeffs) / sizeof(double), (double *)fastest_coeffs.coeffs },
+	{ 4*21, sizeof(slow_mid_qual_coeffs.coeffs) / sizeof(double), (double *)slow_mid_qual_coeffs.coeffs }
+	};
 double pispan;		// taille de PI dans la reponse impulsionnelle
 unsigned int qpis;	// nombre de fois pi dans le sinc de la RI, dit "nombre de zeros
 unsigned int qfir;	// taille de la reponse impulsionnelle ( cnt_left + cnt_right )
@@ -34,7 +32,7 @@ double mJ0Kbeta;	// pre-calcul de mJ0(Kbeta)
 double * FENbuf;	// fenetre
 double * FIRbuf;	// impulse response
 double rB;		// passe-bande : reponse translatee (rd/samp)
-double Kr;		// resampling Kr > 1 <==> decimation
+double Kr;		// coeff resampling t.q.  Kr > 1 <==> decimation
 firtable deftable;	// default table for interpol 
 double i_A_half_span;	// cache pour alleger myinterpol
 double i_k;		// cache pour alleger myinterpol
@@ -172,6 +170,17 @@ double mywindow( double khann, double A ) {
 		}
 	return fen;
 	};
+
+// coeff a appliquer a la convolution (ou aux coeffs) pour ramener la reponse DC a 1.0 (0dB)
+double getK0() {
+	double K0;
+	if	( firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
+		K0 = 1.0 / ( pispan * castroz[window_type-6].data[0] );
+	else	K0 = 1.0 / pispan;	// cas "normal"
+	if	( rB > 0.0 )	// passe-bande
+		K0 *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
+	return K0;
+	}
 
 // preparer general_fir(), pour avoir qfir pret pour alloc memoire
 // Note 1 : A0 est le déplacement angulaire du sommet du sinc par rapport a un sample voisin

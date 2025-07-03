@@ -149,6 +149,7 @@ using namespace std;
 #include "../autobuf.h"
 #include "../wavio.h"	// il inclut audiofile.h lui-meme
 #include "fir.h"
+#include "imago.h"
 #include "demo5.h"
 
 // unique variable globale exportee pour gasp() de modpop3
@@ -324,14 +325,9 @@ for	( unsigned int i = firsize; i < qFFT; ++i )
 fftw_execute( plan );
 
 // calcul magnitudes sur place (FFTout contient des valeurs complexes)
-unsigned int a = 0; double k;
+unsigned int a = 0;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
-	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
-else	k = 1.0 / lefir.pispan;						// cas "normal"
-// passe-bande
-if	( lefir.rB > 0.0 )
-	k *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
+double k = lefir.getK0();
 // le calcul
 for	( unsigned int j = 0; j <= qFFT/2; ++j )
 	{
@@ -441,14 +437,8 @@ if	( wavp.realpfr > Ybuf.capa )
 int i, j, j0, k;
 double sum, K;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
-	K = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
-else	K = 1.0 / lefir.pispan;						// cas "normal"
-// passe-bande
-if	( lefir.rB > 0.0 )
-	K *= 2;	// bandes gauche et droite ne se recouvrent plus, on perd 6dB !
-
-j0 = (lefir.qfir-1)/ 2;	// qfir est impair
+K = lefir.getK0();
+j0 = (lefir.qfir-1)/ 2;	// qfir est impair (sauf si A0 != 0.0)
 for	( i = 0; i < (int)wavp.realpfr; ++i )
 	{
 	sum = 0.0;
@@ -500,10 +490,7 @@ Ybuf.size = Ybuf.capa;
 printf("resampling: %s par %g, %d output samples\n", ((lefir.Kr>1)?("decimation"):("interpolation")), lefir.Kr, Ybuf.size );
 
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-double k;
-if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
-	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
-else	k = 1.0 / lefir.pispan;						// cas "normal"
+double k = lefir.getK0();
 
 // la boucle va "tirer" chaque sample dest,
 // resamp_one() va tirer les sample src selon ses besoins, en gerant les bord sans debordement
@@ -533,10 +520,7 @@ double dA0 = lefir.dA / cnt;
 double DCmin = 2000000000.0;
 double DCmax = 0.0;
 // ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-double k;
-if	( lefir.firmode == CASTROL )	// interpolation sur table castro (coeffs denormalises)
-	k = 1.0 / ( lefir.pispan * castroz[lefir.window_type-6].data[0] );
-else	k = 1.0 / lefir.pispan;						// cas "normal"
+double k = lefir.getK0();
 
 // boucle principale
 for	( int i = 0; i < (int)cnt; i++ )
@@ -933,10 +917,10 @@ printf("// Usage //\n"
  " -r Fsamp en Hz\n"
  " -f frequence de coupure ou min en Hz\n"
  " -g frequence max bande en Hz (incompat. -P, -F)\n"
-"Filtrage WAV:\n"
+"Filtrage WAV ou PNG:\n"
  " -K coeff de resampling ( Kr > 1 ==> decimation )\n"
  " -o output file\n"
- " -c channels in saved file\n"
+ " -c channels in saved file (1 ou 2 pour WAV, 3 pour PNG)\n"
  " <input file> (sinon, seulement FFT)\n"
 "Echelle horiz. frequence (aussi au clavier a chaud)\n"
  " -6 rel Fc a -6dB\n"
@@ -1008,7 +992,7 @@ if	( lepar->get( 'n' ) )	glo->nogui = 1;		// no GUI
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
 if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) ||
-	  ( lefir.Kbeta > 13.0 ) || ( saved_qchan > 2 ) )
+	  ( lefir.Kbeta > 13.0 ) || ( saved_qchan > 3 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 
@@ -1079,29 +1063,43 @@ printf("reponse DC = (somme coeffs) / pispan (ou equiv Castro) %.10f\n", glo->fi
 if	( glo->nogui == 0 )
 	glo->layout2();			// afficher FFT
 
-if	( glo->ifnam == NULL )
-	{			// afficher fenetre et RI
-	glo->dc_noise_eval( 500 );
-	if	( glo->nogui == 0 )
-		glo->layout1();
-	}
-else	{			// filtrage audio
+// possible traitement sur fichiers d'échantillons, declenche par la presence de glo->ifnam
+if	( glo->ifnam )
+	{
 	printf("fichier a traiter: %s\n", glo->ifnam ); fflush(stdout);
-	retval = glo->audiofile_load( 1 );
-	if	( retval )
-		glo->ifnam = NULL;	// abandon lecture fichier
-	else	{
-		if	( lefir.Kr != 0.0 )
-			{
-			glo->audiofile_resamp();
+	if	( saved_qchan < 3 )
+		{			// // // traitement audio // // //
+		retval = glo->audiofile_load( 1 );
+		if	( retval )
+			{ printf("echec lecture fichier audio\n"); exit(1); }	// abandon
+		else	{
+			if	( lefir.Kr != 0.0 )
+				glo->audiofile_resamp();
+			else	glo->audiofile_filter();
+			if	( glo->nogui == 0 ) glo->layout1W();	// visu waves
+			if	( glo->ofnam )
+				// glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
+				glo->audiofile_save( 4, saved_qchan );	// on veut f32, et type sera mis a jour par audiofile_save
 			}
-		else	glo->audiofile_filter();
-		if	( glo->nogui == 0 )
-			glo->layout1W();
-		if	( glo->ofnam )
-			// glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
-			glo->audiofile_save( 4, saved_qchan );	// on veut f32, et type sera mis a jour par audiofile_save
 		}
+	else	{			// // // traitement image // // //
+		if	( glo->nogui == 0 ) glo->layout1();		// visu fenetre et RI
+		imago limag;
+		retval = limag.read( glo->ifnam );
+		if	( retval )
+			{ printf("echec lecture fichier image\n"); exit(1); }	// abandon
+		else	{
+			if	( lefir.Kr != 0.0 )
+				limag.filter( &lefir );
+			else	limag.filter( &lefir );
+			if	( glo->ofnam )
+				limag.save_png( glo->ofnam );
+			}
+		}
+	}
+else	{
+	glo->dc_noise_eval( 500 );
+	if	( glo->nogui == 0 ) glo->layout1();			// visu fenetre et RI
 	}
 
 if	( glo->nogui == 0 )
