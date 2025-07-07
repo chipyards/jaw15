@@ -14,8 +14,6 @@ if	( pix1 )
 pix1 = gdk_pixbuf_new_from_file( fnam, NULL);
 if	( pix1 == NULL )
 	return 1;
-w1 = gdk_pixbuf_get_width(pix1);
-h1 = gdk_pixbuf_get_height(pix1);
 return 0;
 }
 
@@ -30,18 +28,12 @@ else	{ printf("NOT saved %s\n", fnam ); fflush(stdout); return 1; }
 return 0;
 }
 
-// traitement pix1 -> pix2 derive de SCANMAN
-int imago::filter( fir * zefir )
+// filtrage 2D , une composante à la fois, chacune en 2 etapes orthogonales
+void imago::filter( fir * zefir )
 	{
-	// GdkPixbuf * tmp1;	// image tmp
-	// pix2 = gdk_pixbuf_copy( pix1 );	// faire une copie pour ne pas ecraser pix1
-	// printf("copy done...");
-	// pix2 = gdk_pixbuf_rotate_simple( pix1, (GdkPixbufRotation)90 );
-	// printf("rotation done...");
-
+	lefir = zefir;
 // src pixbuf
-	unsigned int sw, sh, sch, sstride,
-		     sx, sy, sa;
+	unsigned int sw, sh, sch, sstride;
 	unsigned char * sdata;
 	sw = gdk_pixbuf_get_width( pix1 );
 	sh = gdk_pixbuf_get_height( pix1 );
@@ -49,8 +41,7 @@ int imago::filter( fir * zefir )
 	sstride = gdk_pixbuf_get_rowstride( pix1 );
 	sdata = gdk_pixbuf_get_pixels( pix1 );
 // dst pixbuf
-	unsigned int dw, dh, dch, dstride,
-		     dx, dy, da;
+	unsigned int dw, dh, dch, dstride;
 	unsigned char * ddata;
 	dw = sw;
 	dh = sh;
@@ -60,91 +51,47 @@ int imago::filter( fir * zefir )
 	dstride = gdk_pixbuf_get_rowstride( pix2 );
 	ddata = gdk_pixbuf_get_pixels( pix2 );
 	if	( ddata == NULL )
-		return -1;
-// buffers pour filtrage
-	unsigned int span = dw;
-	if	( span < dh ) span = dh;
-	if	( span < sw ) span = sw;
-	if	( span < sh ) span = sh;
-	double * Sbuf = (double *)malloc( span * sizeof(double) );
-	if	( Sbuf == NULL )
-		return -2;
-// process
-	int lumy;
-	/* scan ligne par ligne */
-	for	( dy = 0; dy < dh; ++dy )
+		{ printf("gdk_pixbuf_new() failed\n"); exit(1); }
+// deux buffers en double pour ping-pong
+	if	( Abuf ) free( Abuf );
+	Abuf = (double *)malloc( sw * sh * sizeof(double) );
+	if	( Abuf == NULL )
+		{ printf("malloc fails\n"); exit(1); }
+	if	( Bbuf ) free( Bbuf );
+	Bbuf = (double *)malloc( sw * sh * sizeof(double) );
+	if	( Bbuf == NULL )
+		{ printf("malloc fails\n"); exit(1); }
+// boucle des components R, G, B
+	for	( int ic = 0; ic < 3; ic++ )
 		{
-		sy = dy;
-		// remplissage buffer source
-		for	( sx = 0; sx < sw; ++sx )
+		// copier le plan src dans Abuf
+		unsigned int di = 0;
+		for	( unsigned int y = 0; y < sh; ++y )
 			{
-			sa = sy * sstride + sx * sch;
-			lumy = sdata[sa] + sdata[sa+1]+ sdata[sa+2];
-			lumy /= 3;
-			Sbuf[sx] = double(lumy-128);	// 0.0 pour gris median
-			}
-		// filtrage
-		// ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-		double K = zefir->getK0();
-		int j, j0, k;
-		double sum;
-		j0 = (zefir->qfir-1)/ 2;	// qfir est impair (sauf si A0 != 0.0)
-		for	( dx = 0; dx < dw; ++dx )
-			{
-			sum = 0.0;
-			for	( j = 0; j < (int)zefir->qfir; ++j )
+			for	( unsigned int x = 0; x < sw; ++x )
 				{
-				k = dx + j - j0 ;
-				if	( ( k >= 0 ) && ( k < (int)sw ) )
-					sum += Sbuf[k] * zefir->FIRbuf[j];
+				unsigned int a = y * sstride + x * sch + ic;
+				Abuf[di++] = double(sdata[a]-128);	// 0.0 pour gris median
 				}
-			int isum = 128 + round( sum * K );
-			if	( isum < 0 ) isum = 0;
-			if	( isum > 255 ) isum = 255;
-			da = dy * dstride + dx * dch;
-			ddata[da] = (unsigned char)isum;
-			ddata[da+1] = ddata[da+2] = ddata[da];
 			}
-		printf("y"); fflush(stdout);
-		}
-	//*/
-	/* scan colonne par colonne *
-	for	( dx = 0; dx < dw; ++dx )
-		{
-		sx = dx;
-		// remplissage buffer source
-		for	( sy = 0; sy < sh; ++sy )
+		// filtrer horizontalement de Abuf vers Bbuf
+		filter_one_planeH( Bbuf, Abuf, sw, sh );
+		// filtrer verticalement de Bbuf vers Abuf
+		filter_one_planeV( Abuf, Bbuf, sw, sh );
+		// copier Abuf dans le plan dest
+		unsigned int si = 0;
+		for	( unsigned int y = 0; y < dh; ++y )
 			{
-			sa = sy * sstride + sx * sch;
-			lumy = sdata[sa] + sdata[sa+1]+ sdata[sa+2];
-			lumy /= 3;
-			Sbuf[sy] = double(lumy-128);	// 0.0 pour gris median
-			}
-		// filtrage
-		// ici un coeff pour ramener la reponse DC a 1.0 (0dB)
-		double K = zefir->getK0();
-		int j, j0, k;
-		double sum;
-		j0 = (zefir->qfir-1)/ 2;	// qfir est impair (sauf si A0 != 0.0)
-		for	( dy = 0; dy < dh; ++dy )
-			{
-			sum = 0.0;
-			for	( j = 0; j < (int)zefir->qfir; ++j )
+			for	( unsigned int x = 0; x < dw; ++x )
 				{
-				k = dy + j - j0 ;
-				if	( ( k >= 0 ) && ( k < (int)sh ) )
-					sum += Sbuf[k] * zefir->FIRbuf[j];
+				unsigned int a = y * dstride + x * dch + ic;
+				int val = 128 + (int)round(Abuf[si++]);	// 128 pour gris median
+				// int val = 128 + (int)round(Bbuf[si++]);	// 128 pour gris median
+				if	( val < 0 ) val = 0;
+				if	( val > 255 ) val = 255;
+				ddata[a] = val;
 				}
-			int isum = 128 + round( sum * K );
-			if	( isum < 0 ) isum = 0;
-			if	( isum > 255 ) isum = 255;
-			da = dy * dstride + dx * dch;
-			ddata[da] = (unsigned char)isum;
-			ddata[da+1] = ddata[da+2] = ddata[da];
 			}
-		printf("x"); fflush(stdout);
 		}
-	//*/
 	printf("image filtering done...\n");
-	return 0;
 	}

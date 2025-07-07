@@ -39,7 +39,7 @@ Ce programme rend les services suivants :
 	- utilise les coeffs du 1), en mode ANALYTIC ou INTERPOL
 	- activé si présence d'un nom de fichier source valide
 	- alors les waveforms in et out sont affichées dans le panel sup à la place de la RI
-	- le résultat est sauvé sur disk si un nom de fichier de sortie est fourni
+	- le résultat est sauvé sur disk en f32 si un nom de fichier de sortie est fourni
 
 5) resampling de fichier WAV
 	- en mode ANALYTIC, n'utilise pas les coeffs du 1), mais les recalcule a chaud (car A0 varie)
@@ -48,7 +48,15 @@ Ce programme rend les services suivants :
 	  Kr = Fs / Fd, tel que si Kr > 1, on a decimation, ou augmentation de la frequence apparente
 	  si le fichier est joué à la meme Fsamp que l'original
 	- alors les waveforms in et out sont affichées dans le panel sup à la place de la RI
-	- le résultat est sauvé sur disk si un nom de fichier de sortie est fourni
+	- le résultat est sauvé sur disk en f32 si un nom de fichier de sortie est fourni
+
+6) filtrage d'image PNG :
+	- 2 passes de filtrage 1D, horizontale (ligne par ligne), puis verticale (colonne par colonne)
+	- le filtrage 1D est semblable a celui du WAV, sauf le traitement des bords (duplication au lieu de zero)
+	- utilise les coeffs du 1), en mode ANALYTIC ou INTERPOL
+	- activé si -c 3 et présence d'un nom de fichier source valide
+	- accepte image monochrome ou RGB 
+	- le résultat est sauvé sur disk en PNG RBG si un nom de fichier de sortie est fourni
 
 - Note sur la resolution :
 	- les RI sont stockees en double
@@ -280,7 +288,7 @@ switch	( v )
 	//
 	case 'p' :
 		char fnam[32], capt[128];
-		snprintf( fnam, sizeof(fnam), "demo2.2.pdf" );
+		snprintf( fnam, sizeof(fnam), "demo5.pdf" );
 		modpop_entry( "PDF plot", "nom du fichier", fnam, sizeof(fnam), GTK_WINDOW(glo->wmain) );
 		snprintf( capt, sizeof(capt), "plot XY" );
 		modpop_entry( "PDF plot", "description", capt, sizeof(capt), GTK_WINDOW(glo->wmain) );
@@ -1090,7 +1098,7 @@ if	( glo->ifnam )
 			{ printf("echec lecture fichier image\n"); exit(1); }	// abandon
 		else	{
 			if	( lefir.Kr != 0.0 )
-				limag.filter( &lefir );
+				{ printf("image resampling not yet done\n"); exit(1); }
 			else	limag.filter( &lefir );
 			if	( glo->ofnam )
 				limag.save_png( glo->ofnam );
