@@ -433,6 +433,64 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 	return sum;	// l'ajustement a 0dB est differe au niveau superieur a cause de la variante Castro
 	};
 
+// equivalent de resamp_one pour image, utilise sstride en plus
+// calculer 1 sample en resampling, methode analytic ou interpol
+// spos est la position du sample dest dans le referentiel geometrique src (X ou Y)
+// ismin et ismax sont les limites d'index de la ligne dans le referentiel buffer (avec stride)
+// "ref sample" = plus proche sample src a gauche de spos (ismin correspond au zero de spos)
+// aux bords si necessaire le dernier sample est duplique
+double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int sstride ) {
+	double fis0 = floor(spos);		// index of ref sample in src (X ou Y)
+	A0 = (spos-fis0) * dA;			// angle of ref sample
+	int is0 = ismin + sstride * (int)fis0;	// index of ref sample in srcbuf
+	double sum = 0.0;
+	if	( firmode == ANALYTIC )
+		{
+		double A_half_span = M_PI * (qpis/2);
+		double khann = 2.0 / qpis;
+		// right side (incl ref sample @ -A0)
+		double A = -A0;	int is = is0;
+		while	( A < A_half_span )
+			{
+			if	( is < ismax )
+				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+			else	sum += srcbuf[ismax-sstride] * mywindow( khann, A ) * mysinc( A );
+			A += dA; is += sstride;
+			}
+		// left side (excl ref sample @ -A0)
+		A = - A0 - dA;	is = is0 - 1;
+		while	( A > (-A_half_span) ) 
+			{
+			if	( is >= ismin )
+				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+			else	sum += srcbuf[ismin] * mywindow( khann, A ) * mysinc( A );
+			A -= dA; is -= sstride;
+			}
+		}
+	else	{
+		// right side (incl ref sample @ -A0)
+		double A = -A0;	int is = is0;
+		while	( A < i_A_half_span )
+			{
+			if	( is < ismax )
+				sum += srcbuf[is] * myinterpol( A );
+			else	sum += srcbuf[ismax-sstride] * myinterpol( A );
+			A += dA; is += sstride;
+			}
+		// left side (excl ref sample @ -A0)
+		A = - A0 - dA;	is = is0 - 1;
+		while	( A > (-i_A_half_span) ) 
+			{
+			if	( is >= ismin )
+				sum += srcbuf[is] * myinterpol( A );
+			else	sum += srcbuf[ismin] * myinterpol( A );
+			A -= dA; is -= sstride;
+			}
+		}
+	// return sum / pispan;
+	return sum;	// l'ajustement a 0dB est differe au niveau superieur a cause de la variante Castro
+	};
+
 // calculer 1 sample de reponse DC, methode analytic ou interpol
 // le but est de verifier que cette reponse depend peu (idealement pas du tout) de A0
 double DCsamp_one() {

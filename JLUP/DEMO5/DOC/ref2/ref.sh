@@ -108,3 +108,7 @@ DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 9.901 -o DEMO5/resssimg9.901bis.wav DEMO5/res
 
 # filtrage image png
 DEMO5/demo5 -Z 8 -P 5 -w 5 -6 -c 3 -o DEMO5/za_P5.png DEMO5/za_fs.png
+# resampling image png
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 5 -o DEMO5/za_K5.png DEMO5/za_fs.png
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 0.5 -o DEMO5/za_K0.5.png DEMO5/za_fs.png
+

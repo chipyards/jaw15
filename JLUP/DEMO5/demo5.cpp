@@ -43,7 +43,7 @@ Ce programme rend les services suivants :
 
 5) resampling de fichier WAV
 	- en mode ANALYTIC, n'utilise pas les coeffs du 1), mais les recalcule a chaud (car A0 varie)
-	- en mode INTERPOL, utilise la table du 1)
+	- en mode INTERPOL, utilise la table du 1), mais interpole a chaud
 	- activé si présence d'un nom de fichier source valide et de l'option -K suivie de la valeur de Kr
 	  Kr = Fs / Fd, tel que si Kr > 1, on a decimation, ou augmentation de la frequence apparente
 	  si le fichier est joué à la meme Fsamp que l'original
@@ -55,6 +55,15 @@ Ce programme rend les services suivants :
 	- le filtrage 1D est semblable a celui du WAV, sauf le traitement des bords (duplication au lieu de zero)
 	- utilise les coeffs du 1), en mode ANALYTIC ou INTERPOL
 	- activé si -c 3 et présence d'un nom de fichier source valide
+	- accepte image monochrome ou RGB 
+	- le résultat est sauvé sur disk en PNG RBG si un nom de fichier de sortie est fourni
+
+7) resampling d'image PNG :
+	- en mode ANALYTIC, n'utilise pas les coeffs du 1), mais les recalcule a chaud (car A0 varie)
+	- en mode INTERPOL, utilise la table du 1), mais interpole a chaud
+	- activé si -c 3, option -K suivie de la valeur de Kr, et présence d'un nom de fichier source valide
+	- 2 passes de resampling 1D, horizontale (ligne par ligne), puis verticale (colonne par colonne)
+	- le filtrage 1D est semblable a celui du WAV, sauf le traitement des bords (duplication au lieu de zero)
 	- accepte image monochrome ou RGB 
 	- le résultat est sauvé sur disk en PNG RBG si un nom de fichier de sortie est fourni
 
@@ -1098,7 +1107,7 @@ if	( glo->ifnam )
 			{ printf("echec lecture fichier image\n"); exit(1); }	// abandon
 		else	{
 			if	( lefir.Kr != 0.0 )
-				{ printf("image resampling not yet done\n"); exit(1); }
+				limag.resamp( &lefir );
 			else	limag.filter( &lefir );
 			if	( glo->ofnam )
 				limag.save_png( glo->ofnam );
