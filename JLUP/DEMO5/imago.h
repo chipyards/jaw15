@@ -4,10 +4,11 @@ GdkPixbuf * pix1;	// image originale
 GdkPixbuf * pix2;	// image retouchee
 double * Abuf;		// buffer image entiere 1 composante
 double * Bbuf;		// buffer image entiere 1 composante 
+double * Cbuf;		// buffer image entiere 1 composante 
 fir * lefir;		// proxy pour le filtre
 
 // constructeur
-imago() : pix1(NULL), pix2(NULL), Abuf(NULL), Bbuf(NULL) {
+imago() : pix1(NULL), pix2(NULL), Abuf(NULL), Bbuf(NULL), Cbuf(NULL) {
 	};
 
 // filtrer une ligne (verticale ou horizontale), tout en double

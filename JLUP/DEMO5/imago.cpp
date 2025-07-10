@@ -125,18 +125,18 @@ void imago::resamp( fir * zefir )
 	ddata = gdk_pixbuf_get_pixels( pix2 );
 	if	( ddata == NULL )
 		{ printf("gdk_pixbuf_new() failed\n"); exit(1); }
-// deux buffers en double pour ping-pong, pour 1 composante
-	unsigned int bw = sw;
-	if	( bw < dw ) bw = dw;	// max( sw, dw )
-	unsigned int bh = sh;
-	if	( bh < dh ) bh = dh;	// max( sh, dh )
+// 3 buffers en double, pour 1 composante
 	if	( Abuf ) free( Abuf );
-	Abuf = (double *)malloc( bw * bh * sizeof(double) );
+	Abuf = (double *)malloc( sw * sh * sizeof(double) );
 	if	( Abuf == NULL )
 		{ printf("malloc fails\n"); exit(1); }
 	if	( Bbuf ) free( Bbuf );
-	Bbuf = (double *)malloc( bw * bh * sizeof(double) );
+	Bbuf = (double *)malloc( dw * sh * sizeof(double) );
 	if	( Bbuf == NULL )
+		{ printf("malloc fails\n"); exit(1); }
+	if	( Cbuf ) free( Bbuf );
+	Cbuf = (double *)malloc( dw * dh * sizeof(double) );
+	if	( Cbuf == NULL )
 		{ printf("malloc fails\n"); exit(1); }
 // correction pour decimation (abaissement de la bande passante) :
 	if	( lefir->Kr > 1 )
@@ -158,15 +158,15 @@ void imago::resamp( fir * zefir )
 		// resampler horizontalement de Abuf vers Bbuf
 		resamp_one_planeH( Bbuf, Abuf, dw, sw, sh );
 		// filtrer verticalement de Bbuf vers Abuf
-		resamp_one_planeV( Abuf, Bbuf, dw, dh, sh );
-		// copier Abuf dans le plan dest
+		resamp_one_planeV( Cbuf, Bbuf, dw, dh, sh );
+		// copier Cbuf dans le plan dest
 		unsigned int si = 0;
 		for	( unsigned int y = 0; y < dh; ++y )
 			{
 			for	( unsigned int x = 0; x < dw; ++x )
 				{
 				unsigned int a = y * dstride + x * dch + ic;
-				int val = 128 + (int)round(Abuf[si++]);	// 128 pour gris median
+				int val = 128 + (int)round(Cbuf[si++]);	// 128 pour gris median
 				if	( val < 0 ) val = 0;
 				if	( val > 255 ) val = 255;
 				ddata[a] = val;

@@ -55,7 +55,8 @@ int audiofile_resamp();
 int audiofile_save( int monosamplesize, int qchan );
 
 void layout1();
-void layout1W();
+void layout1wav();
+void layout1img(imago * limag);
 void update_f_scale();
 void layout2();
 void build_gui();

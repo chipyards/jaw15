@@ -64,7 +64,10 @@ Ce programme rend les services suivants :
 	- activé si -c 3, option -K suivie de la valeur de Kr, et présence d'un nom de fichier source valide
 	- 2 passes de resampling 1D, horizontale (ligne par ligne), puis verticale (colonne par colonne)
 	- le filtrage 1D est semblable a celui du WAV, sauf le traitement des bords (duplication au lieu de zero)
-	- accepte image monochrome ou RGB 
+	- accepte image monochrome ou RGB
+	- les valeurs de pixel in et out sont affichées dans le panel sup à la place de la RI, en fonction de X
+	  pour la ligne Y = H/2 de l'image originale, composante B, apres resampling horizontal
+	  (avant resampling vertical, ecretage [0-255] et quantification 8 bits)
 	- le résultat est sauvé sur disk en PNG RBG si un nom de fichier de sortie est fourni
 
 - Note sur la resolution :
@@ -711,7 +714,7 @@ if	( Zbuf.size )
 }
 
 // layout pour WAV (in et out)
-void glostru::layout1W()
+void glostru::layout1wav()
 {
 panneau1.offscreen_flag = 0;
 
@@ -763,6 +766,64 @@ curcour->qu = Ybuf.size;
 retval = curcour->make_lods( 4, 4, 2000 );
 if	( retval )
 	{ gasp("echec make_lods err %d", retval ); }
+}
+
+// layout pour IMG (in et out) ligne centrale de la derniere composante (B)
+void glostru::layout1img(imago * limag)
+{
+panneau1.offscreen_flag = 0;
+
+// creer le strip
+gstrip * curbande;
+curbande = new gstrip;
+panneau1.add_strip( curbande );
+
+// configurer le strip
+curbande->bgcolor.set( 0.90, 0.95, 1.0 );
+curbande->Ylabel = "val";
+curbande->optX = 1;
+curbande->subtk = 1;
+
+// creer un layer
+layer_u<double> * curcour;
+curcour = new layer_u<double>;
+curbande->add_layer( curcour, "src" );
+
+// configurer le layer
+curcour->set_km( 1.0 );			// sets APRES add_layer
+curcour->set_m0( 0.0 );
+curcour->set_kn( 1.0 );
+curcour->set_n0( 0.0 );
+curcour->fgcolor.set( 0.75, 0.0, 0.0 );
+
+// connexion layout - data
+int sw = gdk_pixbuf_get_width( limag->pix1 );
+int sy = gdk_pixbuf_get_height( limag->pix1 ) / 2;	// milieu
+curcour->V = limag->Abuf + sy * sw;
+curcour->qu = sw;
+curcour->scan();	// alors on peut faire un scan
+
+curcour = new layer_u<double>;
+curbande->add_layer( curcour, "resu" );
+
+// configurer le layer
+curcour->set_km( 1.0 );
+curcour->set_m0( 0.0 );
+curcour->set_kn( 1.0 );
+curcour->set_n0( 0.0 );
+curcour->fgcolor.set( 0.0, 0.0, 0.8 );
+
+// connexion layout - data
+// N.B. on prend le resu apres resampling horizontal
+// pour visualiser le resampling 1D sur une ligne avant que les lignes bougent
+int dw = gdk_pixbuf_get_width( limag->pix2 );
+curcour->V = limag->Bbuf + sy * dw;
+curcour->qu = dw;
+curcour->scan();	// alors on peut faire un scan
+
+// echelle verticale n = ( r - r0 ) * kr
+curbande->kr = 1.0;
+curbande->r0 = 128.0;
 }
 
 // echelle graduations axe horizontal sortie FFT  
@@ -1093,22 +1154,27 @@ if	( glo->ifnam )
 			if	( lefir.Kr != 0.0 )
 				glo->audiofile_resamp();
 			else	glo->audiofile_filter();
-			if	( glo->nogui == 0 ) glo->layout1W();	// visu waves
+			if	( glo->nogui == 0 ) glo->layout1wav();	// visu wav
 			if	( glo->ofnam )
 				// glo->audiofile_save( glo->wavp.monosamplesize, saved_qchan );
 				glo->audiofile_save( 4, saved_qchan );	// on veut f32, et type sera mis a jour par audiofile_save
 			}
 		}
 	else	{			// // // traitement image // // //
-		if	( glo->nogui == 0 ) glo->layout1();		// visu fenetre et RI
 		imago limag;
 		retval = limag.read( glo->ifnam );
 		if	( retval )
 			{ printf("echec lecture fichier image\n"); exit(1); }	// abandon
 		else	{
 			if	( lefir.Kr != 0.0 )
+				{
 				limag.resamp( &lefir );
-			else	limag.filter( &lefir );
+				if	( glo->nogui == 0 ) glo->layout1img(&limag);	// visu pixels
+				}
+			else	{
+				limag.filter( &lefir );
+				if	( glo->nogui == 0 ) glo->layout1();		// visu fenetre et RI
+				}
 			if	( glo->ofnam )
 				limag.save_png( glo->ofnam );
 			}
