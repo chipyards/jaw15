@@ -458,7 +458,7 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 			A += dA; is += sstride;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;	is = is0 - 1;
+		A = - A0 - dA;	is = is0 - sstride;
 		while	( A > (-A_half_span) ) 
 			{
 			if	( is >= ismin )
@@ -478,7 +478,7 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 			A += dA; is += sstride;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;	is = is0 - 1;
+		A = - A0 - dA;	is = is0 - sstride;
 		while	( A > (-i_A_half_span) ) 
 			{
 			if	( is >= ismin )

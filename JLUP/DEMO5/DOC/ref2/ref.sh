@@ -111,4 +111,7 @@ DEMO5/demo5 -Z 8 -P 5 -w 5 -6 -c 3 -o DEMO5/za_P5.png DEMO5/za_fs.png
 # resampling image png
 DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 5 -o DEMO5/za_K5.png DEMO5/za_fs.png
 DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 0.5 -o DEMO5/za_K0.5.png DEMO5/za_fs.png
-
+# resampling image png (BUG found on vertical stripes, FIXED)
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 1.3 -o DEMO5/rgb1.3.png DEMO5/rgb.png
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 1.23 -o DEMO5/rgb1.23.png DEMO5/rgb.png
+DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 1.34 -o DEMO5/rgb1.34.png DEMO5/rgb.png
