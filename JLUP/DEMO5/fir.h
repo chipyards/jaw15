@@ -29,6 +29,9 @@ double a2;
 double a3;
 double Kbeta;		// specifique Kaiser, beta = PI * alpha
 double mJ0Kbeta;	// pre-calcul de mJ0(Kbeta)
+double spB;		// specifique cubic spline selon Mitchell
+double spC;		// specifique cubic spline
+double spK[8];		// precalcul polynomes pour cubic spline
 double * FENbuf;	// fenetre
 double * FIRbuf;	// impulse response
 double rB;		// passe-bande : reponse translatee (rd/samp)
@@ -43,20 +46,40 @@ char description[128];
 // constructeur
 fir() : pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
 	window_type(0), firmode(ANALYTIC), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
-	FENbuf(NULL), FIRbuf(NULL), rB(0.0), Kr(0.0),
-	i_A_half_span(0.0), i_k(0.0), i_qtable(0) { mJ0Kbeta = mJ0( Kbeta ); };
+	spB(0.3), spC(0.3), FENbuf(NULL), FIRbuf(NULL), rB(0.0), Kr(0.0),
+	i_A_half_span(0.0), i_k(0.0), i_qtable(0) {};
 
 // methodes
 
-// calcul de coefficients en fonction de l'angle A, pour RI "continue"
-// A = 0 au centre 
+// calcul de coefficient en fonction de l'angle A, pour RI "continue"
+// A = 0 au centre
 double mysinc( double A ) {
 	if	( fabs(A) < 1e-6 )
 		return 1.0;
 	return ( sin(A) / A );
 	};
-
-// interpolation, pour le moment, supporte window_type 6 & 7
+// calcul de coefficient en fonction de l'angle A, utilisant cubic BC splines
+// n'a d'interet que pour qpis = 4
+double myspline( double A ) {
+	A = fabs( A );
+	if	( A <= M_PI )		// |x| < 1
+		return( ( ( spK[3] * A + spK[2] ) * A          ) * A + spK[0] );
+	else if	( A < ( 2.0 * M_PI ) )	// 1 < |x| < 2
+		return( ( ( spK[7] * A + spK[6] ) * A + spK[5] ) * A + spK[4] );
+	else	return 0.0;
+	}
+// precalcul des coeffs de polynome cubique pour myspline
+void init_spline() {
+	spK[3] = (  12.0 -  9.0 * spB -  6.0 * spC ) / ( 6.0 * M_PI * M_PI * M_PI ); 
+	spK[2] = ( -18.0 + 12.0 * spB +  6.0 * spC ) / ( 6.0 * M_PI * M_PI ); 
+	spK[1] = 0.0;
+	spK[0] = (   6.0 -  2.0 * spB              ) / ( 6.0 );
+	spK[7] = (              - spB -  6.0 * spC ) / ( 6.0 * M_PI * M_PI * M_PI );
+	spK[6] = (          6.0 * spB + 30.0 * spC ) / ( 6.0 * M_PI * M_PI );
+	spK[5] = (       - 12.0 * spB - 48.0 * spC ) / ( 6.0 * M_PI ); 
+	spK[4] = (          8.0 * spB + 24.0 * spC ) / ( 6.0 ); 
+	}
+// interpolation
 // tbl = &castroz[window_type-6];
 void init_interpol_caches( firtable * tbl ) {
 	// caches pour alleger myinterpol
@@ -133,7 +156,8 @@ void init_window() {	// Lanczos needs nothing here, but Kaiser does
 		case 2: a0 = 0.54	; a1 =  0.46	; a2 =  0.0	; a3 =  0.0	; break; // hamming
 		case 3: a0 = 0.42	; a1 =  0.50	; a2 =  0.08	; a3 =  0.0	; break; // blackman
 		case 4: a0 = 0.35875	; a1 =  0.48829	; a2 =  0.14128	; a3 =  0.01168	; break; // blackmanharris
-		case 11: mJ0Kbeta = mJ0( Kbeta ); 					  break; // Kaiser analytic							
+		case 11: mJ0Kbeta = mJ0( Kbeta );					  break; // Kaiser analytic
+		case 12: init_spline();					  		  break; // cubic spline (n'a pas de fentre en fait)
 		default:a0 = 1.0	; a1 =  0.0	; a2 =  0.0	; a3 =  0.0	;        // rect
 		}
 	};
@@ -257,42 +281,60 @@ int general_fir() {
 	int i = cnt_left;
 	double A_half_span = M_PI * (qpis/2);
 	// right side (incl ref sample @ -A0)
-	if	( rB == 0.0 )
-		while	( A < A_half_span )
-			{
-			if	( i >= (int)qfir )
-				{ printf("note: evitage debordement fir a droite\n"); break; }
-			FENbuf[i] = mywindow( khann, A );
-			FIRbuf[i] = FENbuf[i] * mysinc( A );
-			A += dA; i++;
-			}
-	else	while	( A < A_half_span )
+	if	( rB != 0.0 )
+		while	( A < A_half_span )		// cas special passe-bande
 			{
 			if	( i >= (int)qfir )
 				{ printf("note: evitage debordement fir a droite\n"); break; }
 			FENbuf[i] = mywindow( khann, A );
 			FIRbuf[i] = FENbuf[i] * mysinc( A ) * mycos( A, rB );
+			A += dA; i++;
+			}
+	else if	( window_type == 12 )			// cas special cubic spline
+		while	( A < A_half_span )
+			{
+			if	( i >= (int)qfir )
+				{ printf("note: evitage debordement fir a droite\n"); break; }
+			FENbuf[i] = 0.0;
+			FIRbuf[i] = myspline( A );
+			A += dA; i++;
+			}
+	else	while	( A < A_half_span )		// cas "normaux"
+			{
+			if	( i >= (int)qfir )
+				{ printf("note: evitage debordement fir a droite\n"); break; }
+			FENbuf[i] = mywindow( khann, A );
+			FIRbuf[i] = FENbuf[i] * mysinc( A );
 			A += dA; i++;
 			}
 	int iend = i;
 	// left side (excl ref sample @ -A0)
 	A = - A0 - dA;
 	i = cnt_left - 1;
-	if	( rB == 0.0 )
-		while	( A > (-A_half_span) ) 
-			{
-			if	( i < 0 )
-				{ printf("note: evitage debordement fir a gauche\n"); break; }
-			FENbuf[i] = mywindow( khann, A );
-			FIRbuf[i] = FENbuf[i] * mysinc( A );
-			A -= dA; i--;
-			}
-	else	while	( A > (-A_half_span) ) 
+	if	( rB != 0.0 )
+		while	( A > (-A_half_span) )		// cas special passe-bande 
 			{
 			if	( i < 0 )
 				{ printf("note: evitage debordement fir a gauche\n"); break; }
 			FENbuf[i] = mywindow( khann, A );
 			FIRbuf[i] = FENbuf[i] * mysinc( A ) * mycos( A, rB );
+			A -= dA; i--;
+			}
+	else if	( window_type == 12 )
+		while	( A > (-A_half_span) )		// cas special cubic spline 
+			{
+			if	( i < 0 )
+				{ printf("note: evitage debordement fir a gauche\n"); break; }
+			FENbuf[i] = 0.0;
+			FIRbuf[i] = myspline( A );
+			A -= dA; i--;
+			}
+	else	while	( A > (-A_half_span) ) 		// cas "normaux"
+			{
+			if	( i < 0 )
+				{ printf("note: evitage debordement fir a gauche\n"); break; }
+			FENbuf[i] = mywindow( khann, A );
+			FIRbuf[i] = FENbuf[i] * mysinc( A );
 			A -= dA; i--;
 			}
 	// verifications
@@ -327,7 +369,7 @@ void general_fir_table( firtable * tbl ) {
 		}
 	double dBval = 20.0 * log10(maxerr);
 	printf("verif table de %d coeffs : max interpolation err = %g (%g dB)\n", tbl->qtable, maxerr, dBval );
-	}
+	};	// general_fir_table()
 // interpoler sur table une RI "generalisee", non symetrique si A0 != 0, Fc arbitraire
 // en vue FFT pour eval reponse, et filtrage simple
 int general_fir_interpol() {
@@ -379,7 +421,7 @@ int general_fir_interpol() {
 	if	( iend != (int)qfir )
 		printf("suspect: anomalie droite cnt = %d vs %d\n", iend, qfir );
 	return iend;
-	};	// general_fir()
+	};	// general_fir_interpol()
 
 // calculer 1 sample en resampling, methode analytic ou interpol
 // spos est la position du sample dest par rapport aux index src
@@ -387,7 +429,7 @@ int general_fir_interpol() {
 // "ref sample" = plus proche sample src a gauche de spos
 double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 	double fis0 = floor(spos);	// index of ref sample in src
-	A0 = (spos-fis0) * dA;		// angle of ref sample
+	double A0v = (spos-fis0) * dA;	// angle of ref sample (A0 variable)
 	int is0 = (int)fis0;		// index of ref sample in src
 	double sum = 0.0;
 	if	( firmode == ANALYTIC )
@@ -395,7 +437,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 		double A_half_span = M_PI * (qpis/2);
 		double khann = 2.0 / qpis;
 		// right side (incl ref sample @ -A0)
-		double A = -A0;	int is = is0;
+		double A = -A0v;	int is = is0;
 		while	( A < A_half_span )
 			{
 			if	( is < ismax )
@@ -403,7 +445,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 			A += dA; is++;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;	is = is0 - 1;
+		A = - A0v - dA;	is = is0 - 1;
 		while	( A > (-A_half_span) ) 
 			{
 			if	( is >= ismin )
@@ -413,7 +455,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 		}
 	else	{
 		// right side (incl ref sample @ -A0)
-		double A = -A0;	int is = is0;
+		double A = -A0v;	int is = is0;
 		while	( A < i_A_half_span )
 			{
 			if	( is < ismax )
@@ -421,7 +463,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 			A += dA; is++;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;	is = is0 - 1;
+		A = - A0v - dA;	is = is0 - 1;
 		while	( A > (-i_A_half_span) ) 
 			{
 			if	( is >= ismin )
@@ -441,7 +483,7 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 // aux bords si necessaire le dernier sample est duplique
 double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int sstride ) {
 	double fis0 = floor(spos);		// index of ref sample in src (X ou Y)
-	A0 = (spos-fis0) * dA;			// angle of ref sample
+	double A0v = (spos-fis0) * dA;		// angle of ref sample (A0 variable)
 	int is0 = ismin + sstride * (int)fis0;	// index of ref sample in srcbuf
 	double sum = 0.0;
 	if	( firmode == ANALYTIC )
@@ -449,7 +491,7 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 		double A_half_span = M_PI * (qpis/2);
 		double khann = 2.0 / qpis;
 		// right side (incl ref sample @ -A0)
-		double A = -A0;	int is = is0;
+		double A = -A0v;	int is = is0;
 		while	( A < A_half_span )
 			{
 			if	( is < ismax )
@@ -458,7 +500,7 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 			A += dA; is += sstride;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;	is = is0 - sstride;
+		A = - A0v - dA;	is = is0 - sstride;
 		while	( A > (-A_half_span) ) 
 			{
 			if	( is >= ismin )
@@ -469,7 +511,7 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 		}
 	else	{
 		// right side (incl ref sample @ -A0)
-		double A = -A0;	int is = is0;
+		double A = -A0v;	int is = is0;
 		while	( A < i_A_half_span )
 			{
 			if	( is < ismax )
@@ -478,7 +520,7 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 			A += dA; is += sstride;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;	is = is0 - sstride;
+		A = - A0v - dA;	is = is0 - sstride;
 		while	( A > (-i_A_half_span) ) 
 			{
 			if	( is >= ismin )
@@ -493,21 +535,21 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 
 // calculer 1 sample de reponse DC, methode analytic ou interpol
 // le but est de verifier que cette reponse depend peu (idealement pas du tout) de A0
-double DCsamp_one() {
+double DCsamp_one( double A0v ) {
 	double sum = 0.0;
 	if	( firmode == ANALYTIC )
 		{
 		double A_half_span = M_PI * (qpis/2);
 		double khann = 2.0 / qpis;
 		// right side (incl ref sample @ -A0)
-		double A = -A0;
+		double A = -A0v;
 		while	( A < A_half_span )
 			{
 			sum += mywindow( khann, A ) * mysinc( A );
 			A += dA;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;
+		A = - A0v - dA;
 		while	( A > (-A_half_span) ) 
 			{
 			sum += mywindow( khann, A ) * mysinc( A );
@@ -516,14 +558,14 @@ double DCsamp_one() {
 		}
 	else	{
 		// right side (incl ref sample @ -A0)
-		double A = -A0;
+		double A = -A0v;
 		while	( A < i_A_half_span )
 			{
 			sum += myinterpol( A );
 			A += dA;
 			}
 		// left side (excl ref sample @ -A0)
-		A = - A0 - dA;
+		A = - A0v - dA;
 		while	( A > (-i_A_half_span) ) 
 			{
 			sum += myinterpol( A );

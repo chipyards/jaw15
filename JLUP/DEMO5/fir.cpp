@@ -5,7 +5,7 @@
 
 const char * window_name[] = {
 	"rectangle", "hann", "hamming", "blackman", "blackmanharris", "lanczos", "kaiser interpol (castro fast)", "kaiser interpol (castro mid_qual)", 
-	"", "", "", "Kaiser analytic" };
+	"", "", "", "Kaiser analytic", "cubic spline" };
 
 int fir::generate()
 {

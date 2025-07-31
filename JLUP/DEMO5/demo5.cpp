@@ -330,12 +330,10 @@ plan = fftw_plan_dft_r2c_1d( qFFT, FFTin, (fftw_complex*)FFTout, FFTW_ESTIMATE )
 if	( plan == NULL )
 	{ printf("fftw plan failed\n"); return -3; }
 
-// copier reponse impulsionnelle (et calculer l'integrale)
-firtot = 0.0;
+// copier reponse impulsionnelle
 for	( unsigned int i = 0; i < firsize; ++i )
 	{
 	FFTin[i] = firbuf[i];
-	firtot += firbuf[i];
 	}
 // completer avec beaucoup de zeros pour une bonne resolution FFT 
 for	( unsigned int i = firsize; i < qFFT; ++i )
@@ -354,7 +352,6 @@ for	( unsigned int j = 0; j <= qFFT/2; ++j )
 	FFTout[j] = k * hypot( FFTout[a], FFTout[a+1] ); // magnitude (conversion en dB sera faite par layer_u)
 	a += 2;
 	}
-firtotnorm = firtot * k;
 return 0;
 }
 
@@ -545,8 +542,8 @@ double k = lefir.getK0();
 // boucle principale
 for	( int i = 0; i < (int)cnt; i++ )
 	{
-	lefir.A0 = double(i) * dA0;
-	double Y = k * lefir.DCsamp_one();
+	double A0v = double(i) * dA0;		// A0 variable
+	double Y = k * lefir.DCsamp_one( A0v );
 	Zbuf.data[i] = Y;
 	if	( DCmin > Y )
 		DCmin = Y;
@@ -554,6 +551,7 @@ for	( int i = 0; i < (int)cnt; i++ )
 		DCmax = Y;
 	}
 double dBval = 20.0 * log10(DCmax - DCmin);
+printf("fluctuations de la reponse DC = (somme coeffs) / pispan (ou equiv Castro)\n"); 
 printf("DCmin = %.10f, DCmax = %.10f, diff = %g (%.2f dB)\n", DCmin, DCmax, DCmax - DCmin, dBval );
 }
 
@@ -646,7 +644,7 @@ gstrip * curbande;
 curbande = new gstrip;
 panneau1.add_strip( curbande );
 // mettre le sommet du sinc a l'abcisse 0 
-panneau1.q0 = - double( lefir.cnt_left + (lefir.A0/lefir.dA) ); 
+panneau1.q0 = - ( double(lefir.cnt_left) + (lefir.A0/lefir.dA) ); 
 // configurer le strip
 curbande->bgcolor.set( 0.92, 0.98, 1.0 );
 curbande->Ylabel = "coef";
@@ -1070,7 +1068,7 @@ if	( lepar->get( 'n' ) )	glo->nogui = 1;		// no GUI
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
 if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) ||
-	  ( lefir.Kbeta > 13.0 ) || ( saved_qchan > 3 ) )
+	  ( lefir.Kbeta > 13.0 ) || ( saved_qchan > 3 ) || ( lefir.window_type > 12 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 
@@ -1136,7 +1134,6 @@ if	( glo->nogui == 0 )
 retval = glo->fft_on_FIR( lefir.qfir, lefir.FIRbuf );
 if	( retval )
 	gasp(" erreur %d", retval );
-printf("reponse DC = (somme coeffs) / pispan (ou equiv Castro) %.10f\n", glo->firtotnorm ); 
 
 if	( glo->nogui == 0 )
 	glo->layout2();			// afficher FFT

@@ -28,9 +28,6 @@ unsigned int Fsamp;	// frequ ech.
 const char * ifnam;	// nom de fichier wav a filtrer
 const char * ofnam;	// nom de fichier wav a sauver
 
-double firtot;		// somme des qfir coefficients
-double firtotnorm;	// reponse DC = integrale normalisee = firtot / pispan
-
 unsigned int qFFT;	// taille de buffer FFT
 double * FFTin;		// peut contenir RI suivi de nombreux zeros pour bonne FFT
 double * FFTout;	// alors reponse frequentielle obtenue par DFT
