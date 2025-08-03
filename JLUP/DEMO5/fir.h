@@ -7,6 +7,7 @@ typedef struct {
 	} firtable;
 
 enum firmode_t { ANALYTIC, INTERPOL, CASTROL };
+extern const char * window_name[];
 
 class fir {
 public:
@@ -21,7 +22,7 @@ unsigned int cnt_left;	// part de qfir a gauche du coeff de ref (exclus)
 unsigned int cnt_right;	// part de qfir a droite du coeff de ref (inclus)
 double A0;		// decalage angulaire du coeff "central" -dA < A0 < dA
 double dA;		// increment angulaire (rd/samp)
-int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 5=Lanczos, 11=kaiser
+int window_type;	// type de fenetre 0=rect, 1=hann, 2=hamming, 3=blackman, 4=blackmanharris, 5=Lanczos, 11=kaiser, 12=cubic
 firmode_t firmode;	// ANALYTIC, INTERPOL, CASTROL
 double a0;		// coeff pour calcul fenetres 0..4
 double a1;
@@ -46,7 +47,7 @@ char description[128];
 // constructeur
 fir() : pispan(1.0), qpis(4), qfir(1), cnt_left(0), cnt_right(0), A0(0.0), dA(0.0),
 	window_type(0), firmode(ANALYTIC), a0(1), a1(0), a2(0), a3(0), Kbeta(M_PI*2.55),
-	spB(0.3), spC(0.3), FENbuf(NULL), FIRbuf(NULL), rB(0.0), Kr(0.0),
+	spB(1.0/3.0), spC(1.0/3.0), FENbuf(NULL), FIRbuf(NULL), rB(0.0), Kr(0.0),
 	i_A_half_span(0.0), i_k(0.0), i_qtable(0) {};
 
 // methodes
@@ -346,27 +347,44 @@ int general_fir() {
 	};	// general_fir()
 // creer une table de RI destinee a l'interpolation (demi-table en fait)
 // basee sur l'objet firtable fourni (qui doit avoir la memoire allouee), et le choix de window_type courant
+// N.B. ne marche pas pour window types 6 et 7 qui ont une table hard-coded 
 void general_fir_table( firtable * tbl ) {
 	init_window();
 	double khann = 2.0 / tbl->qpis;
 	double k = M_PI * (tbl->qpis/2) / ( tbl->qtable-1 );
 	double A;
-	for	( int i = 0; i < tbl->qtable; i++ )
-		{
-		A = (double)i * k;
-		tbl->data[i] = mywindow( khann, A ) * mysinc( A );
-		}
+	if	( window_type == 12 )
+		for	( int i = 0; i < tbl->qtable; i++ )
+			{
+			A = (double)i * k;
+			tbl->data[i] = myspline( A );
+			}
+	else
+		for	( int i = 0; i < tbl->qtable; i++ )
+			{
+			A = (double)i * k;
+			tbl->data[i] = mywindow( khann, A ) * mysinc( A );
+			}
 	tbl->data[tbl->qtable] = 0.0;	// coeff supplementaire en cas d'ambiguite sur le bord
 	init_interpol_caches( tbl );
 	// auto-critique : evaluation de la qualite d'interpolation
 	double err, maxerr = 0.0;
-	for	( int i = 0; i < (tbl->qtable - 1); i++ )
-		{
-		A = ( 0.5 + (double)i ) * k;
-		err = fabs( myinterpol(A) - mywindow( khann, A ) * mysinc( A ) );
-		if	( maxerr < err )
-			maxerr = err;
-		}
+	if	( window_type == 12 )
+		for	( int i = 0; i < (tbl->qtable - 1); i++ )
+			{
+			A = ( 0.5 + (double)i ) * k;
+			err = fabs( myinterpol(A) - myspline( A ) );
+			if	( maxerr < err )
+				maxerr = err;
+			}
+	else
+		for	( int i = 0; i < (tbl->qtable - 1); i++ )
+			{
+			A = ( 0.5 + (double)i ) * k;
+			err = fabs( myinterpol(A) - mywindow( khann, A ) * mysinc( A ) );
+			if	( maxerr < err )
+				maxerr = err;
+			}
 	double dBval = 20.0 * log10(maxerr);
 	printf("verif table de %d coeffs : max interpolation err = %g (%g dB)\n", tbl->qtable, maxerr, dBval );
 	};	// general_fir_table()
@@ -435,22 +453,43 @@ double resamp_one( float * srcbuf, double spos, int ismin, int ismax ) {
 	if	( firmode == ANALYTIC )
 		{
 		double A_half_span = M_PI * (qpis/2);
-		double khann = 2.0 / qpis;
-		// right side (incl ref sample @ -A0)
-		double A = -A0v;	int is = is0;
-		while	( A < A_half_span )
+		if	( window_type == 12 )
 			{
-			if	( is < ismax )
-				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
-			A += dA; is++;
+			// right side (incl ref sample @ -A0)
+			double A = -A0v;	int is = is0;
+			while	( A < A_half_span )
+				{
+				if	( is < ismax )
+					sum += srcbuf[is] * myspline( A );
+				A += dA; is++;
+				}
+			// left side (excl ref sample @ -A0)
+			A = - A0v - dA;	is = is0 - 1;
+			while	( A > (-A_half_span) ) 
+				{
+				if	( is >= ismin )
+					sum += srcbuf[is] * myspline( A );
+				A -= dA; is--;
+				}
 			}
-		// left side (excl ref sample @ -A0)
-		A = - A0v - dA;	is = is0 - 1;
-		while	( A > (-A_half_span) ) 
-			{
-			if	( is >= ismin )
-				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
-			A -= dA; is--;
+		else	{
+			double khann = 2.0 / qpis;
+			// right side (incl ref sample @ -A0)
+			double A = -A0v;	int is = is0;
+			while	( A < A_half_span )
+				{
+				if	( is < ismax )
+					sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+				A += dA; is++;
+				}
+			// left side (excl ref sample @ -A0)
+			A = - A0v - dA;	is = is0 - 1;
+			while	( A > (-A_half_span) ) 
+				{
+				if	( is >= ismin )
+					sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+				A -= dA; is--;
+				}
 			}
 		}
 	else	{
@@ -489,24 +528,47 @@ double resamp_one_pixel( double * srcbuf, double spos, int ismin, int ismax, int
 	if	( firmode == ANALYTIC )
 		{
 		double A_half_span = M_PI * (qpis/2);
-		double khann = 2.0 / qpis;
-		// right side (incl ref sample @ -A0)
-		double A = -A0v;	int is = is0;
-		while	( A < A_half_span )
+		if	( window_type == 12 )
 			{
-			if	( is < ismax )
-				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
-			else	sum += srcbuf[ismax-sstride] * mywindow( khann, A ) * mysinc( A );
-			A += dA; is += sstride;
+			// right side (incl ref sample @ -A0)
+			double A = -A0v;	int is = is0;
+			while	( A < A_half_span )
+				{
+				if	( is < ismax )
+					sum += srcbuf[is] * myspline( A );
+				else	sum += srcbuf[ismax-sstride] * myspline( A );
+				A += dA; is += sstride;
+				}
+			// left side (excl ref sample @ -A0)
+			A = - A0v - dA;	is = is0 - sstride;
+			while	( A > (-A_half_span) ) 
+				{
+				if	( is >= ismin )
+					sum += srcbuf[is] * myspline( A );
+				else	sum += srcbuf[ismin] * myspline( A );
+				A -= dA; is -= sstride;
+				}
 			}
-		// left side (excl ref sample @ -A0)
-		A = - A0v - dA;	is = is0 - sstride;
-		while	( A > (-A_half_span) ) 
-			{
-			if	( is >= ismin )
-				sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
-			else	sum += srcbuf[ismin] * mywindow( khann, A ) * mysinc( A );
-			A -= dA; is -= sstride;
+		else	{
+			double khann = 2.0 / qpis;
+			// right side (incl ref sample @ -A0)
+			double A = -A0v;	int is = is0;
+			while	( A < A_half_span )
+				{
+				if	( is < ismax )
+					sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+				else	sum += srcbuf[ismax-sstride] * mywindow( khann, A ) * mysinc( A );
+				A += dA; is += sstride;
+				}
+			// left side (excl ref sample @ -A0)
+			A = - A0v - dA;	is = is0 - sstride;
+			while	( A > (-A_half_span) ) 
+				{
+				if	( is >= ismin )
+					sum += srcbuf[is] * mywindow( khann, A ) * mysinc( A );
+				else	sum += srcbuf[ismin] * mywindow( khann, A ) * mysinc( A );
+				A -= dA; is -= sstride;
+				}
 			}
 		}
 	else	{
@@ -541,19 +603,38 @@ double DCsamp_one( double A0v ) {
 		{
 		double A_half_span = M_PI * (qpis/2);
 		double khann = 2.0 / qpis;
-		// right side (incl ref sample @ -A0)
-		double A = -A0v;
-		while	( A < A_half_span )
+		if	( window_type == 12 )
 			{
-			sum += mywindow( khann, A ) * mysinc( A );
-			A += dA;
+			// right side (incl ref sample @ -A0)
+			double A = -A0v;
+			while	( A < A_half_span )
+				{
+				sum += myspline( A );
+				A += dA;
+				}
+			// left side (excl ref sample @ -A0)
+			A = - A0v - dA;
+			while	( A > (-A_half_span) ) 
+				{
+				sum += myspline( A );
+				A -= dA;
+				}
 			}
-		// left side (excl ref sample @ -A0)
-		A = - A0v - dA;
-		while	( A > (-A_half_span) ) 
-			{
-			sum += mywindow( khann, A ) * mysinc( A );
-			A -= dA;
+		else	{
+			// right side (incl ref sample @ -A0)
+			double A = -A0v;
+			while	( A < A_half_span )
+				{
+				sum += mywindow( khann, A ) * mysinc( A );
+				A += dA;
+				}
+			// left side (excl ref sample @ -A0)
+			A = - A0v - dA;
+			while	( A > (-A_half_span) ) 
+				{
+				sum += mywindow( khann, A ) * mysinc( A );
+				A -= dA;
+				}
 			}
 		}
 	else	{

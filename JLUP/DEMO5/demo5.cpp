@@ -15,10 +15,15 @@ Ce programme rend les services suivants :
 	  puis la RI demandée est calculée en extrayant les coeffs de la table avec interpolation.
 	  Le but de ce mode est d'évaluer une opportunité d'accélération du filtrage et du resampling.
 	  Ce mode est activé avec l'option -i qui introduit la taille (arbitraire) de la demi-table.
-	  Une évaluation de l'erreur d'interpolation (pire cas) est affichée dans le terminal
+	  Une évaluation de l'erreur d'interpolation (quasi pire cas) est affichée dans le terminal
 	  Une variante du mode INTERPOL est le mode CASTROL, qui au lieu de générer une table utilise verbatim
 	  une parmi deux tables de libsamplerate de Erik de Castro Lopo, alors qpis est imposé (32 ou 84).
-	  Cette variante est activée pour les fenêtres 8 et 9.
+	  Cette variante est activée pour les fenêtres 6 et 7.
+   L'objectif principal est le filtre passe-bas, cependant une option passe-bande est supportée,
+   mais pas pour tous les services.
+   N.B. les filtres "cubic spline" n'utilisent pas la fonction sinc, et n'ont pas besoin de fenetrage,
+   car les splines sont synthetisees pour fournir directement une RI exploitable. 
+   Cependant dans ce programme, window_type = 12 est utilise pour specifier cubic spline.
 
 2) calcul et affichage de la réponse frequentielle de ce filtre obtenue par FFT
    l'axe de fréquence offre 3 options de graduation :
@@ -979,8 +984,9 @@ printf("// Usage //\n"
  " -P pispan = taille de PI en samples pour calcul RI\n"
  " -Z qpis = taille de RI en PIs\n"
  " -w fenetre 0 = rect, etc...\n"
- " -B param Beta de la fenetre de Kaiser\n"
- " -i taille table pour interpolation des coeffs\n"
+ " -B param Beta de la fenetre de Kaiser(11), ou B de BC spline(12)\n"
+ " -C param C de BC spline(12)\n"
+ " -i taille table (optionnelle) pour interpolation des coeffs\n"
 "Radian:\n"
  " -a A0 decalage du centre de la RI (rd/samp)\n"
  " -d dA increment angulaire(rd/samp)\n"
@@ -1008,7 +1014,10 @@ printf("// Usage //\n"
  " -n no GUI\n"
  "NOTE: -P, -F et -f sont incompatibles\n"
  "      -b, -g, -G transforment passe-bas en passe-bande\n"
- );
+ "types de fenetre :\n"
+);
+for	( int i = 0; i < 13; i++ )
+	printf("    %2d : %s\n", i, window_name[i] );
 }
 
 int main( int argc, char *argv[] )
@@ -1020,7 +1029,7 @@ setlocale( LC_ALL, "C" );       // kill the frog, to be sure
 // traiter arguments
 if	( argc < 2 )
 	{ usage(); return 0; }
-cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBiadbAFGrfgKoc" );
+cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LPZwBCiadbAFGrfgKoc" );
 const char * val;
 int qFFTlog = 20;
 unsigned int saved_qchan = 1;
@@ -1036,7 +1045,8 @@ if	( ( val = lepar->get( 'L' ) ) )	qFFTlog = atoi( val );			// log de fftsize
 if	( ( val = lepar->get( 'P' ) ) )	lefir.pispan = strtod( val, NULL );	// taille de PI en samples pour calcul sinc
 if	( ( val = lepar->get( 'Z' ) ) )	lefir.qpis = atoi( val );		// nombre de zeros
 if	( ( val = lepar->get( 'w' ) ) )	lefir.window_type = atoi( val );	// 0 = rect, etc...
-if	( ( val = lepar->get( 'B' ) ) )	lefir.Kbeta = strtod( val, NULL );	// param Beta de la fenetre de Kaiser
+if	( ( val = lepar->get( 'B' ) ) )	lefir.spB = lefir.Kbeta = strtod( val, NULL );	// param Beta de Kaiser et B de BC spline
+if	( ( val = lepar->get( 'C' ) ) )	lefir.spC = strtod( val, NULL );	// param C de la cubic BC spline de Mitchell
 if	( ( val = lepar->get( 'i' ) ) )	qtable = atoi( val );			// taille table pour interpolation
 
 
@@ -1067,23 +1077,26 @@ if	( lepar->get( 'n' ) )	glo->nogui = 1;		// no GUI
 
 glo->ifnam = lepar->get( '@' );		// naked string = input file
 
-if	( ( qFFTlog < 8 ) || ( lefir.pispan < 1.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) ||
-	  ( lefir.Kbeta > 13.0 ) || ( saved_qchan > 3 ) || ( lefir.window_type > 12 ) )
+if	( ( qFFTlog < 8 ) || ( lefir.pispan < 0.0 ) || ( lefir.qpis < 4 ) || ( lefir.qpis & 1 ) ||
+	  ( lefir.Kbeta > 13.0 ) || ( saved_qchan > 3 ) || ( lefir.window_type > 13 ) )
 	{ printf("invalid argument\n"); return -1; }
 glo->qFFT = 1 << qFFTlog;
 
+// firmode
 switch	( lefir.window_type ) {
 	case 6:
 	case 7:	 lefir.firmode = CASTROL; break;
 	default: lefir.firmode = ((qtable)?(INTERPOL):(ANALYTIC));
 	}
 
+// interpol
 if	( lefir.firmode == INTERPOL )
 	{
 	lefir.deftable.qtable = qtable;
 	lefir.deftable.qpis = lefir.qpis;
 	}
 
+// frequences
 if	( ( F0_rny > 0.0 ) || ( F1_rny > 0.0 ) )
 	{
 	if	( F1_rny == 0.0 )
@@ -1095,7 +1108,6 @@ if	( ( F0_rny > 0.0 ) || ( F1_rny > 0.0 ) )
 		lefir.rB = M_PI * 0.5 * (F1_rny+F0_rny) / lefir.dA;
 		}
 	}
-
 if	( ( ( F0_Hz > 0.0 ) || ( F1_Hz > 0.0 ) ) && ( glo->Fsamp > 0 ) )
 	{
 	if	( F1_Hz == 0.0 )

@@ -17,6 +17,9 @@ general_fir_init();
 if	( window_type == 11 )
 	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), relA0 %g, rB %g, window %d Kaiser analytic beta=%g",
 		qfir, qpis, dA, pispan, A0/dA, rB, window_type, Kbeta );		
+else if	( window_type == 12 )
+	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), relA0 %g, type %d cubic BC spline {%g,%g}",
+		qfir, qpis, dA, pispan, A0/dA, window_type, spB, spC );		
 else	snprintf( description, sizeof(description), "FIR, %u coeffs, qpis %d, dA %g (pispan %g), relA0 %g, rB %g, window %d %s",
 		qfir, qpis, dA, pispan, A0/dA, rB, window_type, window_name[window_type] );
 printf("%s\n", description );

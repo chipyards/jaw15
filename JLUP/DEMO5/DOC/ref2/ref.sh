@@ -88,23 +88,14 @@ DEMO5/demo5 -Z 32 -r 44100 -F 0.1 -b 9 -w 4
 DEMO5/demo5 -Z 64 -r 44100 -F 0.2 -b 5 -w 4
 
 # Lo-Fi en vue image
+# Lanczos
 DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6
 DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6
 DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6
-DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 1.2 -o DEMO5/resimg1.2.wav DEMO5/carr9.wav
-DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 0.8 -o DEMO5/resimg0.8.wav DEMO5/carr9.wav
-DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 0.101 -o DEMO5/resimg0.101.wav DEMO5/carr9.wav
-DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 9.901 -o DEMO5/resimg9.901.wav DEMO5/resimg0.101.wav
-DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 0.101 -o DEMO5/resimg0.101bis.wav DEMO5/resimg9.901.wav
-DEMO5/demo5 -Z 16 -P 1.164 -w 5 -6 -K 9.901 -o DEMO5/resimg9.901bis.wav DEMO5/resimg0.101bis.wav
-DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 0.101 -o DEMO5/ressimg0.101.wav DEMO5/carr9.wav
-DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 9.901 -o DEMO5/ressimg9.901.wav DEMO5/ressimg0.101.wav
-DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 0.101 -o DEMO5/ressimg0.101bis.wav DEMO5/ressimg9.901.wav
-DEMO5/demo5 -Z 12 -P 1.22 -w 5 -6 -K 9.901 -o DEMO5/ressimg9.901bis.wav DEMO5/ressimg0.101bis.wav
-DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 0.101 -o DEMO5/resssimg0.101.wav DEMO5/carr9.wav
-DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 9.901 -o DEMO5/resssimg9.901.wav DEMO5/resssimg0.101.wav
-DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 0.101 -o DEMO5/resssimg0.101bis.wav DEMO5/resssimg9.901.wav
-DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -K 9.901 -o DEMO5/resssimg9.901bis.wav DEMO5/resssimg0.101bis.wav
+# cubic spline Mitchell
+DEMO5/demo5 -Z 4 -P 20 -w 12
+DEMO5/demo5 -Z 4 -P 20 -w 12 -B 0.1 -C 0.8
+DEMO5/demo5 -Z 4 -P 20 -w 12 -B 0.1 -C 0.8 -i 1000
 
 # filtrage image png
 DEMO5/demo5 -Z 8 -P 5 -w 5 -6 -c 3 -o DEMO5/za_P5.png DEMO5/za_fs.png
@@ -119,3 +110,7 @@ DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 1.01 -o DEMO5/dirac101_lanc8.png DEMO5/d
 DEMO5/demo5 -Z 4 -P 1.3 -w 5 -6 -c 3 -K 1.01 -o DEMO5/dirac101_lanc4.png DEMO5/dirac.png
 DEMO5/demo5 -Z 8 -P 1.3 -w 5 -6 -c 3 -K 0.99 -o DEMO5/dirac099_lanc8.png DEMO5/dirac.png
 DEMO5/demo5 -Z 4 -P 1.3 -w 5 -6 -c 3 -K 0.99 -o DEMO5/dirac099_lanc4.png DEMO5/dirac.png
+
+DEMO5/demo5 -Z 4 -P 1.3 -w 5 -6 -c 3 -K 2 -o DEMO5/rings200_lanc4.png DEMO5/rings.png
+DEMO5/demo5 -Z 4 -P 1.3 -w 5 -6 -c 3 -K 2 -o DEMO5/rings200_lanc4.png DEMO5/rings.png
+
