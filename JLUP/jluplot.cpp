@@ -180,7 +180,7 @@ if	( optX )
 
 // preparer le clip, englobant les graduations Y car il peut leur arriver de deborder
 // mais pas celles de X car on ne veut pas que les courbes debordent dessus
-cairo_rectangle( cai, -parent->mx, -ndy, parent->fdx, ndy );
+cairo_rectangle( cai, -parent->mx, -((double)ndy), parent->fdx, ndy );
 cairo_clip( cai );
 
 // le reticule sous les layers
@@ -341,7 +341,7 @@ void strip::gradu_Y( cairo_t * cai )
 char lbuf[32]; int mx;
 mx = parent->mx;
 cairo_set_source_rgb( cai, 1, 1, 1 );
-cairo_rectangle( cai, -mx, -ndy, mx, ndy );
+cairo_rectangle( cai, -mx, -((double)ndy), mx, ndy );
 cairo_fill( cai );
 cairo_set_source_rgb( cai, 0, 0, 0 );
 double curr = tdr * ceil( RdeN( NdeY( 0 ) ) / tdr );	// chercher le premier tick
