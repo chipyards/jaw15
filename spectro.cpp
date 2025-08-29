@@ -524,7 +524,8 @@ for	( y = 0; y < H; y++ )
 	{
 	destadr = y * RGBstride;
 	srcadr = y;
-	midinote = midi0 + int( round( ( double(y) - 0.5 ) / double(bpst) ) );
+	midinote = midi0 + int( round( ( ( double(y) - 0.5 ) / double(bpst) ) + finetune ) );
+	// printf("f=%g %d->%d\n", finetune, y, midinote );
 	if	( blacknotes[ midinote % 12 ] & 1 )
 		{
 		for	( x = 0; x < W; x++ )

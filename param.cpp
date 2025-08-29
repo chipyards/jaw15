@@ -36,6 +36,8 @@ return (TRUE);
 }
 
 // sliders
+
+// gain (via palette)
 static void k_call( GtkAdjustment *adjustment, glostru * glo )
 {
 glo->spectrographize();		// ne fera la computation que si elle n'a pas encore ete faite
@@ -45,6 +47,28 @@ if	( k > 0.5 )
 glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
 }
 
+// fine tune (applique sur echelles midi et background pianoroll)
+static void f_call( GtkAdjustment *adjustment, glostru * glo )
+{
+// printf("fine %g\n", adjustment->value );
+glo->pro.Lspek.finetune = adjustment->value;
+glo->pro.Rspek.finetune = glo->pro.Lspek.finetune;
+// echelle verticale en midinotes (spectre 2D)
+glo->panneau.bandes[1]->r0 = glo->pro.Lspek.finetune;
+if	( glo->panneau.bandes.size() > 2 )
+	glo->panneau.bandes[2]->r0 = glo->pro.Rspek.finetune;
+// fond pianoroll (spectre 2D)
+double k = glo->para.adjk->value;
+glo->pro.palettize( (unsigned int)(((double)glo->pro.Lspek.umax) / k ) );
+glo->panneau.force_repaint = 1; glo->panneau.force_redraw = 1;
+// echelle horizontale en midinotes (spectre 1D)
+// fond touches noires et blanches (spectre 1D) thanks to strip_x_midi, classe derivee de gstrip
+glo->para.panneau.q0 = glo->pro.Lspek.finetune;
+glo->para.panneau.force_repaint = 1; glo->para.panneau.force_redraw = 1;
+
+}
+
+// bouton
 static void recomp_call( GtkWidget *widget, glostru * glo )
 {
 printf(">>>> begin deletion of spectra\n"); fflush(stdout);
@@ -222,6 +246,16 @@ curwidg = gtk_hscale_new(curadj);
 gtk_scale_set_digits( GTK_SCALE(curwidg), 1 );
 gtk_box_pack_start( GTK_BOX(vspe), curwidg, FALSE, FALSE, 0 );
 adjk = curadj;
+
+// slider pour le fine tuning
+			//value,lower,upper,step_increment,page_increment,page_size);
+curadj = GTK_ADJUSTMENT( gtk_adjustment_new( 0.0, -0.5, 0.5, 0.01, 0.1, 0 ));
+g_signal_connect( curadj, "value_changed",
+		  G_CALLBACK( f_call ), (gpointer)glo );
+curwidg = gtk_hscale_new(curadj);
+gtk_scale_set_digits( GTK_SCALE(curwidg), 2 );
+gtk_box_pack_start( GTK_BOX(vspe), curwidg, FALSE, FALSE, 0 );
+adjf = curadj;
 
 // container pour les fichiers
 curwidg = gtk_vbox_new( FALSE, 30 );

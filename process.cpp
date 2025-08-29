@@ -293,7 +293,7 @@ if	( force_mono )
 else	qspek = af->qchan;
 
 if	( opt_lin )
-	{ qspek = 2; force_mono = 1; } 
+	{ qspek = 2; force_mono = 1; }
 
 if	( ( Lspek.spectre2D ) || ( ( Rspek.spectre2D ) && ( qspek > 1 ) ) )
 	{
@@ -310,19 +310,21 @@ printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 // Lspek.qthread;
 // -- parametres conversion LOG
 // Lspek.bpst = 9;		// binxel-per-semi-tone : resolution spectro log
-Lspek.octaves = 6;		// 7 octaves
+Lspek.octaves = 6;		// octaves
 Lspek.midi0 = 28;		// E1 = mi grave de la basse
+// Lspek.finetune = 0.0;
 Lspek.pal = mutpal;		// palette commune
 if	( qspek >= 2 )
 	{
-	// Rspek.fftsize2D = 8192;
-	// Rspek.fftstride = 1024;
-	// Rspek.window_type = 1;
-	// Rspek.qthread = 1;
-	// Rspek.bpst = 9;
-	Rspek.octaves = 6;
-	Rspek.midi0 = 28;
-	Rspek.pal = mutpal;
+	Rspek.fftsize2D		= Lspek.fftsize2D;
+	Rspek.fftstride		= Lspek.fftstride;
+	Rspek.window_type	= Lspek.window_type;
+	Rspek.qthread		= Lspek.qthread;
+	Rspek.bpst		= Lspek.bpst;
+	Rspek.octaves		= Lspek.octaves;
+	Rspek.midi0		= Lspek.midi0;
+	Rspek.finetune		= Lspek.finetune;
+	Rspek.pal		= Lspek.pal;
 	if	( opt_lin )
 		Rspek.disable_log = 1;
 	}
@@ -548,6 +550,7 @@ if	( ib < panneau->bandes.size() )
 								// la midinote correspondant au bas du spectre2D
 	laySL->set_n0( (double)Lspek.midi0 - 0.5/(double)Lspek.bpst ); // -recentrage de 0.5 bins
 	laySL->spectropix = Lpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
+	panneau->bandes[ib]->r0 = Lspek.finetune;
 	if	( opt_lin )
 		panneau->bandes[ib]->Ylabel = "midi";
 	}
@@ -561,11 +564,13 @@ if	( ib < panneau->bandes.size() )
 								// la midinote correspondant au bas du spectre2D
 	laySR->set_n0( (double)Rspek.midi0 - 0.5/(double)Rspek.bpst ); // -recentrage de 0.5 bins
 	laySR->spectropix = Rpix;	// on a la un pixbuf RGB de la wav entiere, de dimensions spek.H x spek.W
+	panneau->bandes[ib]->r0 = Rspek.finetune;
 	if	( opt_lin )
 		{
 		panneau->bandes[ib]->Ylabel = "Hz";
 		laySR->set_kn( double(Rspek.fftsize2D) / double(af->fsamp) );
 		laySR->set_n0( 0.0 );
+		panneau->bandes[ib]->r0 = 0.0;
 		}
 	}
 printf("end soft layout S, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
@@ -586,7 +591,7 @@ if	( panneau->bandes.size() == 0 )
 	panneau->mx = 60;
 
 	// creer le strip pour les spectres
-	curbande = new strip_x_midi;
+	curbande = new strip_x_midi;	// <- ce strip special se charge du fond avec les touches blanches et noires
 	panneau->add_strip( curbande );
 	// configurer le strip
 	curbande->bgcolor.dR = 0.94;
@@ -623,6 +628,7 @@ if	( panneau->bandes.size() == 0 )
 	layL->set_km( (double)Lspek.bpst );		// M est en MIDI-note (demi-tons), U est en bins
 							// la midinote correspondant au bas du spectre2D
 	layL->set_m0( (double)Lspek.midi0);  // + 0.5/(double)Lspek.bpst ); PAS de recentrage de 0.5 bins
+	panneau->q0 = Lspek.finetune;
 	if	( time_curs >= 0 )
 		{			// le cas du spectre1D "ponctuel" extrait du spectrogramme existant
 		// prise en compte de la position du curseur temporel (time_curs, en samples)
@@ -633,7 +639,7 @@ if	( panneau->bandes.size() == 0 )
 		if	( ibin > (int)( Lspek.W - 1 ) ) ibin = Lspek.W - 1;
 		// printf("time_curs = %d ==> ibin = %d/%d\n", time_curs, ibin, Lspek.W ); fflush(stdout);
 		// aller piquer une colonne du spectrogramme
-		layL->V = Lspek.spectre2D + ( ibin * Lspek.H ); 
+		layL->V = Lspek.spectre2D + ( ibin * Lspek.H );
 		}
 	else	{			// le cas du spectre1D calcule a la demande
 		layL->V = Lspek.spectre1D;
@@ -670,13 +676,13 @@ memset( palG + iend, val, 65536 - iend );
 memset( palB + iend, val, 65536 - iend );
 }
 
-/* Exemple de generation de palette a partir de quelques "key colors", en Java (projet WUCAM a l'ENAC) 
+/* Exemple de generation de palette a partir de quelques "key colors", en Java (projet WUCAM a l'ENAC)
 public class ColorRamp {
 	final int size = 300;
 	int Rlut[] = new int[size];
 	int Glut[] = new int[size];
 	int Blut[] = new int[size];
-	// chaque key contient sa position (index dans la palette) suivie de R, G et B 
+	// chaque key contient sa position (index dans la palette) suivie de R, G et B
 	int keys[][] = { { 0, 255, 220, 0 }, { 100 , 0, 240, 0 }, { 150, 0, 220, 240 }, { 200, 40, 80, 255 }, { 250, 140, 20, 255 }, { 300, 240, 20, 240 } };
 
 	// constructeur
@@ -691,9 +697,9 @@ public class ColorRamp {
 			// interpolation
 			for	( j = j0; j < j1; j++ )
 				{
-				Rlut[j] = (int)Math.round( R0 + kR * ( j - j0 ) ); 
-				Glut[j] = (int)Math.round( G0 + kG * ( j - j0 ) ); 
-				Blut[j] = (int)Math.round( B0 + kB * ( j - j0 ) ); 
+				Rlut[j] = (int)Math.round( R0 + kR * ( j - j0 ) );
+				Glut[j] = (int)Math.round( G0 + kG * ( j - j0 ) );
+				Blut[j] = (int)Math.round( B0 + kB * ( j - j0 ) );
 				}
 			}
 		}
@@ -705,7 +711,7 @@ public class ColorRamp {
 // c'est un wrapper sur spectro::spectre2rgb
 void spectre2rgb( spectro * spek, GdkPixbuf * lepix )
 {
-printf("spectre2rgb, pixbuf %p\n", lepix );
+// printf("spectre2rgb, pixbuf %p\n", lepix );
 int rowstride = gdk_pixbuf_get_rowstride( lepix );
 unsigned char * RGBdata = gdk_pixbuf_get_pixels( lepix );
 int colorchans = gdk_pixbuf_get_n_channels( lepix );

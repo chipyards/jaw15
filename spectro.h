@@ -123,6 +123,7 @@ unsigned char * pal;		// la palette 16 bits --> RGB, contient PALSIZE byte
 unsigned int bpst;		// binxel-per-semi-tone : resolution spectro log DOIT etre IMPAIR
 unsigned int octaves;		// hauteur du spectre exprimee en octaves a partir de midi0
 int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
+double finetune;		// offset applique a l'echelle midinote et au fond pianoroll, exprime en semitone
 double wav_peak;		// pour facteur d'echelle avant conversion du spectre en u16
 unsigned int qthread;		// nombre de threads
 int disable_log;		// create linear spectre2D instead of log "melody range" spectre2D 
@@ -142,7 +143,7 @@ unsigned int umax_part[QTH];	// valeur max mise dans spectre2D[] par chaque thre
 
 // constructeur
 spectro() : fftsize2D(8192), fftstride(1024), fftsize1D(8192), window_type(1), spectre2D(NULL), allocatedWH(0), umax(0),
-	pal(NULL), bpst(9), octaves(6), midi0(28), wav_peak(32767.0), qthread(1), disable_log(0), src1(NULL), src2(NULL) {
+	pal(NULL), bpst(9), octaves(6), midi0(28), finetune(0.0), wav_peak(32767.0), qthread(1), disable_log(0), src1(NULL), src2(NULL) {
 	for	( int i = 0; i < QTH ; ++i )
 		{
 		fftinbuf[i] = NULL;
