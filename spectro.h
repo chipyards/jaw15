@@ -36,7 +36,7 @@ Voici comment fonctionne le resampling de JAW04b, au moins aussi bon que Sonic V
 
 Le buffer spectre2D represente un ruban de hauteur H et longueur W
 	- H est le nombre de "bins" apres passage en echelle log, on le fixe arbitrairement
-	  exemple : 840 pour 7 octaves a 120 bins par octave
+	  exemple : 648 pour 6 octaves a 108 bins par octave
 	- W est le nombre d'echantillons spectraux = nombres de runs FFT [aka icol],
 	  (approximativement W = nombre total de samples audio / fftstride)
 	- fftstride est le pas temporel des iterations de calcul FFT, c'est la largeur d'un binxel en samples
@@ -71,27 +71,27 @@ Changement de coordonnee ordonnee (frequence)
 
 ATTENTION : rappel : les elements de spectre2D sont ranges en memoire 1D par colonne, non par ligne comme dans une image
 
-Echelle verticale :
-	- l'application doit fournir
-		- relog_opp = octaves par bin (octaves par pixel par abus de langage, log aussi abus car opp est deja log)
-		  par exemple 1.0 / 120.0;	// 10 bins / demi-ton
+resampling lin->log pour verticale :
+	- l'application doit fournir bpst et midi0 d'ou sont deduits :
+		- relog_opb = octaves par bin
+		  t.q. 1.0 / 12 * bpst; 
 		- relog_fbase = frequence du bin le plus bas, exprimee en resolution FFT
-		  par exemple F0 / ( sample_freq / fftsize2D ), avec F0 en Hz
+		  t.q. F0 / ( sample_freq / fftsize2D ), avec F0 en Hz
 	- question : ou est la limite entre interpolation et decimation ?
 		- pitch fft = ( sample_freq / fftsize2D ) exemple 44100 / 8192 = 5.38 Hz
-		- pitch spectre = f * ( pow( 2, opp ) - 1 ) exemple f * (pow(2,1/120)-1) = f * 0.0058
-		  soit f = pitch / 0.0058 = 5.38/0.0058 = 927 Hz (Bb5)
-	  interpretation : au dela de cette F, il y a moins de sample dans spectre que de bins FFT, donc perte d'info
+		- pitch spectre = f * ( pow( 2, opp ) - 1 ) exemple f * (pow(2,1/(12*9))-1) = f * 0.00644
+		  soit f_limite = pitch / 0.00644 = 5.38/0.00644 = 836 Hz (Ab5)
+	  interpretation : au dela de f_limite, il y a moins de sample dans spectre que de bins FFT, donc perte d'info
 	  mais sans consequence pour l'appli
 */
 #define FFTSIZEMAX  16384	// pour spectre2D
 #define FFTSIZEHUGE 65536	// pour spectre1D
 
 #define BPSTMAX	19
-#define OCTAMAX 10
-#define HMAX	(BPSTMAX*12*OCTAMAX)
+#define MIDIMAX 80
+#define HMAX	(BPSTMAX*MIDIMAX)
 
-#define QTH	8		// nombre max de threads
+#define QTH	10		// nombre max de threads
 
 // un point precalcule pour le reechantillonnage du spectre en echelle log
 class logpoint {
@@ -121,8 +121,8 @@ unsigned int allocatedWH;	// W*H effectivement alloue
 unsigned int umax;		// valeur max mise dans spectre2D[]
 unsigned char * pal;		// la palette 16 bits --> RGB, contient PALSIZE byte
 unsigned int bpst;		// binxel-per-semi-tone : resolution spectro log DOIT etre IMPAIR
-unsigned int octaves;		// hauteur du spectre exprimee en octaves a partir de midi0
 int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
+int qmidi;			// hauteur du spectre exprimee en midinote
 double finetune;		// offset applique a l'echelle midinote et au fond pianoroll, exprime en semitone
 double wav_peak;		// pour facteur d'echelle avant conversion du spectre en u16
 unsigned int qthread;		// nombre de threads
@@ -133,17 +133,20 @@ short * src2; 			// second canal si on veut transformer de la stereo sur un spec
 float k;			// facteur d'echelle en vue conversion en u16
 float window[FFTSIZEHUGE];	// fenetre pre-calculee
 logpoint log_resamp[HMAX];	// parametres precalcules pour re-echantillonnage log
-double relog_opp;		// echelle spectre re-echantillonne en OPP (Octave Per Point) << 1
-double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
 // les donnees separees par thread
 float * fftinbuf[QTH];		// buffers pour entree fft reelle
 float * fftoutbuf[QTH];		// buffers pour sortie fft complexe
 fftwf_plan plan[QTH];		// les plan FFTW
 unsigned int umax_part[QTH];	// valeur max mise dans spectre2D[] par chaque thread
 
+private:
+double relog_opb;		// echelle spectre re-echantillonne en OPB (Octave Per Bin) << 1
+double relog_fbase;		// frequence limite inferieure du spectre, exprimee en quantum de FFT
+
+public:
 // constructeur
 spectro() : fftsize2D(8192), fftstride(1024), fftsize1D(8192), window_type(1), spectre2D(NULL), allocatedWH(0), umax(0),
-	pal(NULL), bpst(9), octaves(6), midi0(28), finetune(0.0), wav_peak(32767.0), qthread(1), disable_log(0), src1(NULL), src2(NULL) {
+	pal(NULL), bpst(9), midi0(28), qmidi(72), finetune(0.0), wav_peak(32767.0), qthread(1), disable_log(0), src1(NULL), src2(NULL) {
 	for	( int i = 0; i < QTH ; ++i )
 		{
 		fftinbuf[i] = NULL;

@@ -310,8 +310,8 @@ printf("\nstart init %d spectro\n", qspek ); fflush(stdout);
 // Lspek.qthread;
 // -- parametres conversion LOG
 // Lspek.bpst = 9;		// binxel-per-semi-tone : resolution spectro log
-Lspek.octaves = 6;		// octaves
 Lspek.midi0 = 28;		// E1 = mi grave de la basse
+Lspek.qmidi = 79;		// E7
 // Lspek.finetune = 0.0;
 Lspek.pal = mutpal;		// palette commune
 if	( qspek >= 2 )
@@ -321,8 +321,8 @@ if	( qspek >= 2 )
 	Rspek.window_type	= Lspek.window_type;
 	Rspek.qthread		= Lspek.qthread;
 	Rspek.bpst		= Lspek.bpst;
-	Rspek.octaves		= Lspek.octaves;
 	Rspek.midi0		= Lspek.midi0;
+	Rspek.qmidi		= Lspek.qmidi;
 	Rspek.finetune		= Lspek.finetune;
 	Rspek.pal		= Lspek.pal;
 	if	( opt_lin )

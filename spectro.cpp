@@ -80,11 +80,11 @@ return 0;
 
 double spectro::log_fis( double fid )
 {
-return( relog_fbase * exp2( relog_opp * fid ) );
+return( relog_fbase * exp2( relog_opb * fid ) );
 }
 
 // precalcul des points de resampling pour convertir le spectre en echelle log
-// remplir log_resamp en fonction de relog_opp et relog_fbase
+// remplir log_resamp en fonction de relog_opb et relog_fbase
 void spectro::log_resamp_precalc( unsigned int fsamp, unsigned int fft_size )
 {
 int id;		// index destination, dans le spectre resample
@@ -94,7 +94,7 @@ double fis0;	// index source fractionnaire borne inferieure, correspondant à id 
 double fis1;	// index source fractionnaire borne superieure, correspondant à id + 0.5
 double fis;	// index source fractionnaire median, correspondant à id
 // les parametres internes pour le resampling log
-relog_opp = 1.0 / (double)( bpst * 12 );
+relog_opb = 1.0 / (double)( bpst * 12 );
 relog_fbase = midi2Hz( midi0 ) ;			// en Hz
 relog_fbase /= ( (double)fsamp / (double)fft_size );	// en pitch spectro
 
@@ -131,7 +131,7 @@ for	( id = 0; id < (int)H; ++id )
 
 void spectro::log_resamp_dump()
 {
-printf("echelle %g pix/sm\n", ( 1.0 / relog_opp ) / 12.0 );
+printf("echelle %g pix/st\n", ( 1.0 / relog_opb ) / 12.0 );
 printf("base %g\n", relog_fbase );
 for	( int id = 0; id < (int)H; ++id )
 	{
@@ -191,8 +191,8 @@ if	( bpst > BPSTMAX )
 	bpst = BPSTMAX;
 if	( bpst < 1 )
 	bpst = 1;
-if	( octaves > OCTAMAX )
-	octaves = OCTAMAX;
+if	( qmidi > MIDIMAX )
+	qmidi = MIDIMAX;
 if	( qthread > QTH )
 	qthread = QTH;
 
@@ -203,7 +203,7 @@ if	( disable_log )
 	unsigned int ftop = 3000;	// frequ. max arbitraire mais < fsamp / 2
 	H = ( ftop * fftsize2D ) / fsamp;
 	}
-else	H = octaves * 12 * bpst;				// le nombre de frequences apres resamp
+else	H = qmidi * bpst;				// le nombre de frequences apres resamp
 
 window_avg = window_precalc( fftsize2D );
 // window_dump();
@@ -245,11 +245,11 @@ if	( bpst > BPSTMAX )
 	bpst = BPSTMAX;
 if	( bpst < 1 )
 	bpst = 1;
-if	( octaves > OCTAMAX )
-	octaves = OCTAMAX;
+if	( qmidi > MIDIMAX )
+	qmidi = MIDIMAX;
 
 //** precalculs
-H = octaves * 12 * bpst;				// le nombre de frequences apres resamp
+H = qmidi * bpst;				// le nombre de frequences apres resamp
 
 window_avg = window_precalc( fftsize1D );
 // window_dump();

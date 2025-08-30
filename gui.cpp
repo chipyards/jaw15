@@ -805,6 +805,7 @@ const char * fnam = NULL;
 cli_parse * lepar = new cli_parse( argc, (const char **)argv, "LdpTvf" );
 // le parsage est fait, on recupere les args !
 const char * val;
+fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
 if	( ( val = lepar->get( 'L' ) ) )	mylatency = strtod( val, NULL );
 if	( ( val = lepar->get( 'd' ) ) )	myoutput = atoi( val );
 if	( ( val = lepar->get( 'p' ) ) )	pa_dev_options = atoi( val );
@@ -816,7 +817,7 @@ if	( ( val = lepar->get( 'T' ) ) )	glo->option_threads = atoi( val );
 if	( ( val = lepar->get( 'i' ) ) )	{ glo->option_linspec = 1; glo->option_monospec = 1; }
 if	( ( val = lepar->get( 'v' ) ) )	glo->option_verbose = atoi( val );
 if	( ( val = lepar->get( 'f' ) ) )	glo->sf2file = val;
-if	( ( val = lepar->get( 'h' ) ) )
+if	( ( val = lepar->get( 'h' ) ) || ( fnam == NULL ) )
 	{
 	printf( "options :\n"
 	"-L <val> : latence demandee (defaut : 0.090)\n"
@@ -824,16 +825,15 @@ if	( ( val = lepar->get( 'h' ) ) )
 	"-p <opt> : listage devices (-1=rien, 0=minimal, 1=sample rates, 2=ASIO, 3=tout)\n"
 	"-B	  : variante pour copie drawpad (cf gluplot.cpp) '-B' pour B1, sinon defaut = B2\n"
 	"-S	  : calcul spectrogramme a l'ouverture\n"
-	"-m	  : spectrogramme toujours mono\n"
+	"-m	  : spectrogramme sur donnees converties en mono si necessaire\n"
 	"-N	  : no audio output\n"
 	"-T <n>   : threads pour FFT ( 1 a %u )\n"
-	"-i       : spectrogramme 2D lineaire plutot que log (implique -m)\n"
+	"-i       : 2 spectrogramme 2D mono, un lineaire, l'autre log (implique -m)\n"
 	"-v <n>   : verbosite ( 1 a 4 )\n"
 	"-f <sf2> : choix soundfont\n"
 	, QTH );
 	return 0;
 	}
-fnam = lepar->get( '@' );		// get avec la clef '@' rend la chaine nue 
 
 printf( "output device %d, latency %g, pa_dev option %d\n", myoutput, mylatency, pa_dev_options );
 fflush(stdout);
