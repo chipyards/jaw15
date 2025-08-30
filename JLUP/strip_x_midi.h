@@ -2,11 +2,9 @@
 //	les "touches blanches" sont blanches
 class strip_x_midi : public gstrip {
 public :
-unsigned int bpst;		// binxel-per-semi-tone : resolution spectro log DOIT etre IMPAIR
-int midi0;			// frequence limite inferieure du spectre, exprimee en midinote
 
 // constructeur
-strip_x_midi() : gstrip(), bpst(9), midi0(28) { optcadre = 1; };
+strip_x_midi() : gstrip() { optcadre = 1; };
 
 // methode
 void draw( cairo_t * cai ) {
@@ -20,7 +18,8 @@ void draw( cairo_t * cai ) {
 	// cairo_rectangle( cai, 0, 0, parent->ndx, ndy );
 	// cairo_fill( cai );
 
-	const char * blacknotes = "010100101010";	// midinote = 0 est un Do
+	// '0' = blanche, '1' = noire, '2' = blanche speciale : Do et Fa, pour distinguer de Si et Mi
+	const char * blacknotes = "210102101010";	// midinote = 0 est un Do
 	// Q = graduation en midinotes, comme M (au fine tuning q0 près)
 	double curq = floor( parent->QdeM( parent->MdeX( 0 ) ) );
 	// printf("q=%g\n", curq ); fflush(stdout);
@@ -38,9 +37,12 @@ void draw( cairo_t * cai ) {
 		{
 		if	( x1 > parent->ndx )	// clip note partially out
 			x1 = parent->ndx;
-		if	( blacknotes[ midinote % 12 ] & 1 )
+		int selector = blacknotes[ midinote % 12 ] & 3;
+		if	( selector == 1 )				// noire
 			cairo_set_source_rgb( cai, bgcolor.dR, bgcolor.dG, bgcolor.dB );
-		else	cairo_set_source_rgb( cai, 1.0, 1.0, 1.0 );	
+		else if	( selector == 2 )
+			cairo_set_source_rgb( cai, 0.94, 1.0, 0.94 );	// blanche speciale	
+		else	cairo_set_source_rgb( cai, 1.0, 1.0, 1.0 );	// blanche
 		cairo_rectangle( cai, x0, 0, x1-x0, ndy );
 		cairo_fill( cai );
 		x0 = x1; x1 += dx; midinote += 1;

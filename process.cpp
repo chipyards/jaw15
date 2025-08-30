@@ -594,13 +594,12 @@ if	( panneau->bandes.size() == 0 )
 	curbande = new strip_x_midi;	// <- ce strip special se charge du fond avec les touches blanches et noires
 	panneau->add_strip( curbande );
 	// configurer le strip
-	curbande->bgcolor.dR = 0.94;
-	curbande->bgcolor.dG = 0.94;
-	curbande->bgcolor.dB = 0.94;
+	curbande->bgcolor.dR = 0.90;	// c'est la couleur des touches "noires"
+	curbande->bgcolor.dG = 0.90;	// les "blanches" sont codees en dur dans strip_x_midi.h, classe derivee de gstrip
+	curbande->bgcolor.dB = 0.90;
 	curbande->Ylabel = "spec";
 	curbande->optX = 1;
 	curbande->optretX = 0;
-	// gpanel::smenu_set_title( curbande->smenu_y, "MAG ?" );
 
 	// creer un layer
 	curcour = new layer_u<unsigned short>;
