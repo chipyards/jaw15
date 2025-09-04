@@ -52,7 +52,7 @@ LIBS= -L$(GTKBASE)/lib \
 -lpangocairo-1.0 \
 -lpangowin32-1.0 \
 -lmpg123 \
--lfluidsynth \
+-lfluidsynth-3 \
 -lfftw3f \
 $(ALIB)
 

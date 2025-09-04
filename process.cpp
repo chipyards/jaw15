@@ -156,7 +156,7 @@ if	( af->qchan == 2 )
 		} while ( retval > 0 );
 	Lbuf.size = Rbuf.size = af->realpfr;
 	}
-	{			// boucle mono
+else	{			// boucle mono
 	do	{
 		retval = af->read_data_p( (void *)pcmbuf, qpfr );
 		if	( retval > 0 )
