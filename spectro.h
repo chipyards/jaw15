@@ -128,8 +128,8 @@ double wav_peak;		// pour facteur d'echelle avant conversion du spectre en u16
 unsigned int qthread;		// nombre de threads
 int disable_log;		// create linear spectre2D instead of log "melody range" spectre2D 
 // pourrait etre private, sauf que les threads doivent y acceder
-short * src1;			// audio a transformer
-short * src2; 			// second canal si on veut transformer de la stereo sur un spectrogramme
+float * src1;			// audio a transformer
+float * src2; 			// second canal si source stereo (NULL si mono)
 float k;			// facteur d'echelle en vue conversion en u16
 float window[FFTSIZEHUGE];	// fenetre pre-calculee
 logpoint log_resamp[HMAX];	// parametres precalcules pour re-echantillonnage log
@@ -170,7 +170,7 @@ void log_resamp_dump();
 int alloc_WH();
 // top actions
 int init2D( unsigned int fsamp, unsigned int qsamples );
-int compute2D( short * srcA, short * srcB = NULL );	// calcul spectre2D complet W x H
+int compute2D( float * srcA, float * srcB = NULL );	// calcul spectre2D complet W x H
 int init1D( unsigned int fsamp );
 int compute1D( unsigned int isamp_center, unsigned int qsamp );// spectre1D
 // conversion en style GDK pixbuf

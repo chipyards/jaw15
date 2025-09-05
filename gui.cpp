@@ -60,7 +60,7 @@ static int portaudio_call( const void *inbuf, void *outbuf,
 			glostru * glo )
 {
 unsigned int i, samplesPerBuffer;
-short * wL, *wR;
+float * wL, *wR;
 
 samplesPerBuffer = framesPerBuffer * CODEC_QCHAN;
 
@@ -82,8 +82,8 @@ if	( glo->iplay >= 0 )
 	else	wR = wL;			// mono
 	for	( i = 0; i < samplesPerBuffer; i+= CODEC_QCHAN )
 		{
-		((short *)outbuf)[i]   = wL[glo->iplay];
-		((short *)outbuf)[i+1] = wR[glo->iplay++];
+		((short *)outbuf)[i]   = (short int)(32767.0F * wL[glo->iplay]);
+		((short *)outbuf)[i+1] = (short int)(32767.0F * wR[glo->iplay++]);
 		}
 	}
 else	{			// play silence
@@ -133,7 +133,7 @@ if	( mydevice < 0 )
 	papa.device = Pa_GetDefaultOutputDevice();	// un device index au sens de PA (all host APIs merged)
 else 	papa.device = mydevice;
 papa.channelCount = 2;    		// JAW uses always stereo output, best portability
-papa.sampleFormat = paInt16;		// 16 bits, same reason
+papa.sampleFormat = paInt16;		// 16 bits, best portability
 papa.suggestedLatency = mylatency;	// in seconds
 papa.hostApiSpecificStreamInfo = NULL;
 

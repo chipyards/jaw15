@@ -282,7 +282,6 @@ if	( id > ceci->qthread )
 float * fftin;		// buffer pour entree fft reelle
 float * fftout;		// buffer pour sortie fft complexe
 unsigned int a, j;
-unsigned short u;
 
 fftin = ceci->fftinbuf[id];
 fftout = ceci->fftoutbuf[id];
@@ -296,13 +295,13 @@ for	( unsigned int icol = id; icol < ceci->W; icol += ceci->qthread )
 		{
 		for	( j = 0; j < ceci->fftsize2D; ++j )
 			{
-			fftin[j] = ( (float)ceci->src1[a] + (float)ceci->src2[a] ) * ceci->window[j];
+			fftin[j] = ( ceci->src1[a] + ceci->src2[a] ) * ceci->window[j];
 			++a;
 			}
 		}
 	else	{
 		for	( j = 0; j < ceci->fftsize2D; ++j )
-			fftin[j] = (float)ceci->src1[a++] * ceci->window[j];
+			fftin[j] = ceci->src1[a++] * ceci->window[j];
 		}
 	// fft de fftin vers fftout
 	fftwf_execute( ceci->plan[id] );
@@ -345,7 +344,7 @@ for	( unsigned int icol = id; icol < ceci->W; icol += ceci->qthread )
 	a = icol * ceci->H;
 	for	( j = 0; j < ceci->H; ++j )
 		{
-		u = (unsigned short)( ceci->k * fftin[j] );
+		unsigned short u = (unsigned short)( ceci->k * fftin[j] );
 		if	( u > ceci->umax_part[id] )
 			ceci->umax_part[id] = u;
 		ceci->spectre2D[a++] = u;
@@ -358,7 +357,7 @@ return NULL;
 
 // execution de 1 ou plusieurs computekernel en parallele
 // il faut avoir deja fait spectro::init2D() - ceci n'est pas verifie
-int spectro::compute2D( short * srcA, short * srcB )
+int spectro::compute2D( float * srcA, float * srcB )
 {
 kernelblock kdata[QTH];
 
@@ -421,7 +420,6 @@ int spectro::compute1D( unsigned int isamp_center, unsigned int qsamp )
 float * fftin;		// buffer pour entree fft reelle
 float * fftout;		// buffer pour sortie fft complexe
 unsigned int a, j;
-unsigned short u;
 
 fftin =  fftinbuf[0];	// on utilise les buffers du thread zero
 fftout = fftoutbuf[0];
@@ -442,13 +440,13 @@ if	( src2 )
 	{
 	for	( j = 0; j < fftsize1D; ++j )
 		{
-		fftin[j] = ( (float)src1[a] + (float)src2[a] ) * window[j];
+		fftin[j] = ( src1[a] + src2[a] ) * window[j];
 		++a;
 		}
 	}
 else	{
 	for	( j = 0; j < fftsize1D; ++j )
-		fftin[j] = (float)src1[a++] * window[j];
+		fftin[j] = src1[a++] * window[j];
 	}
 
 // fft de fftin vers fftout
@@ -489,7 +487,7 @@ k *= 65535.0;
 // conversion en u16 avec application du facteur d'echelle k
 for	( j = 0; j < H; ++j )
 	{
-	u = (unsigned short)( k * fftin[j] );
+	unsigned short u = (unsigned short)( k * fftin[j] );
 	spectre1D[j] = u;
 	}
 return 0;
@@ -533,7 +531,8 @@ for	( y = 0; y < H; y++ )
 			i = spectre2D[srcadr];
 			RGBdata[destadr]   = palR[i];
 			RGBdata[destadr+1] = palG[i];
-			if	( palB[i] < palG[i] )	// tres provisoire
+			// ici "touche noire", on doit mettre noir sauf s'il y a un son significatif...
+			if	( palB[i] < palG[i] )	// tres provisoire test "son existe"
 				RGBdata[destadr+2] = palB[i];
 			else	RGBdata[destadr+2] = 0;
 			destadr += channels;
@@ -543,6 +542,8 @@ for	( y = 0; y < H; y++ )
 	else	{
 		for	( x = 0; x < W; x++ )
 			{
+			// ici "touche blanche", on met la couleur fournie par la palette
+			// qui donc ne DOIT PAS etre noire dans les silences
 			i = spectre2D[srcadr];
 			RGBdata[destadr]   = palR[i];
 			RGBdata[destadr+1] = palG[i];

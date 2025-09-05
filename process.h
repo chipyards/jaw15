@@ -6,8 +6,8 @@ wavio wavp;		// objet audiofile pour lecture wav
 mp3in m3;		// objet audiofile pour lecture mp3
 midirender mid;		// objet audiofile pour lecture midi et render immediat
 audiofile * af;		// pointeur sur wavp ou m3 ou mid
-autobuf <short> Lbuf;	// audio brut sl16
-autobuf <short> Rbuf;
+autobuf <float> Lbuf;	// audio brut float 32
+autobuf <float> Rbuf;
 GdkPixbuf * Lpix;	// spectre sous forme de pixbuf
 GdkPixbuf * Rpix;	// spectre sous forme de pixbuf
 spectro Lspek;		// un spectrographe

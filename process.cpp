@@ -30,7 +30,7 @@ using namespace std;
 
 /** ============================ AUDIO data processing =============== */
 
-#define QMORE	(1<<21)	// quantum pour reallocation ( 1 page = 4M = (1<<21)shorts )
+#define QMORE	(1<<21)	// quantum pour reallocation ( 1 page = 4M = (1<<20)floats )
 
 // allocation memoire et lecture WAV ou MP3 16 bits entier en memoire
 // donnees stockées dans les buffers de l'objet process
@@ -49,7 +49,7 @@ printf("ouverture %s %s en lecture\n", (mp3flag?"MP3":"WAV"), wnam ); fflush(std
 
 // 1ere etape : lire un premier bloc pour avoir les parametres
 if	( mp3flag )
-	{
+	{ /*	// en attente de migration vers f32
 	af = (audiofile *)&m3;
 	retval = m3.read_head( wnam, verbose );
 	if	( retval )
@@ -58,9 +58,11 @@ if	( mp3flag )
 		fflush(stdout); return -1;
 		}
 	printf("recommended buffer %d bytes\n", (int)m3.outblock );
+	*/
+	return -333;
 	}
 else if	( midiflag )
-	{
+	{ /*	// en attente de migration vers f32
 	af = (audiofile *)&mid;
 	retval = mid.read_head( wnam, verbose );
 	if	( retval )
@@ -73,6 +75,8 @@ else if	( midiflag )
 	printf("max signal = %g\n", lemax ); fflush(stdout);
 	if	( lemax > 0.0 )
 		mid.flusyn.set_gain( 1.0 / lemax );
+	*/
+	return -333;
 	}
 else	{
 	af = (audiofile *)&wavp;
@@ -90,12 +94,9 @@ printf("got %d channels @ %d Hz, monosamplesize %d\n",
 	af->qchan, af->fsamp, af->monosamplesize );
 printf("estimated length : %u PCM frames\n", (unsigned int)af->estpfr );
 fflush(stdout);
-if	(
-	( ( af->qchan != 1 ) && ( af->qchan != 2 ) ) ||
-	( af->monosamplesize != 2 )
-	)
+if	( ( af->qchan != 1 ) && ( af->qchan != 2 ) )
 	{
-	printf("programme seulement pour fichiers 16 bits mono ou stereo\n");
+	printf("programme seulement pour fichiers mono ou stereo\n");
 	af->afclose();
 	return -2;
 	}
@@ -107,8 +108,8 @@ fflush(stdout);
 #define QPFR 1152	// optimal pour mp3, en PCM frames
 #define QRAW 2048	// optimal pour WAV, en PCM frames
 
-short pcmbuf[QRAW*2];	// supporte stereo, supporte mp3 si QRAW > QPFR
-
+float pcmbuf[QRAW*2];	// supporte stereo, supporte mp3 si QRAW > QPFR
+short * pcmbuf16 = (short *)pcmbuf;
 
 /* pre-allocation (facultative) des buffers pour l'audio entier a servir a jluplot */
 if	( af->estpfr > Lbuf.capa )
@@ -129,52 +130,61 @@ if	( ( af->qchan > 1 ) && ( af->estpfr > Rbuf.capa ) )
 int i;
 unsigned int j = 0; af->realpfr = 0;
 unsigned int qpfr = (mp3flag?QPFR:QRAW);
+do	{
+	retval = af->read_data_p( (void *)pcmbuf, qpfr );	// dynamic binding!
+	if	( retval > 0 )
+		{
+		// printf("%u vs %u\n", af->realpfr, Lbuf.capa ); fflush(stdout);
+		if	( af->realpfr > Lbuf.capa )
+			{
+			if	( Lbuf.more( QMORE ) )
+				gasp("echec autobuf::more()");
+			printf("realloc Lbuf\n"); fflush(stdout);
+			}
+		if	( ( af->qchan == 2 ) && ( af->realpfr > Rbuf.capa ) )
+			{
+			if	( Rbuf.more( QMORE ) )
+				gasp("echec autobuf::more()");
+			}
+		if	( af->qchan == 2 )
+			{
+			if	( af->monosamplesize == 4 )
+				{
+				for	( i = 0; i < ( retval * 2 ); i += 2 )
+					{
+					Lbuf.data[j]   = pcmbuf[i];
+					Rbuf.data[j++] = pcmbuf[i+1];
+					}
+				}
+			else	{
+				for	( i = 0; i < ( retval * 2 ); i += 2 )
+					{
+					Lbuf.data[j]   = float(pcmbuf16[i])   / 32768.0F;
+					Rbuf.data[j++] = float(pcmbuf16[i+1]) / 32768.0F;
+					}
+				}
+			}
+		else	{
+			if	( af->monosamplesize == 4 )
+				{
+				for	( i = 0; i < retval; i++ )
+					{
+					Lbuf.data[j++]  = pcmbuf[i];
+					}
+				}
+			else	{
+				for	( i = 0; i < retval; i++ )
+					{
+					Lbuf.data[j++]  = float(pcmbuf16[i]) / 32768.0F;
+					}
+				}
+			}
+		}
+	} while ( retval > 0 );
+Lbuf.size = af->realpfr;
 if	( af->qchan == 2 )
-	{			// boucle stereo
-	do	{
-		retval = af->read_data_p( (void *)pcmbuf, qpfr );	// dynamic binding!
-		if	( retval > 0 )
-			{
-			// printf("%u vs %u\n", m3.realpfr, Lbuf.capa ); fflush(stdout);
-			if	( af->realpfr > Lbuf.capa )
-				{
-				if	( Lbuf.more( QMORE ) )
-					gasp("echec autobuf::more()");
-				printf("realloc Lbuf\n"); fflush(stdout);
-				}
-			if	( af->realpfr > Rbuf.capa )
-				{
-				if	( Rbuf.more( QMORE ) )
-					gasp("echec autobuf::more()");
-				}
-			for	( i = 0; i < ( retval * 2 ); i += 2 )
-				{
-				Lbuf.data[j]   = pcmbuf[i];
-				Rbuf.data[j++] = pcmbuf[i+1];
-				}
-			}
-		} while ( retval > 0 );
-	Lbuf.size = Rbuf.size = af->realpfr;
-	}
-else	{			// boucle mono
-	do	{
-		retval = af->read_data_p( (void *)pcmbuf, qpfr );
-		if	( retval > 0 )
-			{
-			if	( af->realpfr > Lbuf.capa )
-				{
-				if	( Lbuf.more( QMORE ) )
-					gasp("echec autobuf::more()");
-				printf("realloc Lbuf\n"); fflush(stdout);
-				}
-			for	( i = 0; i < retval; i++ )
-				{
-				Lbuf.data[j++]  = pcmbuf[i];
-				}
-			}
-		} while ( retval > 0 );
-	Lbuf.size = af->realpfr;
-	}
+	Rbuf.size = af->realpfr;
+
 if	( j != af->realpfr )	// cela ne peut pas arriver, cette verif est parano
 	gasp("erreur JAW #213978");
 
@@ -194,7 +204,7 @@ return 0;
 
 // sauver Lbuf(0), ou Rbuf(1), ou Lbuf et Rbuf en stereo (2) ou mono (3)
 int process::wavfile_save( const char * fnam, int mode )
-{
+{ /*	// en attente de migration vers f32
 int retval;
 unsigned int qpfr, i, j;
 short pcmbuf[QRAW*2];
@@ -243,6 +253,7 @@ while	( neww.realpfr < Lbuf.size )
 	}
 neww.afclose();
 printf("finished writing WAV %s, mode %d\n", fnam, mode ); fflush(stdout);
+*/
 return 0;
 }
 
@@ -346,11 +357,11 @@ if	( qspek >= 2 )
 printf("start calcul spectre2D sur %d threads\n", Lspek.qthread ); fflush(stdout);
 if	( af->qchan == 1 )
 	{
-	Lspek.wav_peak = 32767.0;		// spectre2D mono sur WAV stereo
+	Lspek.wav_peak = 1.0;		// spectre2D mono sur WAV stereo
 	Lspek.compute2D( Lbuf.data );
 	if	( opt_lin )
 		{				// un second spectre2D sur Lbuf, mais en lin
-		Rspek.wav_peak = 32767.0;
+		Rspek.wav_peak = 1.0;
 		Rspek.compute2D( Lbuf.data );
 		}
 	}
@@ -358,22 +369,22 @@ else if	( af->qchan == 2 )
 	{
 	if	( qspek == 1 )			// spectre2D mono sur WAV stereo
 		{
-		Lspek.wav_peak = 65534.0;
+		Lspek.wav_peak = 2.0;
 		Lspek.compute2D( Lbuf.data, Rbuf.data );
 		}
 	else if	( qspek == 2 )
 		{
 		if	( opt_lin )
 			{			// deux spectre2D mono sur WAV stereo, dont 1 lin
-			Lspek.wav_peak = 65534.0;
+			Lspek.wav_peak = 2.0;
 			Lspek.compute2D( Lbuf.data, Rbuf.data );
-			Rspek.wav_peak = 65534.0;
+			Rspek.wav_peak = 2.0;
 			Rspek.compute2D( Lbuf.data, Rbuf.data );
 			}
 		else	{			// spectre2D stereo sur WAV stereo
-			Lspek.wav_peak = 32767.0;
+			Lspek.wav_peak = 1.0;
 			Lspek.compute2D( Lbuf.data );
-			Rspek.wav_peak = 32767.0;
+			Rspek.wav_peak = 1.0;
 			Rspek.compute2D( Rbuf.data );
 			}
 		}
@@ -402,7 +413,7 @@ return 0;
 void process::prep_layout_W( gpanel * panneau )
 {
 gstrip * curbande;
-layer_lod<short> * curcour;
+layer_lod<float> * curcour;
 
 panneau->offscreen_flag = 1;	// 1 par defaut
 // marge pour les textes
@@ -422,13 +433,13 @@ curbande->optretX = 1;
 gpanel::smenu_set_title( curbande->smenu_y, "SIGNAL AXIS" );
 
 // creer un layer
-curcour = new layer_lod<short>;	// wave a pas uniforme
+curcour = new layer_lod<float>;	// wave a pas uniforme
 curbande->add_layer( curcour, "Left" );
 
 // configurer le layer pour le canal L ou mono
 curcour->set_km( 1.0 );
 curcour->set_m0( 0.0 );
-curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
+curcour->set_kn( 1.0 );	// amplitude normalisee a +-1
 curcour->set_n0( 0.0 );
 curcour->fgcolor.dR = 0.75;
 curcour->fgcolor.dG = 0.0;
@@ -440,13 +451,13 @@ if	( af->qchan > 1 )
 	panneau->bandes[0]->Ylabel = "stereo";
 
 	// creer le layer
-	curcour = new layer_lod<short>;	// wave a pas uniforme
+	curcour = new layer_lod<float>;	// wave a pas uniforme
 	curbande->add_layer( curcour, "Right" );
 
 	// configurer le layer
 	curcour->set_km( 1.0 );
 	curcour->set_m0( 0.0 );
-	curcour->set_kn( 32767.0 );	// amplitude normalisee a +-1
+	curcour->set_kn( 1.0 );	// amplitude normalisee a +-1
 	curcour->set_n0( 0.0 );
 	curcour->fgcolor.dR = 0.0;
 	curcour->fgcolor.dG = 0.75;
@@ -459,14 +470,14 @@ int process::connect_layout_W( gpanel * panneau )
 {
 int retval;
 // pointeurs locaux sur les layers
-layer_lod<short> * layL, * layR = NULL;
+layer_lod<float> * layL, * layR = NULL;
 // connecter les layers de ce layout sur les buffers existants
-layL = (layer_lod<short> *)panneau->bandes[0]->courbes[0];
+layL = (layer_lod<float> *)panneau->bandes[0]->courbes[0];
 layL->V = Lbuf.data;
 layL->qu = Lbuf.size;
 if	( af->qchan > 1 )
 	{
-	layR = (layer_lod<short> *)panneau->bandes[0]->courbes[1];
+	layR = (layer_lod<float> *)panneau->bandes[0]->courbes[1];
 	layR->V = Rbuf.data;
 	layR->qu = Rbuf.size;
 	}
@@ -480,7 +491,10 @@ if	( af->qchan > 1 )
 		{ printf("echec make_lods err %d\n", retval ); return -7;  }
 	}
 panneau->kq = (double)(af->fsamp);	// pour avoir une echelle en secondes au lieu de samples
-printf("end layout W, %d strips\n\n", panneau->bandes.size() ); fflush(stdout);
+
+printf("end layout W, %d strips, %u samples\n", panneau->bandes.size(),
+	((layer_lod<float> *)(panneau->bandes[0]->courbes[0]))->qu  ); fflush(stdout);
+
 return 0;
 }
 
