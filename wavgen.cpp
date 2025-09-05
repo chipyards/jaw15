@@ -150,7 +150,7 @@ double amplitude;
 // generation signal sinus frequence fixe f, ou avec vibrato de frequence fv
 // la modulation de frequence est "logarithmique" (en fait exponentielle)
 // l'amplitude augmente par bond de 1/4 demi-ton toutes les 2s.
-void gen_fix_f( pcmbuf *p, double f, double fv, int duree )
+void gen_fix_f( pcmbuf *p, double f, double fv, double duree )
 {
 // variables temporaires
 unsigned int i, j;
@@ -159,7 +159,7 @@ double v0, v1, vv;		// valeur instantannee ch0, ch1, lfo
 double vamp;			// amplitude lfo en semitones
 double kf;			// coeff instantanne de variation de freq.
 
-unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
+unsigned int estpfr = floor( double(p->d->fsamp) * duree );	// nombre de frames
 
 phi0 = 0.0; phi1 = 0.0; phiv = 0.0;
 vamp = 1;
@@ -219,13 +219,13 @@ for	( i = 0; i < estpfr; ++i )
 
 
 // generation signal triangle frequence fixe
-void gen_tri_f( pcmbuf *p, double f, int duree )
+void gen_tri_f( pcmbuf *p, double f, double duree )
 {
 // variables temporaires
 unsigned int i;
 double phi, v;
 
-unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
+unsigned int estpfr = floor( double(p->d->fsamp) * duree );	// nombre de frames
 
 phi = 0.0; 
 for	( i = 0; i < estpfr; ++i )
@@ -245,16 +245,16 @@ for	( i = 0; i < estpfr; ++i )
 }
 
 // generation signal sinus balayage lineaire en frequence
-void bal_f_lin( pcmbuf *p, int duree, double f0, double f1 )
+void bal_f_lin( pcmbuf *p, double duree, double f0, double f1 )
 {
+unsigned int estpfr = floor( double(p->d->fsamp) * duree );	// nombre de frames
+
 // parametres de generation
-double finc = (f1-f0)/(double)(p->d->fsamp*duree);
+double finc = (f1-f0)/double( estpfr );
 
 // variables temporaires
 unsigned int i;
 double phi, v, f;
-
-unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
 
 f = f0;
 phi = 0.0; 
@@ -272,18 +272,18 @@ for	( i = 0; i < estpfr; ++i )
 }
 
 // generation signal sinus balayage "log" en frequence
-void bal_f_log( pcmbuf *p, int duree, double f0, double f1 )
+void bal_f_log( pcmbuf *p, float duree, double f0, double f1 )
 {
+unsigned int estpfr = floor( double(p->d->fsamp) * duree );	// nombre de frames
+
 // parametres de generation
 if	( ( f0 == 0.0 ) || ( f1 == 0.0 ) )
 	gasp("freq zero interdite pour balayage log");
-double loginc = log( f1 / f0 ) / (double)(p->d->fsamp*duree);
+double loginc = log( f1 / f0 ) / double( estpfr );
 
 // variables temporaires
 unsigned int i;
 double phi, v, flog, f;
-
-unsigned int estpfr = p->d->fsamp * duree;	// nombre de frames
 
 flog = log( f0 );
 phi = 0.0; 
@@ -396,13 +396,13 @@ amplitude = clic.a;	// global amplitude
 
 switch	( clic.type )
 	{
-	case 'L' : bal_f_log( &p, (int)clic.d, clic.b, clic.e );
+	case 'L' : bal_f_log( &p, clic.d, clic.b, clic.e );
 		break;
-	case 'I' : bal_f_lin( &p, (int)clic.d, clic.b, clic.e );
+	case 'I' : bal_f_lin( &p, clic.d, clic.b, clic.e );
 		break;
-	case 'F' : gen_fix_f( &p, clic.b, clic.e, (int)clic.d );
+	case 'F' : gen_fix_f( &p, clic.b, clic.e, clic.d );
 		break;
-	case 'T' : gen_tri_f( &p, clic.b, (int)clic.d );
+	case 'T' : gen_tri_f( &p, clic.b, clic.d );
 		break;
 	case 'G' : bal_gamme( &p, clic.d, 1, (int)clic.b, (int)clic.e );
 		break;            
