@@ -10,11 +10,12 @@ on s'en passera si on peut
 
 https://www.mpg123.de/api/
 
-gcc -Wall -o mp3in.exe mp3in.cpp -lmpg123
+g++ -Wall -o mp3in.exe mp3in.cpp -lmpg123 -O2 -mms-bitfields
 
 */
 
 #include <mpg123.h>
+#include <cstdlib>
 #include <stdio.h>
 
 #include "mp3in.h"
@@ -39,6 +40,19 @@ if	( retval != MPG123_OK )
 retval = mpg123_param( mhand, MPG123_VERBOSE, verbose, 0 );	// valeurs utiles 2, 3, 4
 if	( retval != MPG123_OK )
 	{ errfunc = "param verb"; return retval; }
+
+retval = mpg123_format_none( mhand );
+if	( retval != MPG123_OK )
+	{ errfunc = "format none"; return retval; }
+
+// ici on indique quel format de sortie on accepte, mpg123 va choisir le plus relevant
+// ou convertir (ce qu'on veut eviter)
+//	sample rate	: 0 = on accepte tout, i.e. selon input file
+//	channels	: MPG123_STEREO | MPG123_MONO = on accepte tout, i.e. selon input file
+//	encoding	: MPG123_ENC_FLOAT_32 (par defaut (non documente) etait MPG123_ENC_SIGNED_16)
+retval = mpg123_format2( mhand, 0, MPG123_STEREO | MPG123_MONO, MPG123_ENC_FLOAT_32 );
+if	( retval != MPG123_OK )
+	{ errfunc = "format FLOAT_32"; return retval; }
 
 retval = mpg123_open( mhand, fnam );
 if	( retval != MPG123_OK )
@@ -96,32 +110,35 @@ realpfr += cnt;
 return (int)cnt;
 }
 
-/*
+/* just for separate test *
+#define QPFR 1152
+
 int main( int argc, char *argv[] )
 {
 int retval;
 mp3in m3;
 unsigned char* pcmbuf;
 size_t qpcmbuf;
-size_t totbytes;
+unsigned int qpfr = QPFR;
+
+int verbose = 4;
 
 if	( argc <= 1 )
 	return 1;
 
 if	( argc > 2 )
-	m3.verbose = atoi( argv[2] );
+	verbose = atoi( argv[2] );
 
 // 1ere etape : lire un premiere bloc pour avoir les parametres
-retval = m3.read_head( argv[1] );
+retval = m3.read_head( argv[1], verbose );
 if	( retval )
 	{
 	printf("error read_head: %s : %s\n", m3.errfunc, mpg123_plain_strerror(retval) );
 	return -1;
 	}
-printf("got %d channels @ %d Hz, monosamplesize %d\n",
+printf("JAW: got %d channels @ %d Hz, monosamplesize %d\n",
 	m3.qchan, m3.fsamp, m3.monosamplesize );
-printf("recommended buffer %d bytes\n", (int)m3.outblock );
-printf("estimated length : %u samples\n", (unsigned int)m3.estqsamp );
+printf("JAW: recommended buffer %d bytes (vs %d)\n", (int)m3.outblock, 1152 * m3.monosamplesize * m3.qchan );
 fflush(stdout);
 
 // 2eme etape : allouer de la memoire
@@ -132,24 +149,19 @@ if	( pcmbuf == NULL )
 	return -666;
 
 // 3eme etape : boucler sur le buffer
-totbytes = 0;
 do	{
-	retval = m3.read_data_b( pcmbuf, qpcmbuf );
-	if	( retval > 0 )
-		totbytes += retval;
-	} while ( retval == (int)qpcmbuf );
+	retval = m3.read_data_p( pcmbuf, qpfr );
+	if	( retval < 0 )
+		{
+		printf("error read_data: %s\n", m3.errfunc );
+		}
+	} while ( retval == QPFR );
 
-if	( retval < 0 )
-	{
-	printf("error read_data: %s\n", m3.errfunc );
-	}
-
-printf("%u bytes decoded (%u vs %u (est.) samples)\n", (unsigned int)totbytes,
-	((unsigned int)totbytes)/(m3.monosamplesize*m3.qchan), (unsigned int)m3.estqsamp );
+printf("JAW: %u vs %u pcm frames decoded\n", m3.realpfr, m3.estpfr );
 
 mpg123_close(m3.mhand); mpg123_delete(m3.mhand); mpg123_exit();
 
 fflush(stdout);
 return 0;
 }
-*/
+//*/

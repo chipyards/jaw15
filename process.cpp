@@ -49,7 +49,7 @@ printf("ouverture %s %s en lecture\n", (mp3flag?"MP3":"WAV"), wnam ); fflush(std
 
 // 1ere etape : lire un premier bloc pour avoir les parametres
 if	( mp3flag )
-	{ /*	// en attente de migration vers f32
+	{
 	af = (audiofile *)&m3;
 	retval = m3.read_head( wnam, verbose );
 	if	( retval )
@@ -57,9 +57,7 @@ if	( mp3flag )
 		printf("error read_head: %s : %s\n", m3.errfunc, mpg123_plain_strerror(retval) );
 		fflush(stdout); return -1;
 		}
-	printf("recommended buffer %d bytes\n", (int)m3.outblock );
-	*/
-	return -333;
+	printf("recommended buffer %d bytes (vs %d)\n", (int)m3.outblock, 1152 * m3.monosamplesize * m3.qchan );
 	}
 else if	( midiflag )
 	{ /*	// en attente de migration vers f32
