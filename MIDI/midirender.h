@@ -4,7 +4,7 @@
 // supported synths :
 //	- fluid
 // supported audio formats
-//	- s16 (avec monosamplesize = 2, defaut )
+//	- s16 (avec monosamplesize = 2 )
 //	- f32 (avec monosamplesize = 4 )
 
 #include "../audiofile.h"

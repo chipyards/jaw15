@@ -60,7 +60,7 @@ if	( mp3flag )
 	printf("recommended buffer %d bytes (vs %d)\n", (int)m3.outblock, 1152 * m3.monosamplesize * m3.qchan );
 	}
 else if	( midiflag )
-	{ /*	// en attente de migration vers f32
+	{
 	af = (audiofile *)&mid;
 	retval = mid.read_head( wnam, verbose );
 	if	( retval )
@@ -68,13 +68,13 @@ else if	( midiflag )
 		printf("error midi read_head: %d\n", retval );
 		fflush(stdout); return -1;
 		}
-	// automatic gain adjust
+	mid.monosamplesize = 4;	// indiquer a la version midi de read_data_p() qu'on demande du float 32
+	/* automatic gain adjust
 	double lemax = mid.pre_render();
 	printf("max signal = %g\n", lemax ); fflush(stdout);
 	if	( lemax > 0.0 )
 		mid.flusyn.set_gain( 1.0 / lemax );
 	*/
-	return -333;
 	}
 else	{
 	af = (audiofile *)&wavp;

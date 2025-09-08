@@ -33,9 +33,9 @@ if	( retval ) return retval;
 retval = flusyn.load_sf2();	// selon flusyn.sf2file
 if	( retval ) return retval;
 
-monosamplesize = 2;		// pour le moment seult s16...
-qchan = 2;			// toujours stereo
-next_evi = 0;			// start play
+monosamplesize = 2;	// par defaut, peut etre change apres retour de cette fonction
+qchan = 2;		// toujours stereo
+next_evi = 0;		// start play
 return 0;
 };
 
