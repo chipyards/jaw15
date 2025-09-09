@@ -22,6 +22,7 @@ using namespace std;
 
 #include "JLUP/jluplot.h"
 #include "JLUP/gluplot.h"
+#include "JLUP/layer_lod.h"	// for debug
 #ifdef USE_PORTAUDIO
   #include "portaudio_2011.h"
   #include "pa_devs.h"
@@ -483,6 +484,10 @@ switch	( v )
 		fflush(stdout);
 		break;
 	//
+	case 'z' :	// debug : reiteration de make_lods sans fuite
+		((layer_lod<float> *)glo->panneau.bandes[0]->courbes[0])->make_lods( 5, 5, 2000 );
+		break;
+	//
 	case 'p' :
 		glo->panneau.png_save_drawpad( "drawpad.png" );
 		break;
@@ -569,6 +574,7 @@ if	( ( this->pro.Lbuf.size ) && ( this->panneau.bandes.size() >= 1 ) )
 	{
 	int retval;
 	parametrize();
+	// ne calcule le spectre 2D que s'il est vide (neuf ou nettoye avec spectro::specfree() )
 	retval = this->pro.spectrum_compute2D( this->option_monospec, this->option_linspec );
 	if	( retval )
 		gasp("echec spectrum, erreur %d", retval );

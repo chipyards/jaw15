@@ -39,6 +39,8 @@ demo5
 	manips DSP
 		exp. 1 autour du filtre ideal (sinc fenetre) pour resampling
 		exp. 2 filtrage d'un fichier wav
+		exp. 3 resampling d'un fichier wav
+		exp. 4 resampling d'une image png
 
 demo6
 	layer_u		en double, styles 0 et 2

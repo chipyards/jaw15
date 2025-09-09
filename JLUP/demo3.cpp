@@ -93,6 +93,11 @@ switch	( v )
 		i1 = ((layer_lod<short> *)glo->panneau1.bandes[0]->courbes[1])->ilod;
 		printf("ilod: %d %d\n", i0, i1 ); fflush(stdout);
 		break;
+	// test de reiteration de make_lods (a faire apres modif des data)
+	case 'z' :
+		((layer_lod<float> *)glo->panneau1.bandes[0]->courbes[0])->make_lods( 5, 5, 2000 );
+		((layer_lod<short> *)glo->panneau1.bandes[0]->courbes[1])->make_lods( 3, 3, 2000 );
+		break;
 	//
 	case 't' :
 		glo->panneau1.bandes[0]->subtk *= 2.0;

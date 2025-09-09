@@ -32,8 +32,10 @@ using namespace std;
 
 #define QMORE	(1<<21)	// quantum pour reallocation ( 1 page = 4M = (1<<20)floats )
 
-// allocation memoire et lecture WAV ou MP3 16 bits entier en memoire
-// donnees stockées dans les buffers de l'objet process
+// cette fonction pourrait s'appeler audiofile_load, mais dans le cas de MIDI,
+// elle fait plus que loader, elle effectue un render, d'ou le nom process
+// dans tous les cas, son produit final est de l'audio dans 1 ou 2 buffers
+// les buffers sont dans l'objet process, l'allocation dynamique est faite ici
 int process::audiofile_process( int verbose )
 {
 int retval;

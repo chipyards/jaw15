@@ -88,7 +88,7 @@ void draw( cairo_t * cai ) {				// dessin full strip
 };
 
 // layer_lod : une courbe a pas uniforme en Tsamp (classe derivee de layer_base)
-// supporte multiples LOD (Level Of Detail)
+// supporte multiples LOD (Level Of Detail) - peut etre reiteree sans fuite memoire
 
 // allouer et calculer les LODs - un LOD est une fonction enveloppe representable par des barres verticales
 //	klod1 = premiere decimation, utilisee pour passer de l'audio a la premiere enveloppe
@@ -98,6 +98,15 @@ void draw( cairo_t * cai ) {				// dessin full strip
 // la taille passe en dessous de klod2 * maxwin, alors c'est fini.
 template <typename Tsamp> int layer_lod<Tsamp>::make_lods( unsigned int klod1, unsigned int klod2, unsigned int maxwin )
 {
+// ------------------------------ effacement de tous les lods s'ils existent
+if	( lods.size() )
+	{
+	printf("about to free %d lods\n", lods.size() ); fflush(stdout);
+	for	( unsigned int i = 0; i < lods.size(); ++i )
+		if	( lods[i].min ) free( lods[i].min );
+	lods.clear();
+	printf("now %d lods\n", lods.size() ); fflush(stdout);
+	}
 unsigned int lodsize;
 unsigned int i;		// indice source
 unsigned int j;		// sous-indice decimation
