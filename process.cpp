@@ -234,17 +234,23 @@ panneau->fullMN(); panneau->force_repaint = 1; panneau->force_redraw = 1;
 
 // sauver Lbuf(0), ou Rbuf(1), ou Lbuf et Rbuf en stereo (2) ou mono (3)
 int process::wavfile_save( const char * fnam, int mode )
-{ /*	// en attente de migration vers f32
+{
 int retval;
 unsigned int qpfr, i, j;
-short pcmbuf[QRAW*2];
+float pcmbuf[QRAW*2];
 wavio neww;
+
+if	( ( af->qchan < 2 ) && ( mode > 0 ) )
+	{
+	printf("Notice: only 1 channel available, saving mono\n");
+	mode = 0;
+	}
 
 neww.qchan   = ((mode==2)?2:1);
 neww.fsamp   = af->fsamp;
 neww.realpfr = Lbuf.size;
-neww.monosamplesize = 2;
-neww.type = 1;
+neww.monosamplesize = 4;
+neww.type = 3;	// float
 
 retval = neww.write_head( fnam );	// remet realpfr a zero apres l'avoir ecrit
 if	( retval )
@@ -272,7 +278,7 @@ while	( neww.realpfr < Lbuf.size )
 			break;
 		case 3:	for	( i = 0; i < qpfr; i++ )
 				{
-				pcmbuf[i] = ( Lbuf.data[j] + Rbuf.data[j] ) / 2;
+				pcmbuf[i] = 0.5 * ( Lbuf.data[j] + Rbuf.data[j] );
 				j++;
 				}
 			break;
@@ -283,7 +289,6 @@ while	( neww.realpfr < Lbuf.size )
 	}
 neww.afclose();
 printf("finished writing WAV %s, mode %d\n", fnam, mode ); fflush(stdout);
-*/
 return 0;
 }
 
