@@ -437,6 +437,9 @@ switch	( v )
 	case 'D' :
 		glo->pro.mididump_save( "pipo.txt", 2 );
 		break;
+	case 'N' :
+		glo->pro.audio_normalize( &glo->panneau );
+		break;
 	case ' ' :
 		play_pause_call( NULL, glo );
 		break;

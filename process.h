@@ -20,7 +20,8 @@ process() : sf2file(""), Lpix(NULL), Rpix(NULL) { wnam[0] = 0; };
 // methodes
 // la partie du process qui traite en memoire les wavs, midis, et le spectre
 
-int audiofile_process( int verbose = 0 );		// wav ou mp3 ou mid
+int audiofile_process( int verbose = 0 );		// wav ou mp3 ou mid -> Lbuf et Rbuf
+void audio_normalize( gpanel * panneau );		// ramene Lbuf et Rbuf dans [-1.0, 1.0]
 int wavfile_save( const char * fnam, int mode );	// sauve Lbuf ou Rbuf ou Lbuf et Rbuf
 int midifile_save( const char * fnam );			// sauve mid.lesong s'il existe
 int mididump_save( const char * fnam, int mode );	// dumpe mid.lesong s'il existe

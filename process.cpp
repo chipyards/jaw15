@@ -202,6 +202,36 @@ fflush(stdout); fflush(stderr);
 return 0;
 }
 
+// ramene Lbuf et Rbuf dans [-1.0, 1.0]
+// met a jour le layout ( les lods doivent changer )
+void process::audio_normalize( gpanel * panneau )
+{
+// recuperer les min et max, connus de JLUPLOT
+double kL, kR = 0.0;
+layer_lod<float> * layL = (layer_lod<float> *)panneau->bandes[0]->courbes[0];
+kL = (( -layL->get_Vmin() > layL->get_Vmax() )?(-layL->get_Vmin()):(layL->get_Vmax()));
+if	( af->qchan > 1 )
+	{
+	layer_lod<float> * layR = (layer_lod<float> *)panneau->bandes[0]->courbes[1];
+	kR = (( -layR->get_Vmin() > layR->get_Vmax() )?(-layR->get_Vmin()):(layR->get_Vmax()));
+	}
+// appliquer la normalisation
+if	( kR > kL )
+	kL = kR;
+printf("about to normalize audio amplitude from %g to 1.0\n", kL );
+kL = 1.0 / kL;
+for	( unsigned int i = 0; i < Lbuf.size; ++i )
+	Lbuf.data[i] *= kL;
+if	( af->qchan > 1 )
+	{
+	for	( unsigned int i = 0; i < Rbuf.size; ++i )
+		Rbuf.data[i] *= kL;
+	}
+// mettre a jour les lods et faire un scan
+connect_layout_W( panneau );
+panneau->fullMN(); panneau->force_repaint = 1; panneau->force_redraw = 1;	
+}
+
 // sauver Lbuf(0), ou Rbuf(1), ou Lbuf et Rbuf en stereo (2) ou mono (3)
 int process::wavfile_save( const char * fnam, int mode )
 { /*	// en attente de migration vers f32
