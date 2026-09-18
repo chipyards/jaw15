@@ -59,6 +59,12 @@ DEMO5/demo5 -Z 32 -P 1.083 -w 5 -6
 DEMO5/demo5 -Z 32 -P 1.2031 -w 6 -6
 DEMO5/demo5 -Z 32 -P 1.2031 -w 11 -B 10.083 -6
 
+# WAV filtrage passe-bas pour test compression AAC
+DEMO5/demo5 -Z 20 -r 48000 -f 10000 -w 5 -H -o DEMO5/seven-demo5.20.w5_10k.wav DEMO5/five.wav 
+DEMO5/demo5 -Z 12 -r 48000 -f 10000 -w 5 -H -o DEMO5/seven-demo5.12.w5_10k.wav DEMO5/five.wav 
+DEMO5/demo5 -Z 12 -r 48000 -f 12000 -w 5 -H -o DEMO5/seven-demo5.12.w5_12k.wav DEMO5/five.wav 
+DEMO5/demo5 -Z 12 -r 48000 -f 14000 -w 5 -H -o DEMO5/seven-demo5.12.w5_14k.wav DEMO5/five.wav 
+
 # WAV filtrage (passe-bande)
 ../wavgen -t I -b 0 -e 22000 -a 0.8 -d 10 -F DEMO5/lin22k.wav
 DEMO5/demo5 -Z 32 -r 44100 -f 2000 -g 4000 -w 5

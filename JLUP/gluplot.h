@@ -72,7 +72,7 @@ Methode gpanel::paint :
 		soit au niveau du panel soit au niveau du strip
 	Notes :
 		- les flags force_redraw n'ont pas d'effet en mode direct (offscreen_flag == 0)
-		- l'animation du curseur audio n'est praticable qu'avec le drawpad (offscreen_flag == 0)
+		- l'animation du curseur audio n'est praticable qu'avec le drawpad (offscreen_flag == 1)
 paint "queue" :
 	Pour eviter de faire plusieurs paints consecutifs dans le meme tour de boucle, l'appel de
 	la methode paint est centralise dans l'idle function, celle-ci va appeler paint() seulement si :

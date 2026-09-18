@@ -3,6 +3,15 @@
 // pour l'activer, definir USE_PORTAUDIO dans le makefile ou le projet
 // de plus pour qu'il utilise ASIO, definir PA_USE_ASIO
 
+// Notes sur le drag-n-drop sur icone Windows :
+// il faut creer une icone contenant le raccourci suivant :
+// C:\Windows\System32\cmd.exe /k "set PATH=F:\Appli\msys64\mingw32\bin;F:\Appli\msys64\usr\bin;%PATH% & kawa.exe -m -T5 ^"%1^""
+// Demarrer dans F:\DEV\JAW15 (ou il y a l'executable)
+// explication :
+//	- le symbole %1 contient le nom de l'objet qui a ete droppe, meme s'il contient des espaces
+//	- il faut le quoter (double quotes) pour que cmd le mette dans un seul arg
+//	- comme la ligne de commnande est deja quotee, il faut escaper les quotes avec des carets (circonflexes)
+
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <cairo-pdf.h>
@@ -451,6 +460,16 @@ switch	( v )
 		printf("xdirty=%g iplayp=%d, xcursor=%g\n", glo->panneau.xdirty, glo->iplayp, glo->panneau.xcursor );
 		glo->para.panneau.dump();
 		fflush(stdout);
+		break;
+	case 't' :
+		glo->panneau.bandes[0]->subtk *= 2.0;
+		glo->panneau.force_repaint = 1;
+		glo->panneau.force_redraw = 1;		// necessaire cause offscreen_flag
+		break;
+	case 'T' :
+		glo->panneau.bandes[0]->subtk *= 10.0;
+		glo->panneau.force_repaint = 1;
+		glo->panneau.force_redraw = 1;		// necessaire cause offscreen_flag
 		break;
 	case GDK_KEY_F1 :
 		printf("F key hit\n"); fflush(stdout);
